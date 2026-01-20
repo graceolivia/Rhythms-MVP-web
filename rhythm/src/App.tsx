@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Today } from './screens/Today';
 import { DailyRhythm } from './screens/DailyRhythm';
 import { Seeds } from './screens/Seeds';
 import { Garden } from './screens/Garden';
 import { Settings } from './screens/Settings';
+import { Onboarding } from './screens/Onboarding';
 import { BottomNav } from './components/common/BottomNav';
 import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
+import { isFreshInstall } from './utils/storageHelpers';
 import { useChildStore } from './stores/useChildStore';
 import { useNapStore } from './stores/useNapStore';
 import { useTaskStore } from './stores/useTaskStore';
@@ -28,15 +30,21 @@ function AppContent() {
 
 function App() {
   const [isReady, setIsReady] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
-    // Load seed data in development if no data exists
-    if (shouldLoadSeedData()) {
-      loadSeedData({
-        childStore: useChildStore,
-        napStore: useNapStore,
-        taskStore: useTaskStore,
-      });
+    // Check if user needs onboarding
+    if (isFreshInstall()) {
+      // In development, load seed data instead of showing onboarding
+      if (import.meta.env.DEV && shouldLoadSeedData()) {
+        loadSeedData({
+          childStore: useChildStore,
+          napStore: useNapStore,
+          taskStore: useTaskStore,
+        });
+      } else {
+        setNeedsOnboarding(true);
+      }
     }
     setIsReady(true);
   }, []);
@@ -51,7 +59,13 @@ function App() {
 
   return (
     <BrowserRouter>
-      <AppContent />
+      <Routes>
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route
+          path="/*"
+          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <AppContent />}
+        />
+      </Routes>
     </BrowserRouter>
   );
 }
