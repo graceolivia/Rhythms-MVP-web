@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { format } from 'date-fns';
 import { useTaskStore } from '../stores/useTaskStore';
+import { NapControls } from '../components/naps/NapControls';
 import type { Task, TaskInstance, TaskTier } from '../types';
 
 interface TaskWithInstance {
@@ -63,6 +64,10 @@ export function Today() {
           {format(new Date(), 'EEEE, MMMM d')}
         </p>
       </header>
+
+      <div className="mb-6">
+        <NapControls />
+      </div>
 
       {groupedByTier.length === 0 ? (
         <div className="text-center py-12">
