@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { format, getDay } from 'date-fns';
-import type { Task, TaskInstance, TaskStatus, RecurrenceRule } from '../types';
+import { format, getDay, subDays, differenceInDays, parseISO } from 'date-fns';
+import type { Task, TaskInstance, TaskStatus } from '../types';
+
+const SEED_MAX_AGE_DAYS = 14;
 
 interface TaskState {
   tasks: Task[];
@@ -24,6 +26,12 @@ interface TaskState {
   generateDailyInstances: (date: Date) => void;
   getInstancesForDate: (date: string) => TaskInstance[];
   getDeferredTasks: () => TaskInstance[];
+
+  // Seeds queue management
+  getSeeds: () => TaskInstance[];
+  promoteToToday: (instanceId: string) => void;
+  dismissSeed: (instanceId: string) => void;
+  archiveOldSeeds: () => void;
 }
 
 /**
@@ -151,11 +159,35 @@ export const useTaskStore = create<TaskState>()(
       // Daily management
       generateDailyInstances: (date) => {
         const dateStr = format(date, 'yyyy-MM-dd');
-        const { tasks, taskInstances } = get();
+        const yesterdayStr = format(subDays(date, 1), 'yyyy-MM-dd');
+        const { tasks, taskInstances, archiveOldSeeds } = get();
+
+        // First, archive old seeds
+        archiveOldSeeds();
+
+        // Move incomplete tending tasks from yesterday to seeds queue
+        const updatedInstances = taskInstances.map((instance) => {
+          // Only process yesterday's pending tending tasks
+          if (instance.date !== yesterdayStr || instance.status !== 'pending') {
+            return instance;
+          }
+
+          const task = tasks.find((t) => t.id === instance.taskId);
+          if (task?.tier === 'tending') {
+            // Move to seeds queue by marking as deferred
+            return {
+              ...instance,
+              status: 'deferred' as TaskStatus,
+              deferredTo: null, // null means "seeds queue" not a specific date
+            };
+          }
+
+          return instance;
+        });
 
         // Check which tasks already have instances for this date
         const existingTaskIds = new Set(
-          taskInstances
+          updatedInstances
             .filter((instance) => instance.date === dateStr)
             .map((instance) => instance.taskId)
         );
@@ -172,11 +204,9 @@ export const useTaskStore = create<TaskState>()(
             deferredTo: null,
           }));
 
-        if (newInstances.length > 0) {
-          set((state) => ({
-            taskInstances: [...state.taskInstances, ...newInstances],
-          }));
-        }
+        set({
+          taskInstances: [...updatedInstances, ...newInstances],
+        });
       },
 
       getInstancesForDate: (date) => {
@@ -185,6 +215,64 @@ export const useTaskStore = create<TaskState>()(
 
       getDeferredTasks: () => {
         return get().taskInstances.filter((instance) => instance.status === 'deferred');
+      },
+
+      // Seeds queue management
+      getSeeds: () => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        return get().taskInstances.filter(
+          (instance) =>
+            instance.status === 'deferred' &&
+            instance.date !== today // Not today's tasks
+        );
+      },
+
+      promoteToToday: (instanceId) => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        set((state) => ({
+          taskInstances: state.taskInstances.map((instance) =>
+            instance.id === instanceId
+              ? {
+                  ...instance,
+                  date: today,
+                  status: 'pending' as TaskStatus,
+                  deferredTo: null,
+                }
+              : instance
+          ),
+        }));
+      },
+
+      dismissSeed: (instanceId) => {
+        set((state) => ({
+          taskInstances: state.taskInstances.map((instance) =>
+            instance.id === instanceId
+              ? { ...instance, status: 'skipped' as TaskStatus }
+              : instance
+          ),
+        }));
+      },
+
+      archiveOldSeeds: () => {
+        const today = new Date();
+        set((state) => ({
+          taskInstances: state.taskInstances.map((instance) => {
+            // Only process deferred (seeds) instances
+            if (instance.status !== 'deferred') {
+              return instance;
+            }
+
+            const instanceDate = parseISO(instance.date);
+            const ageInDays = differenceInDays(today, instanceDate);
+
+            // Auto-archive seeds older than 14 days
+            if (ageInDays > SEED_MAX_AGE_DAYS) {
+              return { ...instance, status: 'skipped' as TaskStatus };
+            }
+
+            return instance;
+          }),
+        }));
       },
     }),
     {
