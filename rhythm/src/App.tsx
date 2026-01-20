@@ -57,10 +57,14 @@ function App() {
     );
   }
 
+  const handleOnboardingComplete = () => {
+    setNeedsOnboarding(false);
+  };
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/onboarding" element={<Onboarding onComplete={handleOnboardingComplete} />} />
         <Route
           path="/*"
           element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <AppContent />}

@@ -562,7 +562,11 @@ function CompleteStep({ onFinish }: { onFinish: () => void }) {
 // MAIN COMPONENT
 // ============================================
 
-export function Onboarding() {
+interface OnboardingProps {
+  onComplete?: () => void;
+}
+
+export function Onboarding({ onComplete }: OnboardingProps) {
   const navigate = useNavigate();
   const addChild = useChildStore((state) => state.addChild);
   const addNapSchedule = useNapStore((state) => state.addNapSchedule);
@@ -636,6 +640,9 @@ export function Onboarding() {
 
     // Mark as installed
     markAsInstalled();
+
+    // Notify parent that onboarding is complete
+    onComplete?.();
 
     // Navigate to main app
     navigate('/');
