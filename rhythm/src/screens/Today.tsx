@@ -58,7 +58,7 @@ function SkyHeader() {
 }
 
 function TimeBlockBanner() {
-  const { napState, sleepingChildren } = useNapState();
+  const { sleepingChildren } = useNapState();
   const now = new Date();
   const hours = now.getHours();
 

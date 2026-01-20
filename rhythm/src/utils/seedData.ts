@@ -1,5 +1,4 @@
-import { format } from 'date-fns';
-import type { Child, NapSchedule, Task, TaskInstance } from '../types';
+import type { Child, NapSchedule, Task } from '../types';
 
 // ============================================
 // SAMPLE CHILDREN

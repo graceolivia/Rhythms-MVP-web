@@ -1,4 +1,5 @@
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { useMemo } from 'react';
+import { parseISO, differenceInDays, format } from 'date-fns';
 import { useTaskStore } from '../stores/useTaskStore';
 import type { TaskInstance } from '../types';
 
@@ -10,11 +11,11 @@ function SeedAge({ date }: { date: string }) {
 }
 
 function SeedCard({ instance }: { instance: TaskInstance }) {
-  const getTask = useTaskStore((state) => state.getTask);
+  const tasks = useTaskStore((state) => state.tasks);
   const promoteToToday = useTaskStore((state) => state.promoteToToday);
   const dismissSeed = useTaskStore((state) => state.dismissSeed);
 
-  const task = getTask(instance.taskId);
+  const task = tasks.find((t) => t.id === instance.taskId);
   if (!task) return null;
 
   return (
@@ -50,24 +51,34 @@ function SeedCard({ instance }: { instance: TaskInstance }) {
 }
 
 export function Seeds() {
-  const seeds = useTaskStore((state) => state.getSeeds());
+  const taskInstances = useTaskStore((state) => state.taskInstances);
 
-  // Sort seeds by date (most recent first)
-  const sortedSeeds = [...seeds].sort(
-    (a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()
-  );
+  // Calculate seeds from taskInstances
+  const uniqueSeeds = useMemo(() => {
+    const today = format(new Date(), 'yyyy-MM-dd');
 
-  // Group by task to avoid showing duplicates
-  const uniqueSeeds = sortedSeeds.reduce<TaskInstance[]>((acc, seed) => {
-    const alreadyHasTask = acc.some((s) => s.taskId === seed.taskId);
-    if (!alreadyHasTask) {
-      acc.push(seed);
-    }
-    return acc;
-  }, []);
+    // Get all deferred tasks from previous days
+    const seeds = taskInstances.filter(
+      (instance) => instance.status === 'deferred' && instance.date !== today
+    );
+
+    // Sort by date (most recent first)
+    const sortedSeeds = [...seeds].sort(
+      (a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()
+    );
+
+    // Group by task to avoid showing duplicates
+    return sortedSeeds.reduce<TaskInstance[]>((acc, seed) => {
+      const alreadyHasTask = acc.some((s) => s.taskId === seed.taskId);
+      if (!alreadyHasTask) {
+        acc.push(seed);
+      }
+      return acc;
+    }, []);
+  }, [taskInstances]);
 
   return (
-    <div className="min-h-screen bg-cream p-4">
+    <div className="min-h-screen bg-cream p-4 pb-24">
       <header className="mb-6">
         <h1 className="font-display text-2xl text-bark">Tomorrow's Seeds</h1>
         <p className="text-bark/60 text-sm">

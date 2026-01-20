@@ -1,13 +1,5 @@
 import { useMemo } from 'react';
-import {
-  format,
-  parseISO,
-  startOfWeek,
-  startOfMonth,
-  isToday,
-  isSameWeek,
-  isSameMonth,
-} from 'date-fns';
+import { format, parseISO, startOfMonth } from 'date-fns';
 import { useGardenStore } from '../stores/useGardenStore';
 import { useGoodEnoughDay } from '../hooks/useGoodEnoughDay';
 import type { Flower, FlowerType, Season } from '../types';
@@ -73,7 +65,7 @@ function FlowerBadge({ flower }: { flower: Flower }) {
 }
 
 function PendingFlower() {
-  const { isGoodEnough, rhythmsCompleted, rhythmsTotal } = useGoodEnoughDay();
+  const { isGoodEnough } = useGoodEnoughDay();
 
   if (isGoodEnough) return null;
 

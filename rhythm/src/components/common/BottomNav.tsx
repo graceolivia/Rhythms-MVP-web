@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTaskStore } from '../../stores/useTaskStore';
 
@@ -59,8 +60,15 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
 }
 
 function SeedsBadge() {
-  const seeds = useTaskStore((state) => state.getSeeds());
-  const count = seeds.length;
+  const taskInstances = useTaskStore((state) => state.taskInstances);
+
+  // Calculate seeds count directly instead of calling getSeeds()
+  const count = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return taskInstances.filter(
+      (instance) => instance.status === 'deferred' && instance.date !== today
+    ).length;
+  }, [taskInstances]);
 
   if (count === 0) return null;
 

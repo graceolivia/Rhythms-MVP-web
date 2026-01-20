@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { format, parseISO, getMonth } from 'date-fns';
+import { format, getMonth } from 'date-fns';
 import type { Flower, FlowerType, Season, Garden } from '../types';
 
 function getCurrentSeason(): Season {
@@ -32,7 +32,7 @@ export const useGardenStore = create<GardenState>()(
       currentSeason: getCurrentSeason(),
       unlockedCustomizations: [],
 
-      earnFlower: (type, challengeId = null) => {
+      earnFlower: (type, challengeId) => {
         const id = uuidv4();
         const today = format(new Date(), 'yyyy-MM-dd');
 
