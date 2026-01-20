@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { format } from 'date-fns';
 import { useTaskStore } from '../stores/useTaskStore';
 import { NapControls } from '../components/naps/NapControls';
+import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
 import type { Task, TaskInstance, TaskTier } from '../types';
 
 interface TaskWithInstance {
@@ -139,6 +140,8 @@ export function Today() {
           ))}
         </div>
       )}
+
+      <GoodEnoughModal />
     </div>
   );
 }
