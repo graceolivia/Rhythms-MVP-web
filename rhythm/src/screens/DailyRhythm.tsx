@@ -1,6 +1,7 @@
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
+import type { ChildColor } from '../types';
 
 // Timeline config
 const START_HOUR = 6; // 6 AM
@@ -8,13 +9,17 @@ const END_HOUR = 21; // 9 PM
 const TOTAL_HOURS = END_HOUR - START_HOUR;
 const HOUR_HEIGHT = 48; // pixels per hour
 
-// Colors for different children
-const CHILD_COLORS = [
-  { bg: 'bg-lavender/60', border: 'border-lavender', text: 'text-purple-900' },
-  { bg: 'bg-sage/60', border: 'border-sage', text: 'text-green-900' },
-  { bg: 'bg-skyblue/60', border: 'border-skyblue', text: 'text-blue-900' },
-  { bg: 'bg-dustyrose/60', border: 'border-dustyrose', text: 'text-rose-900' },
-];
+// Color styles mapped to ChildColor values
+const COLOR_STYLES: Record<ChildColor, { bg: string; border: string; text: string }> = {
+  lavender: { bg: 'bg-lavender/60', border: 'border-lavender', text: 'text-purple-900' },
+  sage: { bg: 'bg-sage/60', border: 'border-sage', text: 'text-green-900' },
+  skyblue: { bg: 'bg-skyblue/60', border: 'border-skyblue', text: 'text-blue-900' },
+  dustyrose: { bg: 'bg-dustyrose/60', border: 'border-dustyrose', text: 'text-rose-900' },
+  terracotta: { bg: 'bg-terracotta/60', border: 'border-terracotta', text: 'text-orange-900' },
+  clay: { bg: 'bg-clay/60', border: 'border-clay', text: 'text-amber-900' },
+};
+
+const DEFAULT_COLOR: ChildColor = 'lavender';
 
 function formatHour(hour: number): string {
   if (hour === 0) return '12 AM';
@@ -30,7 +35,7 @@ interface NapBlock {
   startMinutes: number; // minutes from START_HOUR
   endMinutes: number;
   isActive: boolean;
-  colorIndex: number;
+  color: ChildColor;
 }
 
 export function DailyRhythm() {
@@ -40,12 +45,6 @@ export function DailyRhythm() {
 
   // Get today's naps
   const todaysNaps = napLogs.filter((log) => log.date === today);
-
-  // Build child color map
-  const childColorMap = new Map<string, number>();
-  children.forEach((child, index) => {
-    childColorMap.set(child.id, index % CHILD_COLORS.length);
-  });
 
   // Convert naps to blocks
   const napBlocks: NapBlock[] = todaysNaps.map((nap) => {
@@ -67,7 +66,7 @@ export function DailyRhythm() {
       startMinutes: Math.max(0, startMinutes),
       endMinutes: Math.min(TOTAL_HOURS * 60, endMinutes),
       isActive: nap.endedAt === null,
-      colorIndex: childColorMap.get(nap.childId) || 0,
+      color: child?.color || DEFAULT_COLOR,
     };
   });
 
@@ -89,8 +88,7 @@ export function DailyRhythm() {
       {children.filter(c => c.isNappingAge).length > 0 && (
         <div className="flex flex-wrap gap-3 mb-4">
           {children.filter(c => c.isNappingAge).map((child) => {
-            const colorIndex = childColorMap.get(child.id) || 0;
-            const colors = CHILD_COLORS[colorIndex];
+            const colors = COLOR_STYLES[child.color || DEFAULT_COLOR];
             return (
               <div key={child.id} className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded ${colors.bg} ${colors.border} border`} />
@@ -123,8 +121,6 @@ export function DailyRhythm() {
             const columnCount = children.filter(c => c.isNappingAge).length;
             const columnWidth = `calc((100% - 4rem) / ${columnCount})`;
             const columnLeft = `calc(4rem + (100% - 4rem) * ${childIndex} / ${columnCount})`;
-            const colorIndex = childColorMap.get(child.id) || 0;
-            const colors = CHILD_COLORS[colorIndex];
             const childNaps = napBlocks.filter(b => b.childId === child.id);
 
             return (
@@ -134,6 +130,7 @@ export function DailyRhythm() {
                 style={{ left: columnLeft, width: columnWidth, paddingRight: '4px' }}
               >
                 {childNaps.map((block) => {
+                  const blockColors = COLOR_STYLES[block.color];
                   const top = (block.startMinutes / 60) * HOUR_HEIGHT;
                   const height = Math.max(
                     24,
@@ -143,17 +140,17 @@ export function DailyRhythm() {
                   return (
                     <div
                       key={block.id}
-                      className={`absolute left-0 right-1 rounded-lg border-2 ${colors.bg} ${colors.border} ${
+                      className={`absolute left-0 right-1 rounded-lg border-2 ${blockColors.bg} ${blockColors.border} ${
                         block.isActive ? 'animate-pulse' : ''
                       } overflow-hidden`}
                       style={{ top, height }}
                     >
-                      <div className={`px-2 py-1 text-xs font-medium ${colors.text} truncate`}>
+                      <div className={`px-2 py-1 text-xs font-medium ${blockColors.text} truncate`}>
                         {block.childName}
                         {block.isActive && ' 💤'}
                       </div>
                       {height > 40 && (
-                        <div className={`px-2 text-xs ${colors.text} opacity-70`}>
+                        <div className={`px-2 text-xs ${blockColors.text} opacity-70`}>
                           {format(parseISO(todaysNaps.find(n => n.id === block.id)!.startedAt), 'h:mm a')}
                           {!block.isActive && (
                             <> – {format(parseISO(todaysNaps.find(n => n.id === block.id)!.endedAt!), 'h:mm a')}</>

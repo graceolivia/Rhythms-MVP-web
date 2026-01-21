@@ -1,10 +1,13 @@
 // Children & Naps
 
+export type ChildColor = 'lavender' | 'sage' | 'skyblue' | 'dustyrose' | 'terracotta' | 'clay';
+
 export interface Child {
   id: string;
   name: string;
   birthdate: string; // ISO date
   isNappingAge: boolean;
+  color?: ChildColor;
 }
 
 export interface NapSchedule {

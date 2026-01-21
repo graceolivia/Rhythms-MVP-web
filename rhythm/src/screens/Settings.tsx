@@ -1,4 +1,14 @@
 import { useChildStore } from '../stores/useChildStore';
+import type { ChildColor } from '../types';
+
+const COLOR_OPTIONS: { value: ChildColor; label: string; bgClass: string; borderClass: string }[] = [
+  { value: 'lavender', label: 'Lavender', bgClass: 'bg-lavender', borderClass: 'border-lavender' },
+  { value: 'sage', label: 'Sage', bgClass: 'bg-sage', borderClass: 'border-sage' },
+  { value: 'skyblue', label: 'Sky Blue', bgClass: 'bg-skyblue', borderClass: 'border-skyblue' },
+  { value: 'dustyrose', label: 'Dusty Rose', bgClass: 'bg-dustyrose', borderClass: 'border-dustyrose' },
+  { value: 'terracotta', label: 'Terracotta', bgClass: 'bg-terracotta', borderClass: 'border-terracotta' },
+  { value: 'clay', label: 'Clay', bgClass: 'bg-clay', borderClass: 'border-clay' },
+];
 
 export function Settings() {
   const children = useChildStore((state) => state.children);
@@ -11,6 +21,7 @@ export function Settings() {
       name: '',
       birthdate: '',
       isNappingAge: true,
+      color: 'lavender',
     });
   };
 
@@ -55,6 +66,27 @@ export function Settings() {
                   onChange={(e) => updateChild(child.id, { birthdate: e.target.value })}
                   className="w-full mb-3 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
                 />
+
+                {/* Color picker */}
+                <div className="mb-3">
+                  <label className="block text-sm text-bark/70 mb-2">Color</label>
+                  <div className="flex flex-wrap gap-2">
+                    {COLOR_OPTIONS.map((color) => (
+                      <button
+                        key={color.value}
+                        onClick={() => updateChild(child.id, { color: color.value })}
+                        className={`w-8 h-8 rounded-full ${color.bgClass} border-2 transition-all ${
+                          child.color === color.value
+                            ? 'border-bark scale-110 shadow-md'
+                            : 'border-transparent hover:scale-105'
+                        }`}
+                        title={color.label}
+                        aria-label={color.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+
                 <label className="flex items-center gap-2 text-sm text-bark/70">
                   <input
                     type="checkbox"
