@@ -5,7 +5,7 @@ import { useChildStore } from '../../stores/useChildStore';
 import { useNapStore } from '../../stores/useNapStore';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { markAsInstalled } from '../../utils/storageHelpers';
-import type { Child, NapSchedule, Task, SeasonOfLife, TaskTier, TaskCategory } from '../../types';
+import type { SeasonOfLife, TaskTier, TaskCategory } from '../../types';
 
 // ============================================
 // TYPES
