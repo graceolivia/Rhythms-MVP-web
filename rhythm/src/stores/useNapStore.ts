@@ -18,6 +18,7 @@ interface NapState {
   // Nap log actions
   startNap: (childId: string) => string;
   endNap: (childId: string) => void;
+  updateNapLog: (logId: string, updates: Partial<Pick<NapLog, 'startedAt' | 'endedAt'>>) => void;
   getNapsForDate: (date: string) => NapLog[];
   getActiveNaps: () => NapLog[];
   isChildNapping: (childId: string) => boolean;
@@ -87,6 +88,14 @@ export const useNapStore = create<NapState>()(
             log.childId === childId && log.endedAt === null
               ? { ...log, endedAt: now }
               : log
+          ),
+        }));
+      },
+
+      updateNapLog: (logId, updates) => {
+        set((state) => ({
+          napLogs: state.napLogs.map((log) =>
+            log.id === logId ? { ...log, ...updates } : log
           ),
         }));
       },
