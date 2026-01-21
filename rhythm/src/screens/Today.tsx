@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useGardenStore } from '../stores/useGardenStore';
@@ -7,6 +7,7 @@ import { useNapState } from '../hooks/useNapState';
 import { useSunTimes } from '../hooks/useSunTimes';
 import { NapControls } from '../components/naps/NapControls';
 import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
+import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
 import type { Task, TaskInstance, TaskTier } from '../types';
 
 interface TaskWithInstance {
@@ -218,6 +219,7 @@ function TaskCard({
 
 export function Today() {
   const today = format(new Date(), 'yyyy-MM-dd');
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const tasks = useTaskStore((state) => state.tasks);
   const taskInstances = useTaskStore((state) => state.taskInstances);
@@ -308,6 +310,24 @@ export function Today() {
       </div>
 
       <GoodEnoughModal />
+
+      {/* Floating Add Button */}
+      <div className="fixed bottom-20 left-0 right-0 flex justify-center z-40 pointer-events-none">
+        <div className="w-full max-w-lg px-4 flex justify-end pointer-events-auto">
+          <button
+            onClick={() => setShowQuickAdd(true)}
+            className="w-14 h-14 bg-terracotta text-cream rounded-full shadow-xl hover:shadow-2xl hover:-translate-y-1 hover:bg-terracotta/90 transition-all duration-200 flex items-center justify-center"
+            aria-label="Add new seed"
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Add Modal */}
+      <QuickAddSeed isOpen={showQuickAdd} onClose={() => setShowQuickAdd(false)} />
     </div>
   );
 }

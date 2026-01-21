@@ -30,6 +30,7 @@ interface TaskState {
 
   // Seeds queue management
   getSeeds: () => TaskInstance[];
+  addSeed: (title: string, napContext: Task['napContext'], category?: Task['category']) => void;
   promoteToToday: (instanceId: string) => void;
   dismissSeed: (instanceId: string) => void;
   archiveOldSeeds: () => void;
@@ -230,6 +231,37 @@ export const useTaskStore = create<TaskState>()(
             instance.status === 'deferred' &&
             instance.date !== today // Not today's tasks
         );
+      },
+
+      addSeed: (title, napContext, category = 'other') => {
+        // Create task template
+        const taskId = uuidv4();
+        const newTask: Task = {
+          id: taskId,
+          title,
+          tier: 'tending',
+          scheduledTime: null,
+          recurrence: 'daily',
+          napContext,
+          isActive: true,
+          category,
+        };
+
+        // Create deferred instance (yesterday's date so it shows in seeds)
+        const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+        const newInstance: TaskInstance = {
+          id: uuidv4(),
+          taskId,
+          date: yesterday,
+          status: 'deferred',
+          completedAt: null,
+          deferredTo: null,
+        };
+
+        set((state) => ({
+          tasks: [...state.tasks, newTask],
+          taskInstances: [...state.taskInstances, newInstance],
+        }));
       },
 
       promoteToToday: (instanceId) => {
