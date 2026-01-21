@@ -14,6 +14,7 @@ interface TaskState {
   addTask: (task: Omit<Task, 'id'>) => string;
   updateTask: (id: string, updates: Partial<Omit<Task, 'id'>>) => void;
   deleteTask: (id: string) => void;
+  clearTasks: () => void;
   getTask: (id: string) => Task | undefined;
 
   // Task instance actions
@@ -96,6 +97,10 @@ export const useTaskStore = create<TaskState>()(
           // Also remove any instances of this task
           taskInstances: state.taskInstances.filter((instance) => instance.taskId !== id),
         }));
+      },
+
+      clearTasks: () => {
+        set({ tasks: [], taskInstances: [] });
       },
 
       getTask: (id) => {

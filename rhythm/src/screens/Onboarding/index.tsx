@@ -569,8 +569,11 @@ interface OnboardingProps {
 export function Onboarding({ onComplete }: OnboardingProps) {
   const navigate = useNavigate();
   const addChild = useChildStore((state) => state.addChild);
+  const clearChildren = useChildStore((state) => state.clearChildren);
   const addNapSchedule = useNapStore((state) => state.addNapSchedule);
+  const clearNapSchedules = useNapStore((state) => state.clearNapSchedules);
   const addTask = useTaskStore((state) => state.addTask);
+  const clearTasks = useTaskStore((state) => state.clearTasks);
 
   const [step, setStep] = useState<Step>('welcome');
   const [data, setData] = useState<OnboardingData>({
@@ -597,6 +600,11 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   };
 
   const handleFinish = () => {
+    // Clear any existing data (e.g., seed data from development)
+    clearChildren();
+    clearNapSchedules();
+    clearTasks();
+
     // Save children and create ID mapping
     const childIdMap = new Map<string, string>();
     data.children.forEach((child) => {

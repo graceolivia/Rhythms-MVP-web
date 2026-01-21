@@ -12,6 +12,7 @@ interface NapState {
   addNapSchedule: (schedule: Omit<NapSchedule, 'id'>) => string;
   updateNapSchedule: (id: string, updates: Partial<Omit<NapSchedule, 'id'>>) => void;
   removeNapSchedule: (id: string) => void;
+  clearNapSchedules: () => void;
   getSchedulesForChild: (childId: string) => NapSchedule[];
 
   // Nap log actions
@@ -50,6 +51,10 @@ export const useNapStore = create<NapState>()(
         set((state) => ({
           napSchedules: state.napSchedules.filter((schedule) => schedule.id !== id),
         }));
+      },
+
+      clearNapSchedules: () => {
+        set({ napSchedules: [] });
       },
 
       getSchedulesForChild: (childId) => {
