@@ -88,21 +88,26 @@ export function DailyRhythm() {
       const startOfDay = new Date(completedTime);
       startOfDay.setHours(START_HOUR, 0, 0, 0);
       const minutes = differenceInMinutes(completedTime, startOfDay);
-      if (minutes < 0 || minutes > TOTAL_HOURS * 60) return null;
-
       return {
         id: instance.id,
         title: task.title,
         tier: task.tier,
         scheduledTime: task.scheduledTime,
         minutes,
+        completedLabel: format(completedTime, 'h:mm a'),
       };
     })
     .filter((task): task is NonNullable<typeof task> => task !== null)
     .sort((a, b) => a.minutes - b.minutes);
 
+  const inWindowTasks = completedTasks.filter(
+    (task) => task.minutes >= 0 && task.minutes <= TOTAL_HOURS * 60
+  );
+  const beforeWindowTasks = completedTasks.filter((task) => task.minutes < 0);
+  const afterWindowTasks = completedTasks.filter((task) => task.minutes > TOTAL_HOURS * 60);
+
   const taskLaneCounts = new Map<number, number>();
-  const completedTaskMarkers = completedTasks.map((task) => {
+  const completedTaskMarkers = inWindowTasks.map((task) => {
     const minuteKey = Math.round(task.minutes);
     const lane = taskLaneCounts.get(minuteKey) ?? 0;
     taskLaneCounts.set(minuteKey, lane + 1);
@@ -140,6 +145,25 @@ export function DailyRhythm() {
 
       {/* Timeline */}
       <div className="bg-parchment rounded-xl p-4 overflow-hidden">
+        {beforeWindowTasks.length > 0 && (
+          <div className="mb-4">
+            <p className="text-xs text-bark/50 mb-2">Completed before 6 AM</p>
+            <div className="space-y-1">
+              {beforeWindowTasks.map((task) => {
+                const styles = TASK_TIER_STYLES[task.tier];
+                return (
+                  <div
+                    key={task.id}
+                    className={`flex items-center justify-between text-xs px-2 py-1 rounded-lg border ${styles.bg} ${styles.border} ${styles.text}`}
+                  >
+                    <span className="truncate">{task.title}</span>
+                    <span className="text-bark/50 ml-2">{task.completedLabel}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="relative" style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}>
           {/* Hour lines and labels */}
           {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => (
@@ -233,6 +257,25 @@ export function DailyRhythm() {
             </div>
           )}
         </div>
+        {afterWindowTasks.length > 0 && (
+          <div className="mt-4">
+            <p className="text-xs text-bark/50 mb-2">Completed after 9 PM</p>
+            <div className="space-y-1">
+              {afterWindowTasks.map((task) => {
+                const styles = TASK_TIER_STYLES[task.tier];
+                return (
+                  <div
+                    key={task.id}
+                    className={`flex items-center justify-between text-xs px-2 py-1 rounded-lg border ${styles.bg} ${styles.border} ${styles.text}`}
+                  >
+                    <span className="truncate">{task.title}</span>
+                    <span className="text-bark/50 ml-2">{task.completedLabel}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Empty state */}
