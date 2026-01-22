@@ -1,7 +1,8 @@
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
-import type { ChildColor } from '../types';
+import { useTaskStore } from '../stores/useTaskStore';
+import type { ChildColor, TaskTier } from '../types';
 
 // Timeline config
 const START_HOUR = 6; // 6 AM
@@ -20,6 +21,11 @@ const COLOR_STYLES: Record<ChildColor, { bg: string; border: string; text: strin
 };
 
 const DEFAULT_COLOR: ChildColor = 'lavender';
+const TASK_TIER_STYLES: Record<TaskTier, { bg: string; border: string; text: string }> = {
+  anchor: { bg: 'bg-terracotta/15', border: 'border-terracotta/40', text: 'text-terracotta' },
+  rhythm: { bg: 'bg-sage/15', border: 'border-sage/40', text: 'text-sage' },
+  tending: { bg: 'bg-skyblue/15', border: 'border-skyblue/40', text: 'text-skyblue' },
+};
 
 function formatHour(hour: number): string {
   if (hour === 0) return '12 AM';
@@ -42,6 +48,8 @@ export function DailyRhythm() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const children = useChildStore((state) => state.children);
   const napLogs = useNapStore((state) => state.napLogs);
+  const tasks = useTaskStore((state) => state.tasks);
+  const taskInstances = useTaskStore((state) => state.taskInstances);
 
   // Get today's naps
   const todaysNaps = napLogs.filter((log) => log.date === today);
@@ -68,6 +76,37 @@ export function DailyRhythm() {
       isActive: nap.endedAt === null,
       color: child?.color || DEFAULT_COLOR,
     };
+  });
+
+  const completedTasks = taskInstances
+    .filter((instance) => instance.date === today && instance.status === 'completed' && instance.completedAt)
+    .map((instance) => {
+      const task = tasks.find((t) => t.id === instance.taskId);
+      if (!task || !instance.completedAt) return null;
+
+      const completedTime = parseISO(instance.completedAt);
+      const startOfDay = new Date(completedTime);
+      startOfDay.setHours(START_HOUR, 0, 0, 0);
+      const minutes = differenceInMinutes(completedTime, startOfDay);
+      if (minutes < 0 || minutes > TOTAL_HOURS * 60) return null;
+
+      return {
+        id: instance.id,
+        title: task.title,
+        tier: task.tier,
+        scheduledTime: task.scheduledTime,
+        minutes,
+      };
+    })
+    .filter((task): task is NonNullable<typeof task> => task !== null)
+    .sort((a, b) => a.minutes - b.minutes);
+
+  const taskLaneCounts = new Map<number, number>();
+  const completedTaskMarkers = completedTasks.map((task) => {
+    const minuteKey = Math.round(task.minutes);
+    const lane = taskLaneCounts.get(minuteKey) ?? 0;
+    taskLaneCounts.set(minuteKey, lane + 1);
+    return { ...task, lane };
   });
 
   // Current time indicator
@@ -115,6 +154,25 @@ export function DailyRhythm() {
               <div className="flex-1 border-t border-bark/10" />
             </div>
           ))}
+
+          {/* Completed tasks */}
+          {completedTaskMarkers.map((task) => {
+            const top = (task.minutes / 60) * HOUR_HEIGHT;
+            const styles = TASK_TIER_STYLES[task.tier];
+            const leftOffset = 64 + task.lane * 12;
+
+            return (
+              <div
+                key={task.id}
+                className={`absolute z-20 pointer-events-none px-2 py-0.5 rounded-full border ${styles.bg} ${styles.border} ${styles.text} text-xs font-medium shadow-sm`}
+                style={{ top, left: leftOffset, transform: 'translateY(-50%)' }}
+              >
+                <span className="mr-1">✓</span>
+                {task.title}
+                {task.scheduledTime && <span className="ml-1 opacity-60">{task.scheduledTime}</span>}
+              </div>
+            );
+          })}
 
           {/* Nap columns - one per napping child */}
           {children.filter(c => c.isNappingAge).map((child, childIndex) => {
