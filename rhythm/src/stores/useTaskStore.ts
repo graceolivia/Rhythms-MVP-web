@@ -22,6 +22,7 @@ interface TaskState {
   skipTask: (instanceId: string) => void;
   deferTask: (instanceId: string, deferToDate: string) => void;
   resetTaskInstance: (instanceId: string) => void;
+  updateTaskCompletionTime: (instanceId: string, completedAt: string) => void;
 
   // Daily management
   generateDailyInstances: (date: Date) => void;
@@ -155,6 +156,21 @@ export const useTaskStore = create<TaskState>()(
                   ...instance,
                   status: 'pending' as TaskStatus,
                   completedAt: null,
+                  deferredTo: null,
+                }
+              : instance
+          ),
+        }));
+      },
+
+      updateTaskCompletionTime: (instanceId, completedAt) => {
+        set((state) => ({
+          taskInstances: state.taskInstances.map((instance) =>
+            instance.id === instanceId
+              ? {
+                  ...instance,
+                  status: 'completed' as TaskStatus,
+                  completedAt,
                   deferredTo: null,
                 }
               : instance

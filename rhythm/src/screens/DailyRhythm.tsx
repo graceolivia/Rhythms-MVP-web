@@ -1,4 +1,5 @@
-import { format, parseISO, differenceInMinutes } from 'date-fns';
+import { useState } from 'react';
+import { format, parseISO, differenceInMinutes, set as setTime } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
 import { useTaskStore } from '../stores/useTaskStore';
@@ -50,6 +51,10 @@ export function DailyRhythm() {
   const napLogs = useNapStore((state) => state.napLogs);
   const tasks = useTaskStore((state) => state.tasks);
   const taskInstances = useTaskStore((state) => state.taskInstances);
+  const updateTaskCompletionTime = useTaskStore((state) => state.updateTaskCompletionTime);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTime, setEditingTime] = useState('');
+  const [editingPosition, setEditingPosition] = useState<{ top: number; left: number } | null>(null);
 
   // Get today's naps
   const todaysNaps = napLogs.filter((log) => log.date === today);
@@ -94,6 +99,7 @@ export function DailyRhythm() {
         tier: task.tier,
         scheduledTime: task.scheduledTime,
         minutes,
+        completedAt: instance.completedAt,
         completedLabel: format(completedTime, 'h:mm a'),
       };
     })
@@ -113,6 +119,18 @@ export function DailyRhythm() {
     taskLaneCounts.set(minuteKey, lane + 1);
     return { ...task, lane };
   });
+
+  const activeTask = completedTasks.find((task) => task.id === editingTaskId) || null;
+  const handleSaveTime = () => {
+    if (!activeTask || !editingTime) return;
+    const [hours, minutes] = editingTime.split(':').map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return;
+    const base = parseISO(activeTask.completedAt);
+    const updated = setTime(base, { hours, minutes, seconds: 0, milliseconds: 0 });
+    updateTaskCompletionTime(activeTask.id, updated.toISOString());
+    setEditingTaskId(null);
+    setEditingPosition(null);
+  };
 
   // Current time indicator
   const now = new Date();
@@ -154,10 +172,43 @@ export function DailyRhythm() {
                 return (
                   <div
                     key={task.id}
-                    className={`flex items-center justify-between text-xs px-2 py-1 rounded-lg border ${styles.bg} ${styles.border} ${styles.text}`}
+                    className={`relative flex items-center justify-between text-xs px-2 py-1 rounded-lg border ${styles.bg} ${styles.border} ${styles.text} cursor-pointer hover:shadow-sm`}
+                    onClick={() => {
+                      setEditingTaskId(task.id);
+                      setEditingTime(format(parseISO(task.completedAt), 'HH:mm'));
+                      setEditingPosition(null);
+                    }}
                   >
                     <span className="truncate">{task.title}</span>
                     <span className="text-bark/50 ml-2">{task.completedLabel}</span>
+                    {editingTaskId === task.id && !editingPosition && (
+                      <div className="absolute left-0 top-full mt-2 z-30 bg-cream border border-bark/10 rounded-lg shadow-lg p-3 w-48">
+                        <p className="text-xs text-bark/60 mb-2">Adjust completion time</p>
+                        <input
+                          type="time"
+                          value={editingTime}
+                          onChange={(e) => setEditingTime(e.target.value)}
+                          className="w-full text-sm border border-bark/10 rounded-md px-2 py-1 bg-white mb-2"
+                        />
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => {
+                              setEditingTaskId(null);
+                              setEditingPosition(null);
+                            }}
+                            className="text-xs text-bark/50 hover:text-bark"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSaveTime}
+                            className="text-xs bg-terracotta text-cream px-2 py-1 rounded-md hover:bg-terracotta/90"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -188,8 +239,13 @@ export function DailyRhythm() {
             return (
               <div
                 key={task.id}
-                className={`absolute z-20 pointer-events-none px-2 py-0.5 rounded-full border ${styles.bg} ${styles.border} ${styles.text} text-xs font-medium shadow-sm`}
+                className={`absolute z-20 px-2 py-0.5 rounded-full border ${styles.bg} ${styles.border} ${styles.text} text-xs font-medium shadow-sm cursor-pointer hover:shadow-md`}
                 style={{ top, left: leftOffset, transform: 'translateY(-50%)' }}
+                onClick={() => {
+                  setEditingTaskId(task.id);
+                  setEditingTime(format(parseISO(task.completedAt), 'HH:mm'));
+                  setEditingPosition({ top, left: leftOffset });
+                }}
               >
                 <span className="mr-1">✓</span>
                 {task.title}
@@ -197,6 +253,38 @@ export function DailyRhythm() {
               </div>
             );
           })}
+
+          {activeTask && editingPosition && (
+            <div
+              className="absolute z-30 bg-cream border border-bark/10 rounded-lg shadow-lg p-3 w-48"
+              style={{ top: editingPosition.top + 8, left: editingPosition.left + 16 }}
+            >
+              <p className="text-xs text-bark/60 mb-2">Adjust completion time</p>
+              <input
+                type="time"
+                value={editingTime}
+                onChange={(e) => setEditingTime(e.target.value)}
+                className="w-full text-sm border border-bark/10 rounded-md px-2 py-1 bg-white mb-2"
+              />
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => {
+                    setEditingTaskId(null);
+                    setEditingPosition(null);
+                  }}
+                  className="text-xs text-bark/50 hover:text-bark"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveTime}
+                  className="text-xs bg-terracotta text-cream px-2 py-1 rounded-md hover:bg-terracotta/90"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Nap columns - one per napping child */}
           {children.filter(c => c.isNappingAge).map((child, childIndex) => {
@@ -266,10 +354,43 @@ export function DailyRhythm() {
                 return (
                   <div
                     key={task.id}
-                    className={`flex items-center justify-between text-xs px-2 py-1 rounded-lg border ${styles.bg} ${styles.border} ${styles.text}`}
+                    className={`relative flex items-center justify-between text-xs px-2 py-1 rounded-lg border ${styles.bg} ${styles.border} ${styles.text} cursor-pointer hover:shadow-sm`}
+                    onClick={() => {
+                      setEditingTaskId(task.id);
+                      setEditingTime(format(parseISO(task.completedAt), 'HH:mm'));
+                      setEditingPosition(null);
+                    }}
                   >
                     <span className="truncate">{task.title}</span>
                     <span className="text-bark/50 ml-2">{task.completedLabel}</span>
+                    {editingTaskId === task.id && !editingPosition && (
+                      <div className="absolute left-0 top-full mt-2 z-30 bg-cream border border-bark/10 rounded-lg shadow-lg p-3 w-48">
+                        <p className="text-xs text-bark/60 mb-2">Adjust completion time</p>
+                        <input
+                          type="time"
+                          value={editingTime}
+                          onChange={(e) => setEditingTime(e.target.value)}
+                          className="w-full text-sm border border-bark/10 rounded-md px-2 py-1 bg-white mb-2"
+                        />
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => {
+                              setEditingTaskId(null);
+                              setEditingPosition(null);
+                            }}
+                            className="text-xs text-bark/50 hover:text-bark"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSaveTime}
+                            className="text-xs bg-terracotta text-cream px-2 py-1 rounded-md hover:bg-terracotta/90"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
