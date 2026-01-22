@@ -358,8 +358,7 @@ export function Garden() {
           onDragOver={(e) => handleDragOver(e, col, row)}
           onDrop={(e) => handleDrop(e, col, row)}
           className={`
-            w-10 h-10 flex items-center justify-center rounded
-            transition-all duration-150
+            w-10 h-10 rounded transition-all duration-150
             ${isBlocked ? 'cursor-not-allowed' : 'cursor-pointer'}
             ${!isBlocked && !placedFlower && !isDraggingFrom ? 'hover:bg-sage/30 active:bg-sage/40' : ''}
             ${isDragOver ? 'bg-sage/40 ring-2 ring-sage ring-inset' : ''}
@@ -371,6 +370,7 @@ export function Garden() {
               onDragStart={(e) => handleDragStart(e, placedFlower.id, col, row)}
               onDragEnd={handleDragEnd}
               className={`
+                w-full h-full flex items-center justify-center
                 text-[26px] drop-shadow-md transition-transform duration-200
                 cursor-grab active:cursor-grabbing select-none
                 ${isDragging ? 'opacity-50 animate-wiggle' : 'hover:scale-110'}

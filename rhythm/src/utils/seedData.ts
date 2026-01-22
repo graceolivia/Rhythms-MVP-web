@@ -1,4 +1,5 @@
-import type { Child, NapSchedule, Task } from '../types';
+import type { Child, NapSchedule, Task, FlowerType } from '../types';
+import { DEV_MODE } from '../config/devMode';
 
 // ============================================
 // SAMPLE CHILDREN
@@ -210,12 +211,33 @@ export const seedTasks: Omit<Task, 'id'>[] = [
 ];
 
 // ============================================
+// SEED FLOWERS (for garden testing)
+// ============================================
+
+export const seedFlowers: FlowerType[] = [
+  'daily-daisy',
+  'daily-daisy',
+  'daily-daisy',
+  'daily-daisy',
+  'daily-daisy',
+  'rhythm-rose',
+  'rhythm-rose',
+  'rhythm-rose',
+  'golden-hour-lily',
+  'golden-hour-lily',
+  'self-care-sunflower',
+  'self-care-sunflower',
+  'self-care-sunflower',
+  'challenge-bloom',
+];
+
+// ============================================
 // CHECK IF SEED DATA SHOULD BE LOADED
 // ============================================
 
 export function shouldLoadSeedData(): boolean {
-  // Only load in development mode
-  if (import.meta.env.PROD) {
+  // Only load if DEV_MODE is enabled
+  if (!DEV_MODE) {
     return false;
   }
 
@@ -249,6 +271,9 @@ export function loadSeedData(stores: {
   taskStore: {
     getState: () => { addTask: (task: Omit<Task, 'id'>) => string };
   };
+  gardenStore?: {
+    getState: () => { earnFlower: (type: FlowerType) => string };
+  };
 }): void {
   console.log('🌱 Loading seed data for development...');
 
@@ -281,6 +306,15 @@ export function loadSeedData(stores: {
   seedTasks.forEach((task) => {
     taskState.addTask(task);
   });
+
+  // Add seed flowers for garden testing
+  if (stores.gardenStore) {
+    const gardenState = stores.gardenStore.getState();
+    seedFlowers.forEach((flowerType) => {
+      gardenState.earnFlower(flowerType);
+    });
+    console.log(`🌸 Added ${seedFlowers.length} seed flowers!`);
+  }
 
   console.log('✅ Seed data loaded!');
 }
