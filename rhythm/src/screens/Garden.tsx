@@ -187,17 +187,18 @@ function Toast({ message }: { message: string }) {
 export function Garden() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [draggingFromCell, setDraggingFromCell] = useState<string | null>(null);
+  const [dragOverCell, setDragOverCell] = useState<string | null>(null);
 
   const placedFlowers = useGardenStore((s) => s.placedFlowers);
   const selectedFlowerType = useGardenStore((s) => s.selectedFlowerType);
   const mode = useGardenStore((s) => s.mode);
-  const movingFlowerId = useGardenStore((s) => s.movingFlowerId);
   const flowers = useGardenStore((s) => s.flowers);
 
   const placeFlower = useGardenStore((s) => s.placeFlower);
   const removeFlowerFromGrid = useGardenStore((s) => s.removeFlowerFromGrid);
   const moveFlower = useGardenStore((s) => s.moveFlower);
-  const startMoving = useGardenStore((s) => s.startMoving);
   const setMode = useGardenStore((s) => s.setMode);
   const clearGarden = useGardenStore((s) => s.clearGarden);
   const getFlowerAt = useGardenStore((s) => s.getFlowerAt);
@@ -208,8 +209,59 @@ export function Garden() {
     setTimeout(() => setToast(null), 2000);
   }, []);
 
+  // Drag handlers
+  const handleDragStart = useCallback((e: React.DragEvent, placedId: string, col: number, row: number) => {
+    setDraggingId(placedId);
+    setDraggingFromCell(`${col},${row}`);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', placedId);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingId(null);
+    setDraggingFromCell(null);
+    setDragOverCell(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, col: number, row: number) => {
+    e.preventDefault();
+    const key = `${col},${row}`;
+    if (!BLOCKED_CELLS.has(key)) {
+      e.dataTransfer.dropEffect = 'move';
+      setDragOverCell(key);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, col: number, row: number) => {
+    e.preventDefault();
+    const placedId = e.dataTransfer.getData('text/plain');
+    const key = `${col},${row}`;
+
+    if (BLOCKED_CELLS.has(key)) {
+      showToast("Can't plant there! 🏠");
+      return;
+    }
+
+    const existingFlower = getFlowerAt(col, row);
+    if (existingFlower && existingFlower.id !== placedId) {
+      showToast('Spot occupied!');
+      return;
+    }
+
+    if (moveFlower(placedId, col, row)) {
+      showToast('Moved! ✨');
+    }
+
+    setDraggingId(null);
+    setDraggingFromCell(null);
+    setDragOverCell(null);
+  }, [moveFlower, getFlowerAt, showToast]);
+
   const handleCellClick = useCallback(
     (col: number, row: number) => {
+      // If dragging, don't handle click
+      if (draggingId) return;
+
       const key = `${col},${row}`;
 
       if (BLOCKED_CELLS.has(key)) {
@@ -240,24 +292,6 @@ export function Garden() {
           }
           break;
 
-        case 'move':
-          if (movingFlowerId) {
-            if (existingFlower && existingFlower.id !== movingFlowerId) {
-              showToast('Spot occupied!');
-              return;
-            }
-            if (moveFlower(movingFlowerId, col, row)) {
-              showToast('Moved! ✨');
-            }
-          } else {
-            if (!existingFlower) {
-              showToast('No flower there!');
-              return;
-            }
-            startMoving(existingFlower.id);
-          }
-          break;
-
         case 'remove':
           if (!existingFlower) {
             showToast('No flower there!');
@@ -267,16 +301,25 @@ export function Garden() {
           removeFlowerFromGrid(existingFlower.id);
           showToast(`${emoji} removed`);
           break;
+
+        default:
+          // In place mode, clicking on empty spots places flowers
+          if (!existingFlower && selectedFlowerType) {
+            if (getUnplacedByType(selectedFlowerType).length > 0) {
+              if (placeFlower(col, row)) {
+                const emoji = FLOWER_CATALOG[selectedFlowerType].emoji;
+                showToast(`Planted ${emoji}!`);
+              }
+            }
+          }
       }
     },
     [
+      draggingId,
       mode,
       selectedFlowerType,
-      movingFlowerId,
       placeFlower,
       removeFlowerFromGrid,
-      moveFlower,
-      startMoving,
       getFlowerAt,
       getUnplacedByType,
       showToast,
@@ -293,8 +336,7 @@ export function Garden() {
   }, [placedFlowers.length, clearGarden, showToast]);
 
   const modeLabels: Record<string, string> = {
-    place: 'Tap to place',
-    move: movingFlowerId ? 'Tap destination' : 'Tap flower to move',
+    place: 'Tap to place · Drag to move',
     remove: 'Tap flower to remove',
   };
 
@@ -305,27 +347,40 @@ export function Garden() {
       const key = `${col},${row}`;
       const isBlocked = BLOCKED_CELLS.has(key);
       const placedFlower = getFlowerAt(col, row);
-      const isMoving = placedFlower?.id === movingFlowerId;
+      const isDragging = placedFlower?.id === draggingId;
+      const isDraggingFrom = draggingFromCell === key;
+      const isDragOver = dragOverCell === key && !isBlocked && !isDraggingFrom;
 
       gridCells.push(
-        <button
+        <div
           key={key}
           onClick={() => handleCellClick(col, row)}
+          onDragOver={(e) => handleDragOver(e, col, row)}
+          onDrop={(e) => handleDrop(e, col, row)}
           className={`
             w-10 h-10 flex items-center justify-center rounded
             transition-all duration-150
             ${isBlocked ? 'cursor-not-allowed' : 'cursor-pointer'}
-            ${!isBlocked && !placedFlower ? 'hover:bg-sage/30 active:bg-sage/40' : ''}
-            ${isMoving ? 'bg-sage/50 ring-2 ring-sage ring-inset' : ''}
+            ${!isBlocked && !placedFlower && !isDraggingFrom ? 'hover:bg-sage/30 active:bg-sage/40' : ''}
+            ${isDragOver ? 'bg-sage/40 ring-2 ring-sage ring-inset' : ''}
           `}
-          disabled={isBlocked}
         >
           {placedFlower && (
-            <span className="text-[26px] drop-shadow-md transition-transform duration-200 hover:scale-110 animate-plant-grow">
+            <span
+              draggable
+              onDragStart={(e) => handleDragStart(e, placedFlower.id, col, row)}
+              onDragEnd={handleDragEnd}
+              className={`
+                text-[26px] drop-shadow-md transition-transform duration-200
+                cursor-grab active:cursor-grabbing select-none
+                ${isDragging ? 'opacity-50 animate-wiggle' : 'hover:scale-110'}
+                ${!isDragging ? 'animate-plant-grow' : ''}
+              `}
+            >
               {FLOWER_CATALOG[placedFlower.flowerType].emoji}
             </span>
           )}
-        </button>
+        </div>
       );
     }
   }
@@ -384,26 +439,20 @@ export function Garden() {
         {/* Mode Indicator */}
         <div className="absolute top-28 left-6 bg-cream/90 px-3 py-1.5 rounded-full text-xs font-semibold text-sage shadow-sm flex items-center gap-1.5 z-10">
           <span className="w-2 h-2 rounded-full bg-sage animate-pulse" />
-          <span>{modeLabels[mode]}</span>
+          <span>{modeLabels[mode] || modeLabels.place}</span>
         </div>
 
         {/* Action Buttons */}
         <div className="absolute top-28 right-6 flex flex-col gap-2 z-10">
-          {[
-            { m: 'move' as const, icon: '✋', title: 'Move' },
-            { m: 'remove' as const, icon: '🗑️', title: 'Remove' },
-          ].map((btn) => (
-            <button
-              key={btn.m}
-              onClick={() => setMode(btn.m)}
-              className={`w-10 h-10 rounded-full shadow-md flex items-center justify-center text-lg transition-all duration-200 hover:scale-110 ${
-                mode === btn.m ? 'bg-terracotta text-cream' : 'bg-cream/90'
-              }`}
-              title={btn.title}
-            >
-              {btn.icon}
-            </button>
-          ))}
+          <button
+            onClick={() => setMode('remove')}
+            className={`w-10 h-10 rounded-full shadow-md flex items-center justify-center text-lg transition-all duration-200 hover:scale-110 ${
+              mode === 'remove' ? 'bg-terracotta text-cream' : 'bg-cream/90'
+            }`}
+            title="Remove"
+          >
+            🗑️
+          </button>
           <button
             onClick={handleClear}
             className="w-10 h-10 rounded-full bg-cream/90 shadow-md flex items-center justify-center text-lg transition-all duration-200 hover:scale-110"
