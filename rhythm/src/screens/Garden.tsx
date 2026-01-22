@@ -71,13 +71,7 @@ function Cottage() {
 // FLOWER PALETTE COMPONENT
 // ===========================================
 
-function FlowerPalette({
-  isOpen,
-  onToggle,
-}: {
-  isOpen: boolean;
-  onToggle: () => void;
-}) {
+function FlowerPalette() {
   const flowers = useGardenStore((s) => s.flowers);
   const placedFlowers = useGardenStore((s) => s.placedFlowers);
   const selectedFlowerType = useGardenStore((s) => s.selectedFlowerType);
@@ -108,18 +102,12 @@ function FlowerPalette({
 
   return (
     <div
-      className={`absolute bottom-0 left-0 right-0 bg-cream rounded-t-2xl z-20 transition-transform duration-300 ease-out ${
-        isOpen ? 'translate-y-0' : 'translate-y-[calc(100%-60px)]'
-      }`}
+      className="fixed bottom-16 left-0 right-0 bg-cream rounded-t-2xl z-20"
       style={{ boxShadow: '0 -4px 20px rgba(93,78,55,0.15)' }}
     >
-      {/* Handle */}
-      <button onClick={onToggle} className="flex justify-center pt-3 pb-2 w-full">
-        <div className="w-10 h-1 bg-bark/20 rounded-full" />
-      </button>
 
       {/* Header */}
-      <div className="px-4 pb-3 flex justify-between items-center border-b border-bark/10">
+      <div className="px-4 pt-4 pb-3 flex justify-between items-center border-b border-bark/10">
         <div>
           <h2 className="font-display text-lg text-bark">Flower Palette</h2>
           <p className="text-xs text-bark/50">{totalAvailable} flowers to place</p>
@@ -185,7 +173,6 @@ function Toast({ message }: { message: string }) {
 // ===========================================
 
 export function Garden() {
-  const [paletteOpen, setPaletteOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draggingFromCell, setDraggingFromCell] = useState<string | null>(null);
@@ -386,7 +373,7 @@ export function Garden() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-skyblue/30 via-sage/20 to-sage/40 relative overflow-hidden pb-20">
+    <div className="min-h-screen bg-gradient-to-b from-skyblue/30 via-sage/20 to-sage/40 relative overflow-hidden pb-64">
       {/* Header */}
       <header className="px-4 pt-6 pb-4">
         <div className="flex justify-between items-center">
@@ -472,7 +459,7 @@ export function Garden() {
       </div>
 
       {/* Flower Palette */}
-      <FlowerPalette isOpen={paletteOpen} onToggle={() => setPaletteOpen(!paletteOpen)} />
+      <FlowerPalette />
 
       {/* Toast */}
       {toast && <Toast message={toast} />}
