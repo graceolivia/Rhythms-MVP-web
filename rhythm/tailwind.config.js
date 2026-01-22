@@ -49,11 +49,17 @@ export default {
       },
       animation: {
         'slide-up': 'slide-up 0.3s ease-out',
+        'plant-grow': 'plant-grow 0.4s ease-out',
       },
       keyframes: {
         'slide-up': {
           '0%': { transform: 'translateY(100%)' },
           '100%': { transform: 'translateY(0)' },
+        },
+        'plant-grow': {
+          '0%': { transform: 'scale(0) translateY(10px)', opacity: '0' },
+          '60%': { transform: 'scale(1.2) translateY(-2px)' },
+          '100%': { transform: 'scale(1) translateY(0)', opacity: '1' },
         },
       },
     },

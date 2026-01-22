@@ -1,210 +1,432 @@
-import { useMemo } from 'react';
-import { format, parseISO, startOfMonth } from 'date-fns';
-import { useGardenStore } from '../stores/useGardenStore';
-import { useGoodEnoughDay } from '../hooks/useGoodEnoughDay';
-import type { Flower, FlowerType, Season } from '../types';
+import { useState, useCallback, useMemo } from 'react';
+import {
+  useGardenStore,
+  GRID_COLS,
+  GRID_ROWS,
+  BLOCKED_CELLS,
+  FLOWER_CATALOG,
+} from '../stores/useGardenStore';
+import type { FlowerType } from '../types';
 
-const FLOWER_EMOJI: Record<FlowerType, string> = {
-  'daily-daisy': '🌼',
-  'rhythm-rose': '🌹',
-  'golden-hour-lily': '🌷',
-  'self-care-sunflower': '🌻',
-  'challenge-bloom': '🌺',
-};
+// ===========================================
+// COTTAGE COMPONENT
+// ===========================================
 
-const FLOWER_NAMES: Record<FlowerType, string> = {
-  'daily-daisy': 'Daily Daisy',
-  'rhythm-rose': 'Rhythm Rose',
-  'golden-hour-lily': 'Golden Hour Lily',
-  'self-care-sunflower': 'Self-Care Sunflower',
-  'challenge-bloom': 'Challenge Bloom',
-};
-
-const SEASON_THEMES: Record<Season, { bg: string; accent: string; emoji: string }> = {
-  spring: { bg: 'bg-spring-light', accent: 'text-spring', emoji: '🌱' },
-  summer: { bg: 'bg-summer-light', accent: 'text-summer', emoji: '☀️' },
-  fall: { bg: 'bg-fall-light', accent: 'text-fall', emoji: '🍂' },
-  winter: { bg: 'bg-winter-light', accent: 'text-winter', emoji: '❄️' },
-};
-
-interface FlowerGroup {
-  label: string;
-  flowers: Flower[];
-  startDate: Date;
-}
-
-function groupFlowersByMonth(flowers: Flower[]): FlowerGroup[] {
-  const groups = new Map<string, FlowerGroup>();
-
-  flowers.forEach((flower) => {
-    const date = parseISO(flower.earnedDate);
-    const monthStart = startOfMonth(date);
-    const key = format(monthStart, 'yyyy-MM');
-    const label = format(date, 'MMMM yyyy');
-
-    if (!groups.has(key)) {
-      groups.set(key, { label, flowers: [], startDate: monthStart });
-    }
-    groups.get(key)!.flowers.push(flower);
-  });
-
-  return Array.from(groups.values()).sort(
-    (a, b) => b.startDate.getTime() - a.startDate.getTime()
-  );
-}
-
-function FlowerBadge({ flower }: { flower: Flower }) {
+function Cottage() {
   return (
     <div
-      className="w-12 h-12 flex items-center justify-center text-2xl rounded-full bg-cream shadow-sm"
-      title={`${FLOWER_NAMES[flower.type]} - ${format(parseISO(flower.earnedDate), 'MMM d')}`}
+      className="absolute top-2 left-1/2 -translate-x-1/2 z-10"
+      style={{ width: '100px', height: '85px', filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.15))' }}
     >
-      {FLOWER_EMOJI[flower.type]}
-    </div>
-  );
-}
-
-function PendingFlower() {
-  const { isGoodEnough } = useGoodEnoughDay();
-
-  if (isGoodEnough) return null;
-
-  return (
-    <div className="w-12 h-12 flex items-center justify-center text-2xl rounded-full bg-linen border-2 border-dashed border-bark/20">
-      <span className="opacity-30">🌼</span>
-    </div>
-  );
-}
-
-function FlowerStats() {
-  const flowers = useGardenStore((state) => state.flowers);
-  const getTotalFlowers = useGardenStore((state) => state.getTotalFlowers);
-
-  const stats = useMemo(() => {
-    const total = getTotalFlowers();
-    const byType = Object.entries(FLOWER_EMOJI).map(([type, emoji]) => ({
-      type: type as FlowerType,
-      emoji,
-      name: FLOWER_NAMES[type as FlowerType],
-      count: flowers.filter((f) => f.type === type).length,
-    }));
-
-    return { total, byType: byType.filter((s) => s.count > 0) };
-  }, [flowers, getTotalFlowers]);
-
-  return (
-    <div className="bg-parchment rounded-lg p-4 mb-6">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-bark/60 text-sm">Total flowers</span>
-        <span className="font-display text-2xl text-bark">{stats.total}</span>
-      </div>
-      {stats.byType.length > 0 && (
-        <div className="flex flex-wrap gap-3">
-          {stats.byType.map(({ type, emoji, count }) => (
-            <div key={type} className="flex items-center gap-1 text-sm text-bark/70">
-              <span>{emoji}</span>
-              <span>×{count}</span>
-            </div>
-          ))}
+      {/* Chimney */}
+      <div
+        className="absolute top-[4px] right-[20px] w-3 h-5 rounded-sm"
+        style={{ background: 'linear-gradient(180deg, #8B7355 0%, #6B5344 100%)' }}
+      />
+      {/* Roof */}
+      <div
+        className="absolute top-0 left-0 right-0 h-10"
+        style={{
+          background: 'linear-gradient(180deg, #C67B5C 0%, #A66B4F 100%)',
+          clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+        }}
+      />
+      {/* Body */}
+      <div
+        className="absolute bottom-0 left-2 right-2 h-11 rounded border-2 border-bark/30"
+        style={{ background: 'linear-gradient(180deg, #F5E6D3 0%, #E8D4B8 100%)' }}
+      >
+        {/* Windows */}
+        <div
+          className="absolute left-2 bottom-3 w-4 h-4 rounded-sm border border-bark/30"
+          style={{ background: 'linear-gradient(135deg, #A5C4D4 0%, #7BA3B8 100%)' }}
+        >
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute w-full h-px bg-bark/30" />
+            <div className="absolute w-px h-full bg-bark/30" />
+          </div>
         </div>
-      )}
+        <div
+          className="absolute right-2 bottom-3 w-4 h-4 rounded-sm border border-bark/30"
+          style={{ background: 'linear-gradient(135deg, #A5C4D4 0%, #7BA3B8 100%)' }}
+        >
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute w-full h-px bg-bark/30" />
+            <div className="absolute w-px h-full bg-bark/30" />
+          </div>
+        </div>
+        {/* Door */}
+        <div
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-6 rounded-t-lg"
+          style={{ background: 'linear-gradient(180deg, #5D4E37 0%, #4A3F2D 100%)' }}
+        >
+          <div className="absolute right-1 top-1/2 w-1 h-1 rounded-full bg-clay" />
+        </div>
+      </div>
     </div>
   );
 }
+
+// ===========================================
+// FLOWER PALETTE COMPONENT
+// ===========================================
+
+function FlowerPalette({
+  isOpen,
+  onToggle,
+}: {
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const flowers = useGardenStore((s) => s.flowers);
+  const placedFlowers = useGardenStore((s) => s.placedFlowers);
+  const selectedFlowerType = useGardenStore((s) => s.selectedFlowerType);
+  const selectFlowerType = useGardenStore((s) => s.selectFlowerType);
+  const setMode = useGardenStore((s) => s.setMode);
+
+  const placedFlowerIds = useMemo(
+    () => new Set(placedFlowers.map((p) => p.flowerId)),
+    [placedFlowers]
+  );
+
+  const availableByType = useMemo(() => {
+    const counts: Partial<Record<FlowerType, number>> = {};
+    flowers.forEach((f) => {
+      if (!placedFlowerIds.has(f.id)) {
+        counts[f.type] = (counts[f.type] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [flowers, placedFlowerIds]);
+
+  const totalAvailable = Object.values(availableByType).reduce((a, b) => a + b, 0);
+
+  const handleSelect = (type: FlowerType) => {
+    selectFlowerType(type);
+    setMode('place');
+  };
+
+  return (
+    <div
+      className={`absolute bottom-0 left-0 right-0 bg-cream rounded-t-2xl z-20 transition-transform duration-300 ease-out ${
+        isOpen ? 'translate-y-0' : 'translate-y-[calc(100%-60px)]'
+      }`}
+      style={{ boxShadow: '0 -4px 20px rgba(93,78,55,0.15)' }}
+    >
+      {/* Handle */}
+      <button onClick={onToggle} className="flex justify-center pt-3 pb-2 w-full">
+        <div className="w-10 h-1 bg-bark/20 rounded-full" />
+      </button>
+
+      {/* Header */}
+      <div className="px-4 pb-3 flex justify-between items-center border-b border-bark/10">
+        <div>
+          <h2 className="font-display text-lg text-bark">Flower Palette</h2>
+          <p className="text-xs text-bark/50">{totalAvailable} flowers to place</p>
+        </div>
+        {selectedFlowerType && availableByType[selectedFlowerType] && (
+          <div className="flex items-center gap-1 text-sm">
+            <span className="text-2xl">{FLOWER_CATALOG[selectedFlowerType].emoji}</span>
+            <span className="text-sage font-semibold">×{availableByType[selectedFlowerType]}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Flower Grid */}
+      <div className="px-4 py-4 max-h-[200px] overflow-y-auto pb-20">
+        {totalAvailable === 0 ? (
+          <p className="text-center text-bark/50 text-sm py-4">
+            Complete rhythms to earn flowers!
+          </p>
+        ) : (
+          <div className="grid grid-cols-5 gap-2">
+            {(Object.keys(FLOWER_CATALOG) as FlowerType[]).map((type) => {
+              const count = availableByType[type] || 0;
+              if (count === 0) return null;
+
+              const isSelected = selectedFlowerType === type;
+
+              return (
+                <button
+                  key={type}
+                  onClick={() => handleSelect(type)}
+                  className={`aspect-square flex flex-col items-center justify-center rounded-xl transition-all duration-200 border-2 p-1 ${
+                    isSelected
+                      ? 'border-sage bg-sage/20 scale-105'
+                      : 'border-transparent bg-parchment hover:bg-linen hover:scale-105'
+                  }`}
+                >
+                  <span className="text-2xl leading-none">{FLOWER_CATALOG[type].emoji}</span>
+                  <span className="text-[10px] text-bark/60 font-semibold mt-1">×{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===========================================
+// TOAST COMPONENT
+// ===========================================
+
+function Toast({ message }: { message: string }) {
+  return (
+    <div className="absolute bottom-36 left-1/2 -translate-x-1/2 bg-bark text-cream px-4 py-2 rounded-xl text-sm font-medium shadow-lg z-30 whitespace-nowrap animate-slide-up">
+      {message}
+    </div>
+  );
+}
+
+// ===========================================
+// GARDEN SCREEN
+// ===========================================
 
 export function Garden() {
-  const flowers = useGardenStore((state) => state.flowers);
-  const currentSeason = useGardenStore((state) => state.currentSeason);
-  const hasEarnedFlowerToday = useGardenStore((state) => state.hasEarnedFlowerToday);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const theme = SEASON_THEMES[currentSeason];
-  const groupedFlowers = useMemo(() => groupFlowersByMonth(flowers), [flowers]);
-  const showPendingFlower = !hasEarnedFlowerToday('daily-daisy');
+  const placedFlowers = useGardenStore((s) => s.placedFlowers);
+  const selectedFlowerType = useGardenStore((s) => s.selectedFlowerType);
+  const mode = useGardenStore((s) => s.mode);
+  const movingFlowerId = useGardenStore((s) => s.movingFlowerId);
+  const flowers = useGardenStore((s) => s.flowers);
 
-  // Get today's flowers
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const todaysFlowers = flowers.filter((f) => f.earnedDate === today);
+  const placeFlower = useGardenStore((s) => s.placeFlower);
+  const removeFlowerFromGrid = useGardenStore((s) => s.removeFlowerFromGrid);
+  const moveFlower = useGardenStore((s) => s.moveFlower);
+  const startMoving = useGardenStore((s) => s.startMoving);
+  const setMode = useGardenStore((s) => s.setMode);
+  const clearGarden = useGardenStore((s) => s.clearGarden);
+  const getFlowerAt = useGardenStore((s) => s.getFlowerAt);
+  const getUnplacedByType = useGardenStore((s) => s.getUnplacedByType);
+
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 2000);
+  }, []);
+
+  const handleCellClick = useCallback(
+    (col: number, row: number) => {
+      const key = `${col},${row}`;
+
+      if (BLOCKED_CELLS.has(key)) {
+        showToast("Can't plant there! 🏠");
+        return;
+      }
+
+      const existingFlower = getFlowerAt(col, row);
+
+      switch (mode) {
+        case 'place':
+          if (existingFlower) {
+            showToast('Already planted there!');
+            return;
+          }
+          if (!selectedFlowerType) {
+            showToast('Select a flower first! 🌸');
+            setPaletteOpen(true);
+            return;
+          }
+          if (getUnplacedByType(selectedFlowerType).length === 0) {
+            showToast('No more of that type!');
+            return;
+          }
+          if (placeFlower(col, row)) {
+            const emoji = FLOWER_CATALOG[selectedFlowerType].emoji;
+            showToast(`Planted ${emoji}!`);
+          }
+          break;
+
+        case 'move':
+          if (movingFlowerId) {
+            if (existingFlower && existingFlower.id !== movingFlowerId) {
+              showToast('Spot occupied!');
+              return;
+            }
+            if (moveFlower(movingFlowerId, col, row)) {
+              showToast('Moved! ✨');
+            }
+          } else {
+            if (!existingFlower) {
+              showToast('No flower there!');
+              return;
+            }
+            startMoving(existingFlower.id);
+          }
+          break;
+
+        case 'remove':
+          if (!existingFlower) {
+            showToast('No flower there!');
+            return;
+          }
+          const emoji = FLOWER_CATALOG[existingFlower.flowerType].emoji;
+          removeFlowerFromGrid(existingFlower.id);
+          showToast(`${emoji} removed`);
+          break;
+      }
+    },
+    [
+      mode,
+      selectedFlowerType,
+      movingFlowerId,
+      placeFlower,
+      removeFlowerFromGrid,
+      moveFlower,
+      startMoving,
+      getFlowerAt,
+      getUnplacedByType,
+      showToast,
+    ]
+  );
+
+  const handleClear = useCallback(() => {
+    if (placedFlowers.length === 0) {
+      showToast('Garden is already empty!');
+      return;
+    }
+    clearGarden();
+    showToast('Garden cleared! 🔄');
+  }, [placedFlowers.length, clearGarden, showToast]);
+
+  const modeLabels: Record<string, string> = {
+    place: 'Tap to place',
+    move: movingFlowerId ? 'Tap destination' : 'Tap flower to move',
+    remove: 'Tap flower to remove',
+  };
+
+  // Generate grid cells
+  const gridCells = [];
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const key = `${col},${row}`;
+      const isBlocked = BLOCKED_CELLS.has(key);
+      const placedFlower = getFlowerAt(col, row);
+      const isMoving = placedFlower?.id === movingFlowerId;
+
+      gridCells.push(
+        <button
+          key={key}
+          onClick={() => handleCellClick(col, row)}
+          className={`
+            w-10 h-10 flex items-center justify-center rounded
+            transition-all duration-150
+            ${isBlocked ? 'cursor-not-allowed' : 'cursor-pointer'}
+            ${!isBlocked && !placedFlower ? 'hover:bg-sage/30 active:bg-sage/40' : ''}
+            ${isMoving ? 'bg-sage/50 ring-2 ring-sage ring-inset' : ''}
+          `}
+          disabled={isBlocked}
+        >
+          {placedFlower && (
+            <span className="text-[26px] drop-shadow-md transition-transform duration-200 hover:scale-110 animate-plant-grow">
+              {FLOWER_CATALOG[placedFlower.flowerType].emoji}
+            </span>
+          )}
+        </button>
+      );
+    }
+  }
 
   return (
-    <div className={`min-h-screen ${theme.bg} p-4`}>
-      <header className="mb-6">
-        <div className="flex items-center gap-2">
-          <h1 className="font-display text-2xl text-bark">Your Garden</h1>
-          <span>{theme.emoji}</span>
+    <div className="min-h-screen bg-gradient-to-b from-skyblue/30 via-sage/20 to-sage/40 relative overflow-hidden pb-20">
+      {/* Header */}
+      <header className="px-4 pt-6 pb-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="font-display text-2xl text-bark">Your Garden</h1>
+            <p className="text-bark/60 text-sm">{flowers.length} flowers earned</p>
+          </div>
+          <div className="flex items-center gap-1.5 bg-cream/80 px-3 py-1.5 rounded-full text-sm font-semibold text-sage">
+            <span>🌸</span>
+            <span>{placedFlowers.length} planted</span>
+          </div>
         </div>
-        <p className="text-bark/60 text-sm capitalize">{currentSeason} season</p>
       </header>
 
-      <FlowerStats />
+      {/* Garden Area */}
+      <div className="relative mx-4">
+        {/* Garden bed background */}
+        <div
+          className="absolute inset-0 rounded-2xl"
+          style={{
+            background:
+              'linear-gradient(180deg, #C8D9A0 0%, #A8C978 50%, #8BB858 100%)',
+          }}
+        />
 
-      {/* Today's Progress */}
-      <section className="mb-6">
-        <h2 className="font-body font-semibold text-bark/80 text-sm uppercase tracking-wide mb-3">
-          Today
-        </h2>
-        <div className="bg-cream/50 rounded-lg p-4">
-          <div className="flex flex-wrap gap-2">
-            {todaysFlowers.map((flower) => (
-              <FlowerBadge key={flower.id} flower={flower} />
-            ))}
-            {showPendingFlower && <PendingFlower />}
-            {todaysFlowers.length === 0 && !showPendingFlower && (
-              <p className="text-bark/50 text-sm">No flowers yet today</p>
-            )}
+        {/* Garden bed border/frame */}
+        <div
+          className="relative rounded-2xl p-4 pt-24"
+          style={{
+            background:
+              'repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(107, 83, 68, 0.06) 39px, rgba(107, 83, 68, 0.06) 40px), repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(107, 83, 68, 0.06) 39px, rgba(107, 83, 68, 0.06) 40px)',
+          }}
+        >
+          <Cottage />
+
+          {/* Grid */}
+          <div
+            className="mx-auto"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${GRID_COLS}, 40px)`,
+              gridTemplateRows: `repeat(${GRID_ROWS}, 40px)`,
+              width: 'fit-content',
+            }}
+          >
+            {gridCells}
           </div>
-          {showPendingFlower && (
-            <p className="text-bark/50 text-xs mt-3">
-              Complete your rhythms to earn today's daisy
-            </p>
-          )}
         </div>
-      </section>
 
-      {/* Flower History */}
-      {groupedFlowers.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-5xl mb-4">🌱</div>
-          <p className="text-bark/60">Your garden is just beginning.</p>
-          <p className="text-bark/40 text-sm mt-2">
-            Complete your daily rhythms to grow flowers.
-          </p>
+        {/* Mode Indicator */}
+        <div className="absolute top-28 left-6 bg-cream/90 px-3 py-1.5 rounded-full text-xs font-semibold text-sage shadow-sm flex items-center gap-1.5 z-10">
+          <span className="w-2 h-2 rounded-full bg-sage animate-pulse" />
+          <span>{modeLabels[mode]}</span>
         </div>
-      ) : (
-        <div className="space-y-6">
-          {groupedFlowers.map((group) => (
-            <section key={group.label}>
-              <h2 className="font-body font-semibold text-bark/80 text-sm uppercase tracking-wide mb-3">
-                {group.label}
-              </h2>
-              <div className="bg-cream/50 rounded-lg p-4">
-                <div className="flex flex-wrap gap-2">
-                  {group.flowers.map((flower) => (
-                    <FlowerBadge key={flower.id} flower={flower} />
-                  ))}
-                </div>
-                <p className="text-bark/40 text-xs mt-3">
-                  {group.flowers.length} flower{group.flowers.length !== 1 ? 's' : ''} bloomed
-                </p>
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
 
-      {/* Garden Legend */}
-      <section className="mt-8 pt-6 border-t border-bark/10">
-        <h2 className="font-body font-semibold text-bark/80 text-sm uppercase tracking-wide mb-3">
-          Flower Guide
-        </h2>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.entries(FLOWER_EMOJI).map(([type, emoji]) => (
-            <div key={type} className="flex items-center gap-2 text-sm">
-              <span className="text-xl">{emoji}</span>
-              <span className="text-bark/70">{FLOWER_NAMES[type as FlowerType]}</span>
-            </div>
+        {/* Action Buttons */}
+        <div className="absolute top-28 right-6 flex flex-col gap-2 z-10">
+          {[
+            { m: 'move' as const, icon: '✋', title: 'Move' },
+            { m: 'remove' as const, icon: '🗑️', title: 'Remove' },
+          ].map((btn) => (
+            <button
+              key={btn.m}
+              onClick={() => setMode(btn.m)}
+              className={`w-10 h-10 rounded-full shadow-md flex items-center justify-center text-lg transition-all duration-200 hover:scale-110 ${
+                mode === btn.m ? 'bg-terracotta text-cream' : 'bg-cream/90'
+              }`}
+              title={btn.title}
+            >
+              {btn.icon}
+            </button>
           ))}
+          <button
+            onClick={handleClear}
+            className="w-10 h-10 rounded-full bg-cream/90 shadow-md flex items-center justify-center text-lg transition-all duration-200 hover:scale-110"
+            title="Clear all"
+          >
+            🔄
+          </button>
         </div>
-      </section>
+
+        {/* Help Bubble */}
+        {placedFlowers.length === 0 && flowers.length > 0 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-cream px-4 py-3 rounded-xl shadow-lg text-sm text-bark text-center max-w-[260px] z-10">
+            Select a flower below, then tap a spot to plant it! 🌱
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-cream" />
+          </div>
+        )}
+      </div>
+
+      {/* Flower Palette */}
+      <FlowerPalette isOpen={paletteOpen} onToggle={() => setPaletteOpen(!paletteOpen)} />
+
+      {/* Toast */}
+      {toast && <Toast message={toast} />}
     </div>
   );
 }
