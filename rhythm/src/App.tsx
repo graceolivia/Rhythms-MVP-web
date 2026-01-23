@@ -10,7 +10,7 @@ import { Challenges } from './screens/Challenges';
 import { Settings } from './screens/Settings';
 import { Onboarding } from './screens/Onboarding';
 import { BottomNav } from './components/common/BottomNav';
-import { shouldLoadSeedData, loadSeedData, loadSeedChildrenOnly } from './utils/seedData';
+import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
 import { isFreshInstall } from './utils/storageHelpers';
 import { useChildStore } from './stores/useChildStore';
 import { useNapStore } from './stores/useNapStore';

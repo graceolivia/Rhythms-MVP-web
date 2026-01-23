@@ -268,7 +268,6 @@ export function Garden() {
           }
           if (!selectedFlowerType) {
             showToast('Select a flower first! 🌸');
-            setPaletteOpen(true);
             return;
           }
           if (getUnplacedByType(selectedFlowerType).length === 0) {
