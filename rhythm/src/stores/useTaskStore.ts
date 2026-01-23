@@ -40,7 +40,7 @@ interface TaskState {
 /**
  * Check if a task should occur on a given date based on its recurrence rule
  */
-function shouldTaskOccurOnDate(task: Task, date: Date): boolean {
+export function shouldTaskOccurOnDate(task: Task, date: Date): boolean {
   if (!task.isActive) return false;
 
   const dayOfWeek = getDay(date); // 0 = Sunday
