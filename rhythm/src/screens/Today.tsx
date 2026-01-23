@@ -194,39 +194,6 @@ function GoodEnoughProgress() {
   );
 }
 
-function GardenPreview() {
-  const flowers = useGardenStore((state) => state.flowers);
-  const hasEarnedFlowerToday = useGardenStore((state) => state.hasEarnedFlowerToday);
-
-  const recentFlowers = flowers.slice(-7);
-  const todayEarned = hasEarnedFlowerToday('daily-daisy');
-
-  return (
-    <div className="bg-spring-light/30 rounded-xl p-4 mb-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-bark/70">Your Garden</span>
-        <span className="text-sm text-bark/50">{flowers.length} flowers</span>
-      </div>
-      <div className="flex items-center gap-1">
-        {recentFlowers.length === 0 && !todayEarned && (
-          <span className="text-bark/40 text-sm">Complete rhythms to grow flowers</span>
-        )}
-        {recentFlowers.map((flower) => (
-          <span key={flower.id} className="text-xl">
-            {flower.type === 'daily-daisy' && '🌼'}
-            {flower.type === 'rhythm-rose' && '🌹'}
-            {flower.type === 'golden-hour-lily' && '🌷'}
-            {flower.type === 'self-care-sunflower' && '🌻'}
-            {flower.type === 'challenge-bloom' && '🌺'}
-          </span>
-        ))}
-        {!todayEarned && (
-          <span className="text-xl opacity-30">🌼</span>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function TaskCard({
   task,
@@ -460,8 +427,6 @@ export function Today() {
         <div className="mb-4">
           <NapControls />
         </div>
-
-        <GardenPreview />
 
         {groupedByTier.length === 0 ? (
           <div className="text-center py-12 bg-cream rounded-xl">
