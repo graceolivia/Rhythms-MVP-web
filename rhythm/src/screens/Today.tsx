@@ -9,7 +9,32 @@ import { NapControls } from '../components/naps/NapControls';
 import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
 import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
 import { TaskEditor } from '../components/tasks/TaskEditor';
-import type { Task, TaskInstance, TaskTier } from '../types';
+import type { Task, TaskInstance, TaskTier, NapContext } from '../types';
+
+/**
+ * Determines if a task is specifically suited to the current nap window.
+ * Only highlights tasks with a specific nap preference (not 'any' or null).
+ */
+function isTaskSuggestedForNapState(task: Task, napState: NapContext): boolean {
+  if (!task.napContext || task.napContext === 'any') return false;
+  if (napState === 'any') return false;
+
+  switch (napState) {
+    case 'both-asleep':
+      // Golden hour — all nap-specific tasks are doable
+      return task.napContext === 'both-asleep'
+        || task.napContext === 'baby-asleep'
+        || task.napContext === 'toddler-asleep';
+    case 'baby-asleep':
+      return task.napContext === 'baby-asleep';
+    case 'toddler-asleep':
+      return task.napContext === 'toddler-asleep';
+    case 'both-awake':
+      return task.napContext === 'both-awake';
+    default:
+      return false;
+  }
+}
 
 interface TaskWithInstance {
   task: Task;
@@ -166,12 +191,14 @@ function TaskCard({
   task,
   instance,
   today,
+  suggested,
   onTap,
   onDefer,
 }: {
   task: Task;
   instance: TaskInstance;
   today: string;
+  suggested?: boolean;
   onTap: () => void;
   onDefer?: () => void;
 }) {
@@ -194,7 +221,9 @@ function TaskCard({
       className={`w-full text-left p-4 rounded-xl transition-all cursor-pointer ${
         isCompleted
           ? 'bg-sage/10 border border-sage/20'
-          : 'bg-cream border border-bark/5 shadow-sm'
+          : suggested
+            ? 'bg-cream border border-sage/40 shadow-sm ring-1 ring-sage/20'
+            : 'bg-cream border border-bark/5 shadow-sm'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -219,6 +248,11 @@ function TaskCard({
             <span className={`text-xs px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
               {config.label}
             </span>
+            {suggested && !isCompleted && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-sage/15 text-sage font-medium">
+                Suggested Now
+              </span>
+            )}
             {task.scheduledTime && (
               <span className="text-xs text-bark/40">{task.scheduledTime}</span>
             )}
@@ -276,6 +310,7 @@ export function Today() {
   const completeTask = useTaskStore((state) => state.completeTask);
   const deferTask = useTaskStore((state) => state.deferTask);
   const resetTaskInstance = useTaskStore((state) => state.resetTaskInstance);
+  const { napState } = useNapState();
 
   // Generate today's instances on mount
   useEffect(() => {
@@ -394,9 +429,17 @@ export function Today() {
         ) : (
           <div className="space-y-4">
             {groupedByTier.map((group) => {
-              const visibleItems = group.items.filter(
-                (item) => item.instance.status !== 'completed' || recentlyCompleted.has(item.instance.id)
-              );
+              const visibleItems = group.items
+                .filter(
+                  (item) => item.instance.status !== 'completed' || recentlyCompleted.has(item.instance.id)
+                )
+                .sort((a, b) => {
+                  const aSuggested = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
+                  const bSuggested = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
+                  if (aSuggested && !bSuggested) return -1;
+                  if (!aSuggested && bSuggested) return 1;
+                  return 0;
+                });
               const doneItems = group.items.filter(
                 (item) => item.instance.status === 'completed' && !recentlyCompleted.has(item.instance.id)
               );
@@ -427,6 +470,7 @@ export function Today() {
                   <div className="space-y-2">
                     {visibleItems.map(({ task, instance }) => {
                       const isFading = fadingOut.has(instance.id);
+                      const suggested = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
                       return (
                         <div
                           key={instance.id}
@@ -438,6 +482,7 @@ export function Today() {
                             task={task}
                             instance={instance}
                             today={today}
+                            suggested={suggested}
                             onTap={() => handleTaskTap(instance)}
                             onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => deferTask(instance.id, null) : undefined}
                           />
