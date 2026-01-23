@@ -4,6 +4,7 @@ import { Today } from './screens/Today';
 import { DailyRhythm } from './screens/DailyRhythm';
 import { Seeds } from './screens/Seeds';
 import { Garden } from './screens/Garden';
+import { Challenges } from './screens/Challenges';
 import { Settings } from './screens/Settings';
 import { Onboarding } from './screens/Onboarding';
 import { BottomNav } from './components/common/BottomNav';
@@ -23,6 +24,7 @@ function AppContent() {
         <Route path="/rhythm" element={<DailyRhythm />} />
         <Route path="/seeds" element={<Seeds />} />
         <Route path="/garden" element={<Garden />} />
+        <Route path="/challenges" element={<Challenges />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
       <BottomNav />
