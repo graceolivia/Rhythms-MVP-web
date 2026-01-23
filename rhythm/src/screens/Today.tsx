@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { useTaskStore } from '../stores/useTaskStore';
-import { useGardenStore } from '../stores/useGardenStore';
 import { useGoodEnoughDay } from '../hooks/useGoodEnoughDay';
 import { useNapState } from '../hooks/useNapState';
 import { useSunTimes } from '../hooks/useSunTimes';
