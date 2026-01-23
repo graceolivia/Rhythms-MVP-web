@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTaskStore } from '../../stores/useTaskStore';
-import type { Task, TaskTier, RecurrenceRule, NapContext, TaskCategory } from '../../types';
+import type { Task, TaskInput, TaskTier, RecurrenceRule, NapContext, TaskCategory } from '../../types';
 
 interface TaskEditorProps {
   tier: TaskTier;
@@ -51,7 +51,7 @@ function EditableTask({
 }: {
   task: Task;
   tier: TaskTier;
-  onUpdate: (id: string, updates: Partial<Omit<Task, 'id'>>) => void;
+  onUpdate: (id: string, updates: Partial<TaskInput>) => void;
   onDelete: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);

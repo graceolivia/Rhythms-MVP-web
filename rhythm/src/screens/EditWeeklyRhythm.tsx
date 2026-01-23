@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useTaskStore } from '../stores/useTaskStore';
-import type { Task } from '../types';
+import type { Task, TaskInput } from '../types';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-function DayPicker({ task, onUpdate }: { task: Task; onUpdate: (id: string, updates: Partial<Omit<Task, 'id'>>) => void }) {
+function DayPicker({ task, onUpdate }: { task: Task; onUpdate: (id: string, updates: Partial<TaskInput>) => void }) {
   const activeDays = task.daysOfWeek ?? [0, 1, 2, 3, 4, 5, 6];
 
   const toggleDay = (day: number) => {

@@ -1,4 +1,4 @@
-import type { Child, NapSchedule, Task, FlowerType } from '../types';
+import type { Child, NapSchedule, TaskInput, FlowerType } from '../types';
 import { DEV_MODE } from '../config/devMode';
 
 // ============================================
@@ -60,7 +60,7 @@ export const seedBabyNapSchedules: Omit<NapSchedule, 'id' | 'childId'>[] = [
 // TASKS (Templates)
 // ============================================
 
-export const seedTasks: Omit<Task, 'id'>[] = [
+export const seedTasks: TaskInput[] = [
   // ANCHORS - fixed time events
   {
     type: 'standard',
@@ -318,7 +318,7 @@ export function loadSeedData(stores: {
     getState: () => { addNapSchedule: (schedule: Omit<NapSchedule, 'id'>) => string };
   };
   taskStore: {
-    getState: () => { addTask: (task: Omit<Task, 'id'>) => string };
+    getState: () => { addTask: (task: TaskInput) => string };
   };
   gardenStore?: {
     getState: () => { earnFlower: (type: FlowerType) => string };

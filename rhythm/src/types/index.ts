@@ -91,6 +91,9 @@ export interface MealTask extends BaseTask {
 
 export type Task = StandardTask | MealTask;
 
+/** Distributive Omit that preserves the discriminated union */
+export type TaskInput = Omit<StandardTask, 'id'> | Omit<MealTask, 'id'>;
+
 export interface TaskInstance {
   id: string;
   taskId: string;

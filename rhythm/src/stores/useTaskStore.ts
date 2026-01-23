@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format, getDay, subDays, differenceInDays, parseISO } from 'date-fns';
-import type { Task, TaskInstance, TaskStatus } from '../types';
+import type { Task, TaskInput, TaskInstance, TaskStatus } from '../types';
 
 const SEED_MAX_AGE_DAYS = 14;
 
@@ -11,8 +11,8 @@ interface TaskState {
   taskInstances: TaskInstance[];
 
   // Task template actions
-  addTask: (task: Omit<Task, 'id'>) => string;
-  updateTask: (id: string, updates: Partial<Omit<Task, 'id'>>) => void;
+  addTask: (task: TaskInput) => string;
+  updateTask: (id: string, updates: Partial<TaskInput>) => void;
   deleteTask: (id: string) => void;
   clearTasks: () => void;
   getTask: (id: string) => Task | undefined;
@@ -88,7 +88,7 @@ export const useTaskStore = create<TaskState>()(
       // Task template actions
       addTask: (taskData) => {
         const id = uuidv4();
-        const newTask: Task = { id, ...taskData };
+        const newTask = { id, ...taskData } as Task;
         set((state) => ({
           tasks: [...state.tasks, newTask],
         }));
@@ -98,7 +98,7 @@ export const useTaskStore = create<TaskState>()(
       updateTask: (id, updates) => {
         set((state) => ({
           tasks: state.tasks.map((task) =>
-            task.id === id ? { ...task, ...updates } : task
+            task.id === id ? { ...task, ...updates } as Task : task
           ),
         }));
       },
@@ -357,28 +357,29 @@ export const useTaskStore = create<TaskState>()(
       name: 'rhythm_tasks',
       version: 2,
       migrate: (persisted: unknown, version: number) => {
-        const state = persisted as TaskState;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const state = persisted as any;
         if (version < 2) {
           return {
             ...state,
-            tasks: state.tasks.map((task) => {
+            tasks: (state.tasks as any[]).map((task: any) => {
               if (task.type === 'meal') return task;
               if (task.category === 'meals') {
-                const titleLower = task.title.toLowerCase();
+                const titleLower = (task.title as string).toLowerCase();
                 const mealType = titleLower.includes('breakfast') ? 'breakfast'
                   : titleLower.includes('lunch') ? 'lunch'
                   : titleLower.includes('dinner') ? 'dinner'
                   : 'dinner';
-                return { ...task, type: 'meal' as const, mealType };
+                return { ...task, type: 'meal', mealType };
               }
               if (!('type' in task)) {
-                return { ...task, type: 'standard' as const };
+                return { ...task, type: 'standard' };
               }
               return task;
             }),
           };
         }
-        return state;
+        return state as TaskState;
       },
     }
   )
