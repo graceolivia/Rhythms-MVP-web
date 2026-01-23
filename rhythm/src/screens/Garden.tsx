@@ -101,11 +101,11 @@ function FlowerPalette() {
   };
 
   return (
-    <div
-      className="fixed bottom-16 left-0 right-0 bg-cream rounded-t-2xl z-20"
-      style={{ boxShadow: '0 -4px 20px rgba(93,78,55,0.15)' }}
-    >
-
+    <div className="fixed bottom-16 left-0 right-0 z-20 flex justify-center">
+      <div
+        className="w-full max-w-lg bg-cream rounded-t-2xl"
+        style={{ boxShadow: '0 -4px 20px rgba(93,78,55,0.15)' }}
+      >
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex justify-between items-center border-b border-bark/10">
         <div>
@@ -152,6 +152,7 @@ function FlowerPalette() {
             })}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
@@ -375,6 +376,7 @@ export function Garden() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-skyblue/30 via-sage/20 to-sage/40 relative overflow-hidden pb-64">
+      <div className="max-w-lg mx-auto">
       {/* Header */}
       <header className="px-4 pt-6 pb-4">
         <div className="flex justify-between items-center">
@@ -457,6 +459,8 @@ export function Garden() {
             <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-cream" />
           </div>
         )}
+      </div>
+
       </div>
 
       {/* Flower Palette */}
