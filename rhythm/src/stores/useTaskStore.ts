@@ -45,6 +45,12 @@ function shouldTaskOccurOnDate(task: Task, date: Date): boolean {
 
   const dayOfWeek = getDay(date); // 0 = Sunday
 
+  // If daysOfWeek is set, use it as the day filter
+  if (task.daysOfWeek != null && task.daysOfWeek.length > 0) {
+    return task.daysOfWeek.includes(dayOfWeek);
+  }
+
+  // Otherwise fall back to recurrence rules
   switch (task.recurrence) {
     case 'daily':
       return true;

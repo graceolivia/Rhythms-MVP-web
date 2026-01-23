@@ -1,7 +1,10 @@
 import { useChildStore } from '../stores/useChildStore';
+import { useTaskStore } from '../stores/useTaskStore';
 import { useResetSeedData } from '../hooks/useResetSeedData';
 import { DEV_MODE } from '../config/devMode';
-import type { ChildColor } from '../types';
+import type { ChildColor, Task } from '../types';
+
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const COLOR_OPTIONS: { value: ChildColor; label: string; bgClass: string; borderClass: string }[] = [
   { value: 'lavender', label: 'Lavender', bgClass: 'bg-lavender', borderClass: 'border-lavender' },
@@ -12,11 +15,46 @@ const COLOR_OPTIONS: { value: ChildColor; label: string; bgClass: string; border
   { value: 'clay', label: 'Clay', bgClass: 'bg-clay', borderClass: 'border-clay' },
 ];
 
+function DayPicker({ task, onUpdate }: { task: Task; onUpdate: (id: string, updates: Partial<Omit<Task, 'id'>>) => void }) {
+  const activeDays = task.daysOfWeek ?? [0, 1, 2, 3, 4, 5, 6]; // default: every day
+
+  const toggleDay = (day: number) => {
+    const newDays = activeDays.includes(day)
+      ? activeDays.filter((d) => d !== day)
+      : [...activeDays, day].sort();
+    // If all days selected, store as null (every day)
+    onUpdate(task.id, { daysOfWeek: newDays.length === 7 ? null : newDays });
+  };
+
+  return (
+    <div className="flex gap-1">
+      {DAY_LABELS.map((label, index) => {
+        const isActive = activeDays.includes(index);
+        return (
+          <button
+            key={index}
+            onClick={() => toggleDay(index)}
+            className={`w-7 h-7 rounded-full text-xs font-semibold transition-all ${
+              isActive
+                ? 'bg-sage text-cream'
+                : 'bg-bark/5 text-bark/30'
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function Settings() {
   const children = useChildStore((state) => state.children);
   const addChild = useChildStore((state) => state.addChild);
   const updateChild = useChildStore((state) => state.updateChild);
   const removeChild = useChildStore((state) => state.removeChild);
+  const tasks = useTaskStore((state) => state.tasks);
+  const updateTask = useTaskStore((state) => state.updateTask);
   const resetSeedData = useResetSeedData();
 
   const handleAddChild = () => {
@@ -111,6 +149,28 @@ export function Settings() {
         >
           + Add Child
         </button>
+      </section>
+
+      {/* Weekly Rhythm Section */}
+      <section className="mb-8">
+        <h2 className="font-display text-lg text-bark mb-2">Weekly Rhythm</h2>
+        <p className="text-bark/50 text-sm mb-4">Choose which days each task appears.</p>
+
+        {tasks.filter((t) => t.isActive).length === 0 ? (
+          <p className="text-bark/50 text-sm py-4 text-center">No tasks yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {tasks.filter((t) => t.isActive).map((task) => (
+              <div key={task.id} className="bg-parchment rounded-xl p-3">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <span className="text-sm font-medium text-bark truncate">{task.title}</span>
+                  <span className="text-xs text-bark/40 flex-shrink-0">{task.tier}</span>
+                </div>
+                <DayPicker task={task} onUpdate={updateTask} />
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {DEV_MODE && (

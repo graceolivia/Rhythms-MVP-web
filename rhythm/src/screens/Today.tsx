@@ -289,8 +289,6 @@ export function Today() {
           <NapControls />
         </div>
 
-        <GardenPreview />
-
         {groupedByTier.length === 0 ? (
           <div className="text-center py-12 bg-cream rounded-xl">
             <p className="text-bark/60">No tasks for today.</p>

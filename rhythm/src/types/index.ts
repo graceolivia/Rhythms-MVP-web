@@ -71,6 +71,7 @@ export interface Task {
   napContext: NapContext | null; // when to suggest
   isActive: boolean;
   category: TaskCategory;
+  daysOfWeek?: number[] | null; // 0=Sunday, 6=Saturday; null/undefined=every day
 }
 
 export interface TaskInstance {
