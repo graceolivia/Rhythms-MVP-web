@@ -8,6 +8,7 @@ import { useSunTimes } from '../hooks/useSunTimes';
 import { NapControls } from '../components/naps/NapControls';
 import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
 import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
+import { TaskEditor } from '../components/tasks/TaskEditor';
 import type { Task, TaskInstance, TaskTier } from '../types';
 
 interface TaskWithInstance {
@@ -220,6 +221,7 @@ function TaskCard({
 export function Today() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [editingTier, setEditingTier] = useState<TaskTier | null>(null);
 
   const tasks = useTaskStore((state) => state.tasks);
   const taskInstances = useTaskStore((state) => state.taskInstances);
@@ -290,6 +292,15 @@ export function Today() {
                       {group.items.filter((i) => i.instance.status === 'completed').length}/
                       {group.items.length}
                     </span>
+                    <button
+                      onClick={() => setEditingTier(group.tier)}
+                      className="ml-auto text-bark/30 hover:text-bark/60 p-1"
+                      aria-label={`Edit ${group.config.label}s`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
                   </div>
                   <p className="text-xs text-bark/40 mt-0.5">{group.config.subtitle}</p>
                 </div>
@@ -331,6 +342,11 @@ export function Today() {
 
       {/* Quick Add Modal */}
       <QuickAddSeed isOpen={showQuickAdd} onClose={() => setShowQuickAdd(false)} />
+
+      {/* Task Editor Modal */}
+      {editingTier && (
+        <TaskEditor tier={editingTier} isOpen={true} onClose={() => { setEditingTier(null); generateDailyInstances(new Date()); }} />
+      )}
     </div>
   );
 }
