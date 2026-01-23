@@ -17,10 +17,10 @@ interface TaskWithInstance {
 
 const TIER_ORDER: TaskTier[] = ['anchor', 'rhythm', 'tending'];
 
-const TIER_CONFIG: Record<TaskTier, { label: string; color: string; bg: string }> = {
-  anchor: { label: 'Anchor', color: 'text-terracotta', bg: 'bg-terracotta/10' },
-  rhythm: { label: 'Rhythm', color: 'text-sage', bg: 'bg-sage/10' },
-  tending: { label: 'Tending', color: 'text-lavender', bg: 'bg-lavender/10' },
+const TIER_CONFIG: Record<TaskTier, { label: string; subtitle: string; color: string; bg: string }> = {
+  anchor: { label: 'Anchor', subtitle: 'Fixed events that structure your day', color: 'text-terracotta', bg: 'bg-terracotta/10' },
+  rhythm: { label: 'Rhythm', subtitle: 'Daily non-negotiables, flexible in timing', color: 'text-sage', bg: 'bg-sage/10' },
+  tending: { label: 'Tending', subtitle: 'Nice-to-haves that maintain your life', color: 'text-lavender', bg: 'bg-lavender/10' },
 };
 
 function SkyHeader() {
@@ -281,14 +281,17 @@ export function Today() {
           <div className="space-y-4">
             {groupedByTier.map((group) => (
               <section key={group.tier}>
-                <div className="flex items-center gap-2 mb-2">
-                  <h2 className={`font-body font-semibold text-sm ${group.config.color}`}>
-                    {group.config.label}s
-                  </h2>
-                  <span className="text-xs text-bark/40">
-                    {group.items.filter((i) => i.instance.status === 'completed').length}/
-                    {group.items.length}
-                  </span>
+                <div className="mb-2">
+                  <div className="flex items-center gap-2">
+                    <h2 className={`font-body font-semibold text-sm ${group.config.color}`}>
+                      {group.config.label}s
+                    </h2>
+                    <span className="text-xs text-bark/40">
+                      {group.items.filter((i) => i.instance.status === 'completed').length}/
+                      {group.items.length}
+                    </span>
+                  </div>
+                  <p className="text-xs text-bark/40 mt-0.5">{group.config.subtitle}</p>
                 </div>
                 <div className="space-y-2">
                   {group.items.map(({ task, instance }) => (
