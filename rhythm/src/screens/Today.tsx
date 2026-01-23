@@ -238,6 +238,7 @@ export function Today() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [editingTier, setEditingTier] = useState<TaskTier | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const tasks = useTaskStore((state) => state.tasks);
   const taskInstances = useTaskStore((state) => state.taskInstances);
@@ -270,6 +271,35 @@ export function Today() {
     items: tasksWithInstances.filter((item) => item.task.tier === tier),
   })).filter((group) => group.items.length > 0);
 
+  const pendingByTier = groupedByTier
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.instance.status !== 'completed'),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  const completedByTier = groupedByTier
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.instance.status === 'completed'),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  const tierProgress = new Map(
+    groupedByTier.map((group) => [
+      group.tier,
+      {
+        total: group.items.length,
+        completed: group.items.filter((item) => item.instance.status === 'completed').length,
+      },
+    ])
+  );
+
+  const completedCount = groupedByTier.reduce(
+    (count, group) => count + group.items.filter((item) => item.instance.status === 'completed').length,
+    0
+  );
+
   const handleTaskTap = (instance: TaskInstance) => {
     if (instance.status === 'completed') {
       resetTaskInstance(instance.id);
@@ -296,7 +326,7 @@ export function Today() {
           </div>
         ) : (
           <div className="space-y-4">
-            {groupedByTier.map((group) => (
+            {pendingByTier.map((group) => (
               <section key={group.tier}>
                 <div className="mb-2">
                   <div className="flex items-center gap-2">
@@ -304,8 +334,7 @@ export function Today() {
                       {group.config.label}s
                     </h2>
                     <span className="text-xs text-bark/40">
-                      {group.items.filter((i) => i.instance.status === 'completed').length}/
-                      {group.items.length}
+                      {tierProgress.get(group.tier)?.completed ?? 0}/{tierProgress.get(group.tier)?.total ?? 0}
                     </span>
                     <button
                       onClick={() => setEditingTier(group.tier)}
@@ -332,6 +361,50 @@ export function Today() {
                 </div>
               </section>
             ))}
+
+            {completedCount > 0 && (
+              <section>
+                <button
+                  onClick={() => setShowCompleted((prev) => !prev)}
+                  className="w-full flex items-center justify-between bg-cream rounded-xl px-4 py-3 border border-bark/10 text-left"
+                >
+                  <span className="text-sm font-medium text-bark/70">Done today</span>
+                  <span className="text-xs text-bark/50 flex items-center gap-2">
+                    {completedCount}
+                    <svg
+                      className={`w-4 h-4 transition-transform ${showCompleted ? 'rotate-180' : ''}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                </button>
+                {showCompleted && (
+                  <div className="mt-3 space-y-4">
+                    {completedByTier.map((group) => (
+                      <div key={group.tier}>
+                        <p className={`text-xs font-semibold mb-2 ${group.config.color}`}>
+                          {group.config.label}s
+                        </p>
+                        <div className="space-y-2">
+                          {group.items.map(({ task, instance }) => (
+                            <TaskCard
+                              key={instance.id}
+                              task={task}
+                              instance={instance}
+                              onTap={() => handleTaskTap(instance)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         )}
 
