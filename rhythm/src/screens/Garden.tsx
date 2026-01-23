@@ -138,7 +138,7 @@ function FlowerPalette() {
                 <button
                   key={type}
                   onClick={() => handleSelect(type)}
-                  className={`aspect-square flex flex-col items-center justify-center rounded-xl transition-all duration-200 border-2 p-1 ${
+                  className={`flex flex-col items-center justify-center rounded-xl transition-all duration-200 border-2 p-2 ${
                     isSelected
                       ? 'border-sage bg-sage/20 scale-105'
                       : 'border-transparent bg-parchment hover:bg-linen hover:scale-105'
@@ -146,6 +146,7 @@ function FlowerPalette() {
                 >
                   <span className="text-2xl leading-none">{FLOWER_CATALOG[type].emoji}</span>
                   <span className="text-[10px] text-bark/60 font-semibold mt-1">×{count}</span>
+                  <span className="text-[9px] text-bark/40 mt-0.5 leading-tight text-center">{FLOWER_CATALOG[type].label}</span>
                 </button>
               );
             })}
