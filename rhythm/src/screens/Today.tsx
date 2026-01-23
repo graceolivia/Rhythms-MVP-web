@@ -165,16 +165,28 @@ function GardenPreview() {
 function TaskCard({
   task,
   instance,
+  today,
   onTap,
   onDefer,
 }: {
   task: Task;
   instance: TaskInstance;
+  today: string;
   onTap: () => void;
   onDefer?: () => void;
 }) {
+  const updateMealPlan = useTaskStore((state) => state.updateMealPlan);
   const config = TIER_CONFIG[task.tier];
   const isCompleted = instance.status === 'completed';
+  const isMeal = task.type === 'meal';
+  const savedMeal = isMeal ? (task.plannedMeals?.[today] ?? '') : '';
+  const [mealInput, setMealInput] = useState(savedMeal);
+
+  const handleMealBlur = () => {
+    if (isMeal && mealInput !== savedMeal) {
+      updateMealPlan(task.id, today, mealInput);
+    }
+  };
 
   return (
     <div
@@ -214,6 +226,21 @@ function TaskCard({
           <p className={`font-medium ${isCompleted ? 'text-bark/50 line-through' : 'text-bark'}`}>
             {task.title}
           </p>
+          {isMeal && (
+            <input
+              type="text"
+              placeholder={`What's for ${task.mealType}?`}
+              value={mealInput}
+              onChange={(e) => setMealInput(e.target.value)}
+              onBlur={handleMealBlur}
+              onClick={(e) => e.stopPropagation()}
+              className={`mt-2 w-full text-sm px-2 py-1.5 rounded-lg border bg-parchment/50 focus:outline-none focus:border-sage transition-colors ${
+                isCompleted
+                  ? 'border-sage/20 text-bark/50'
+                  : 'border-bark/10 text-bark'
+              }`}
+            />
+          )}
         </div>
 
         {/* Defer button for tending tasks */}
@@ -356,6 +383,7 @@ export function Today() {
                       key={instance.id}
                       task={task}
                       instance={instance}
+                      today={today}
                       onTap={() => handleTaskTap(instance)}
                       onDefer={task.tier === 'tending' ? () => deferTask(instance.id, null) : undefined}
                     />
@@ -397,6 +425,7 @@ export function Today() {
                               key={instance.id}
                               task={task}
                               instance={instance}
+                              today={today}
                               onTap={() => handleTaskTap(instance)}
                             />
                           ))}

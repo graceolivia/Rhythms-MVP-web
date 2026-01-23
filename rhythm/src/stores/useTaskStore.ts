@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format, getDay, subDays, differenceInDays, parseISO } from 'date-fns';
-import type { Task, TaskInstance, TaskStatus, MealTask } from '../types';
+import type { Task, TaskInstance, TaskStatus } from '../types';
 
 const SEED_MAX_AGE_DAYS = 14;
 
@@ -355,18 +355,30 @@ export const useTaskStore = create<TaskState>()(
     }),
     {
       name: 'rhythm_tasks',
-      version: 1,
+      version: 2,
       migrate: (persisted: unknown, version: number) => {
-        if (version === 0) {
-          const state = persisted as TaskState;
+        const state = persisted as TaskState;
+        if (version < 2) {
           return {
             ...state,
-            tasks: state.tasks.map((task) =>
-              'type' in task ? task : { ...task, type: 'standard' as const }
-            ),
+            tasks: state.tasks.map((task) => {
+              if (task.type === 'meal') return task;
+              if (task.category === 'meals') {
+                const titleLower = task.title.toLowerCase();
+                const mealType = titleLower.includes('breakfast') ? 'breakfast'
+                  : titleLower.includes('lunch') ? 'lunch'
+                  : titleLower.includes('dinner') ? 'dinner'
+                  : 'dinner';
+                return { ...task, type: 'meal' as const, mealType };
+              }
+              if (!('type' in task)) {
+                return { ...task, type: 'standard' as const };
+              }
+              return task;
+            }),
           };
         }
-        return persisted as TaskState;
+        return state;
       },
     }
   )
