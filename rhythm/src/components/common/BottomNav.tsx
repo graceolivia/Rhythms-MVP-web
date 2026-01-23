@@ -69,11 +69,9 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
 function SeedsBadge() {
   const taskInstances = useTaskStore((state) => state.taskInstances);
 
-  // Calculate seeds count directly instead of calling getSeeds()
   const count = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
     return taskInstances.filter(
-      (instance) => instance.status === 'deferred' && instance.date !== today
+      (instance) => instance.status === 'deferred'
     ).length;
   }, [taskInstances]);
 

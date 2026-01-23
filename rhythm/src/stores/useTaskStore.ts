@@ -20,7 +20,7 @@ interface TaskState {
   // Task instance actions
   completeTask: (instanceId: string) => void;
   skipTask: (instanceId: string) => void;
-  deferTask: (instanceId: string, deferToDate: string) => void;
+  deferTask: (instanceId: string, deferToDate: string | null) => void;
   resetTaskInstance: (instanceId: string) => void;
   updateTaskCompletionTime: (instanceId: string, completedAt: string) => void;
 
@@ -241,11 +241,8 @@ export const useTaskStore = create<TaskState>()(
 
       // Seeds queue management
       getSeeds: () => {
-        const today = format(new Date(), 'yyyy-MM-dd');
         return get().taskInstances.filter(
-          (instance) =>
-            instance.status === 'deferred' &&
-            instance.date !== today // Not today's tasks
+          (instance) => instance.status === 'deferred'
         );
       },
 

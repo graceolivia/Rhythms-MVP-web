@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { parseISO, differenceInDays, format } from 'date-fns';
+import { parseISO, differenceInDays } from 'date-fns';
 import { useTaskStore } from '../stores/useTaskStore';
 import type { TaskInstance } from '../types';
 
 function SeedAge({ date }: { date: string }) {
   const days = differenceInDays(new Date(), parseISO(date));
+  if (days === 0) return <span>from today</span>;
   if (days === 1) return <span>from yesterday</span>;
   if (days < 7) return <span>{days} days ago</span>;
   return <span>{Math.floor(days / 7)} week{days >= 14 ? 's' : ''} ago</span>;
@@ -55,11 +56,9 @@ export function Seeds() {
 
   // Calculate seeds from taskInstances
   const uniqueSeeds = useMemo(() => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-
-    // Get all deferred tasks from previous days
+    // Get all deferred tasks
     const seeds = taskInstances.filter(
-      (instance) => instance.status === 'deferred' && instance.date !== today
+      (instance) => instance.status === 'deferred'
     );
 
     // Sort by date (most recent first)
