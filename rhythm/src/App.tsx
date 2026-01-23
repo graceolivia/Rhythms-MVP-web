@@ -7,11 +7,13 @@ import { Garden } from './screens/Garden';
 import { Settings } from './screens/Settings';
 import { Onboarding } from './screens/Onboarding';
 import { BottomNav } from './components/common/BottomNav';
-import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
+import { shouldLoadSeedData, loadSeedData, loadSeedChildrenOnly } from './utils/seedData';
 import { isFreshInstall } from './utils/storageHelpers';
 import { useChildStore } from './stores/useChildStore';
 import { useNapStore } from './stores/useNapStore';
 import { useTaskStore } from './stores/useTaskStore';
+import { useGardenStore } from './stores/useGardenStore';
+import { DEV_SKIP_ONBOARDING } from './config/devMode';
 
 function AppContent() {
   return (
@@ -35,12 +37,20 @@ function App() {
   useEffect(() => {
     // Check if user needs onboarding
     if (isFreshInstall()) {
-      // In development, load seed data instead of showing onboarding
-      if (import.meta.env.DEV && shouldLoadSeedData()) {
+      if (DEV_SKIP_ONBOARDING) {
         loadSeedData({
           childStore: useChildStore,
           napStore: useNapStore,
           taskStore: useTaskStore,
+          gardenStore: useGardenStore,
+        });
+      } else if (import.meta.env.DEV && shouldLoadSeedData()) {
+        // In development, load seed data instead of showing onboarding
+        loadSeedData({
+          childStore: useChildStore,
+          napStore: useNapStore,
+          taskStore: useTaskStore,
+          gardenStore: useGardenStore,
         });
       } else {
         setNeedsOnboarding(true);

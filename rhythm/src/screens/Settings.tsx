@@ -1,4 +1,6 @@
 import { useChildStore } from '../stores/useChildStore';
+import { useResetSeedData } from '../hooks/useResetSeedData';
+import { DEV_MODE } from '../config/devMode';
 import type { ChildColor } from '../types';
 
 const COLOR_OPTIONS: { value: ChildColor; label: string; bgClass: string; borderClass: string }[] = [
@@ -15,6 +17,7 @@ export function Settings() {
   const addChild = useChildStore((state) => state.addChild);
   const updateChild = useChildStore((state) => state.updateChild);
   const removeChild = useChildStore((state) => state.removeChild);
+  const resetSeedData = useResetSeedData();
 
   const handleAddChild = () => {
     addChild({
@@ -108,6 +111,21 @@ export function Settings() {
           + Add Child
         </button>
       </section>
+
+      {DEV_MODE && (
+        <section className="mb-8">
+          <h2 className="font-display text-lg text-bark mb-4">Dev Tools</h2>
+          <button
+            onClick={resetSeedData}
+            className="w-full py-2 rounded-xl bg-terracotta text-cream hover:bg-terracotta/90 transition-colors"
+          >
+            Reset Seed Data
+          </button>
+          <p className="text-xs text-bark/50 mt-2">
+            Clears local data and reloads seed content.
+          </p>
+        </section>
+      )}
     </div>
   );
 }

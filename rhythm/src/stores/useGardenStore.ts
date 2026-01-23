@@ -84,6 +84,7 @@ interface GardenState extends Garden {
   startMoving: (placedId: string) => void;
   cancelMoving: () => void;
   clearGarden: () => void;
+  clearGardenState: () => void;
 
   // Helpers
   getFlowerAt: (col: number, row: number) => PlacedFlower | undefined;
@@ -255,6 +256,18 @@ export const useGardenStore = create<GardenState>()(
       clearGarden: () => {
         set({
           placedFlowers: [],
+          movingFlowerId: null,
+        });
+      },
+
+      clearGardenState: () => {
+        set({
+          flowers: [],
+          placedFlowers: [],
+          selectedFlowerType: null,
+          unlockedCustomizations: [],
+          currentSeason: getCurrentSeason(),
+          mode: 'place',
           movingFlowerId: null,
         });
       },

@@ -18,6 +18,17 @@ export const seedChildren: Omit<Child, 'id'>[] = [
   },
 ];
 
+export function loadSeedChildrenOnly(stores: {
+  childStore: {
+    getState: () => { children: Child[]; addChild: (child: Omit<Child, 'id'>) => string };
+  };
+}): void {
+  const childState = stores.childStore.getState();
+  seedChildren.forEach((child) => {
+    childState.addChild(child);
+  });
+}
+
 // ============================================
 // NAP SCHEDULES (childId will be set after children are created)
 // ============================================
@@ -230,6 +241,7 @@ export const seedFlowers: FlowerType[] = [
   'self-care-sunflower',
   'challenge-bloom',
 ];
+const DEV_FLOWER_MULTIPLIER = 8;
 
 // ============================================
 // CHECK IF SEED DATA SHOULD BE LOADED
@@ -278,6 +290,10 @@ export function loadSeedData(stores: {
   console.log('🌱 Loading seed data for development...');
 
   const childState = stores.childStore.getState();
+  if (childState.children.length > 0) {
+    console.log('🌱 Seed data skipped: children already exist.');
+    return;
+  }
   const napState = stores.napStore.getState();
   const taskState = stores.taskStore.getState();
 
@@ -310,10 +326,14 @@ export function loadSeedData(stores: {
   // Add seed flowers for garden testing
   if (stores.gardenStore) {
     const gardenState = stores.gardenStore.getState();
-    seedFlowers.forEach((flowerType) => {
+    const devFlowers = DEV_MODE
+      ? Array.from({ length: DEV_FLOWER_MULTIPLIER }).flatMap(() => seedFlowers)
+      : seedFlowers;
+
+    devFlowers.forEach((flowerType) => {
       gardenState.earnFlower(flowerType);
     });
-    console.log(`🌸 Added ${seedFlowers.length} seed flowers!`);
+    console.log(`🌸 Added ${devFlowers.length} seed flowers!`);
   }
 
   console.log('✅ Seed data loaded!');
