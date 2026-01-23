@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useGardenStore } from '../stores/useGardenStore';
@@ -265,7 +265,10 @@ export function Today() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [editingTier, setEditingTier] = useState<TaskTier | null>(null);
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [recentlyCompleted, setRecentlyCompleted] = useState<Set<string>>(new Set());
+  const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
+  const [expandedDoneTiers, setExpandedDoneTiers] = useState<Set<TaskTier>>(new Set());
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>[]>>(new Map());
 
   const tasks = useTaskStore((state) => state.tasks);
   const taskInstances = useTaskStore((state) => state.taskInstances);
@@ -278,6 +281,13 @@ export function Today() {
   useEffect(() => {
     generateDailyInstances(new Date());
   }, [generateDailyInstances]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach((timers) => timers.forEach(clearTimeout));
+    };
+  }, []);
 
   // Get today's instances with their task templates
   const todaysInstances = taskInstances.filter(
@@ -298,20 +308,6 @@ export function Today() {
     items: tasksWithInstances.filter((item) => item.task.tier === tier),
   })).filter((group) => group.items.length > 0);
 
-  const pendingByTier = groupedByTier
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => item.instance.status !== 'completed'),
-    }))
-    .filter((group) => group.items.length > 0);
-
-  const completedByTier = groupedByTier
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => item.instance.status === 'completed'),
-    }))
-    .filter((group) => group.items.length > 0);
-
   const tierProgress = new Map(
     groupedByTier.map((group) => [
       group.tier,
@@ -322,17 +318,59 @@ export function Today() {
     ])
   );
 
-  const completedCount = groupedByTier.reduce(
-    (count, group) => count + group.items.filter((item) => item.instance.status === 'completed').length,
-    0
-  );
-
-  const handleTaskTap = (instance: TaskInstance) => {
+  const handleTaskTap = useCallback((instance: TaskInstance) => {
     if (instance.status === 'completed') {
+      // Unchecking: cancel timers and reset
+      const existing = timersRef.current.get(instance.id);
+      if (existing) {
+        existing.forEach(clearTimeout);
+        timersRef.current.delete(instance.id);
+      }
+      setFadingOut((prev) => {
+        const next = new Set(prev);
+        next.delete(instance.id);
+        return next;
+      });
+      setRecentlyCompleted((prev) => {
+        const next = new Set(prev);
+        next.delete(instance.id);
+        return next;
+      });
       resetTaskInstance(instance.id);
     } else {
+      // Completing: keep visible for 2.7s, then fade out over 300ms
       completeTask(instance.id);
+      setRecentlyCompleted((prev) => new Set(prev).add(instance.id));
+
+      const fadeTimer = setTimeout(() => {
+        setFadingOut((prev) => new Set(prev).add(instance.id));
+      }, 2700);
+
+      const removeTimer = setTimeout(() => {
+        setRecentlyCompleted((prev) => {
+          const next = new Set(prev);
+          next.delete(instance.id);
+          return next;
+        });
+        setFadingOut((prev) => {
+          const next = new Set(prev);
+          next.delete(instance.id);
+          return next;
+        });
+        timersRef.current.delete(instance.id);
+      }, 3000);
+
+      timersRef.current.set(instance.id, [fadeTimer, removeTimer]);
     }
+  }, [completeTask, resetTaskInstance]);
+
+  const toggleDoneTier = (tier: TaskTier) => {
+    setExpandedDoneTiers((prev) => {
+      const next = new Set(prev);
+      if (next.has(tier)) next.delete(tier);
+      else next.add(tier);
+      return next;
+    });
   };
 
   return (
@@ -355,87 +393,93 @@ export function Today() {
           </div>
         ) : (
           <div className="space-y-4">
-            {pendingByTier.map((group) => (
-              <section key={group.tier}>
-                <div className="mb-2">
-                  <div className="flex items-center gap-2">
-                    <h2 className={`font-body font-semibold text-sm ${group.config.color}`}>
-                      {group.config.label}s
-                    </h2>
-                    <span className="text-xs text-bark/40">
-                      {tierProgress.get(group.tier)?.completed ?? 0}/{tierProgress.get(group.tier)?.total ?? 0}
-                    </span>
-                    <button
-                      onClick={() => setEditingTier(group.tier)}
-                      className="ml-auto text-bark/30 hover:text-bark/60 p-1"
-                      aria-label={`Edit ${group.config.label}s`}
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                    </button>
-                  </div>
-                  <p className="text-xs text-bark/40 mt-0.5">{group.config.subtitle}</p>
-                </div>
-                <div className="space-y-2">
-                  {group.items.map(({ task, instance }) => (
-                    <TaskCard
-                      key={instance.id}
-                      task={task}
-                      instance={instance}
-                      today={today}
-                      onTap={() => handleTaskTap(instance)}
-                      onDefer={task.tier === 'tending' ? () => deferTask(instance.id, null) : undefined}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+            {groupedByTier.map((group) => {
+              const visibleItems = group.items.filter(
+                (item) => item.instance.status !== 'completed' || recentlyCompleted.has(item.instance.id)
+              );
+              const doneItems = group.items.filter(
+                (item) => item.instance.status === 'completed' && !recentlyCompleted.has(item.instance.id)
+              );
+              const isExpanded = expandedDoneTiers.has(group.tier);
 
-            {completedCount > 0 && (
-              <section>
-                <button
-                  onClick={() => setShowCompleted((prev) => !prev)}
-                  className="w-full flex items-center justify-between bg-cream rounded-xl px-4 py-3 border border-bark/10 text-left"
-                >
-                  <span className="text-sm font-medium text-bark/70">Done today</span>
-                  <span className="text-xs text-bark/50 flex items-center gap-2">
-                    {completedCount}
-                    <svg
-                      className={`w-4 h-4 transition-transform ${showCompleted ? 'rotate-180' : ''}`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </span>
-                </button>
-                {showCompleted && (
-                  <div className="mt-3 space-y-4">
-                    {completedByTier.map((group) => (
-                      <div key={group.tier}>
-                        <p className={`text-xs font-semibold mb-2 ${group.config.color}`}>
-                          {group.config.label}s
-                        </p>
-                        <div className="space-y-2">
-                          {group.items.map(({ task, instance }) => (
-                            <TaskCard
-                              key={instance.id}
-                              task={task}
-                              instance={instance}
-                              today={today}
-                              onTap={() => handleTaskTap(instance)}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+              return (
+                <section key={group.tier}>
+                  <div className="mb-2">
+                    <div className="flex items-center gap-2">
+                      <h2 className={`font-body font-semibold text-sm ${group.config.color}`}>
+                        {group.config.label}s
+                      </h2>
+                      <span className="text-xs text-bark/40">
+                        {tierProgress.get(group.tier)?.completed ?? 0}/{tierProgress.get(group.tier)?.total ?? 0}
+                      </span>
+                      <button
+                        onClick={() => setEditingTier(group.tier)}
+                        className="ml-auto text-bark/30 hover:text-bark/60 p-1"
+                        aria-label={`Edit ${group.config.label}s`}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="text-xs text-bark/40 mt-0.5">{group.config.subtitle}</p>
                   </div>
-                )}
-              </section>
-            )}
+                  <div className="space-y-2">
+                    {visibleItems.map(({ task, instance }) => {
+                      const isFading = fadingOut.has(instance.id);
+                      return (
+                        <div
+                          key={instance.id}
+                          className={`transition-all duration-300 ease-in-out ${
+                            isFading ? 'opacity-0 max-h-0 overflow-hidden -my-1' : 'opacity-100 max-h-40'
+                          }`}
+                        >
+                          <TaskCard
+                            task={task}
+                            instance={instance}
+                            today={today}
+                            onTap={() => handleTaskTap(instance)}
+                            onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => deferTask(instance.id, null) : undefined}
+                          />
+                        </div>
+                      );
+                    })}
+                    {doneItems.length > 0 && (
+                      <div>
+                        <button
+                          onClick={() => toggleDoneTier(group.tier)}
+                          className="flex items-center gap-2 text-xs text-bark/40 hover:text-bark/60 py-1 transition-colors"
+                        >
+                          <svg
+                            className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                          <span>{doneItems.length} done</span>
+                        </button>
+                        {isExpanded && (
+                          <div className="space-y-2 mt-2">
+                            {doneItems.map(({ task, instance }) => (
+                              <TaskCard
+                                key={instance.id}
+                                task={task}
+                                instance={instance}
+                                today={today}
+                                onTap={() => handleTaskTap(instance)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         )}
 
