@@ -71,6 +71,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: null,
     isActive: true,
     category: 'kids',
+    preferredTimeBlock: 'morning',
   },
   {
     type: 'standard',
@@ -81,6 +82,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: null,
     isActive: true,
     category: 'kids',
+    preferredTimeBlock: 'midday',
   },
   {
     type: 'standard',
@@ -91,6 +93,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: null,
     isActive: true,
     category: 'kids',
+    preferredTimeBlock: 'evening',
   },
   {
     type: 'standard',
@@ -101,6 +104,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: null,
     isActive: true,
     category: 'kids',
+    preferredTimeBlock: 'evening',
   },
 
   // RHYTHMS - daily non-negotiables
@@ -114,6 +118,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'any',
     isActive: true,
     category: 'meals',
+    preferredTimeBlock: 'morning',
   },
   {
     type: 'standard',
@@ -124,6 +129,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'both-awake',
     isActive: true,
     category: 'kids',
+    preferredTimeBlock: 'morning',
   },
   {
     type: 'standard',
@@ -134,6 +140,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'any',
     isActive: true,
     category: 'self-care',
+    preferredTimeBlock: 'midday',
   },
   {
     type: 'meal',
@@ -145,6 +152,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'any',
     isActive: true,
     category: 'meals',
+    preferredTimeBlock: 'midday',
   },
   {
     type: 'meal',
@@ -156,6 +164,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'any',
     isActive: true,
     category: 'meals',
+    preferredTimeBlock: 'evening',
   },
   {
     type: 'standard',
@@ -166,6 +175,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'both-asleep',
     isActive: true,
     category: 'tidying',
+    preferredTimeBlock: 'evening',
   },
 
   // TENDING - nice to haves
@@ -178,6 +188,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'baby-asleep',
     isActive: true,
     category: 'kitchen',
+    preferredTimeBlock: 'morning',
   },
   {
     type: 'standard',
@@ -188,6 +199,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'any',
     isActive: true,
     category: 'kitchen',
+    preferredTimeBlock: 'afternoon',
   },
   {
     type: 'standard',
@@ -198,6 +210,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'both-asleep',
     isActive: true,
     category: 'kitchen',
+    preferredTimeBlock: 'evening',
   },
   {
     type: 'standard',
@@ -208,6 +221,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'both-asleep',
     isActive: true,
     category: 'focus-work',
+    preferredTimeBlock: 'midday',
   },
   {
     type: 'standard',
@@ -218,6 +232,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'toddler-asleep',
     isActive: true,
     category: 'laundry',
+    preferredTimeBlock: 'afternoon',
   },
   {
     type: 'standard',
@@ -228,6 +243,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'any',
     isActive: true,
     category: 'laundry',
+    preferredTimeBlock: 'morning',
   },
   {
     type: 'standard',
@@ -238,6 +254,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     napContext: 'both-awake',
     isActive: true,
     category: 'cleaning',
+    preferredTimeBlock: 'afternoon',
   },
 ];
 

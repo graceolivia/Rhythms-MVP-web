@@ -9,7 +9,7 @@ import { NapControls } from '../components/naps/NapControls';
 import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
 import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
 import { TaskEditor } from '../components/tasks/TaskEditor';
-import type { Task, TaskInstance, TaskTier, NapContext } from '../types';
+import type { Task, TaskInstance, TaskTier, NapContext, TimeBlock } from '../types';
 
 /**
  * Determines if a task is specifically suited to the current nap window.
@@ -35,6 +35,47 @@ function isTaskSuggestedForNapState(task: Task, napState: NapContext): boolean {
       return false;
   }
 }
+
+const TIME_BLOCK_ORDER: TimeBlock[] = ['morning', 'midday', 'afternoon', 'evening'];
+
+const TIME_BLOCK_CONFIG: Record<TimeBlock, { label: string; timeRange: string }> = {
+  morning: { label: 'Morning', timeRange: '6 AM – 11 AM' },
+  midday: { label: 'Midday', timeRange: '11 AM – 2 PM' },
+  afternoon: { label: 'Afternoon', timeRange: '2 PM – 5 PM' },
+  evening: { label: 'Evening', timeRange: '5 PM – 9 PM' },
+};
+
+function getTimeBlockForTask(task: Task): TimeBlock {
+  if (task.preferredTimeBlock) return task.preferredTimeBlock;
+  if (task.scheduledTime) {
+    const hour = parseInt(task.scheduledTime.split(':')[0], 10);
+    if (hour < 11) return 'morning';
+    if (hour < 14) return 'midday';
+    if (hour < 17) return 'afternoon';
+    return 'evening';
+  }
+  // Infer from category
+  switch (task.category) {
+    case 'meals':
+      if (task.type === 'meal') {
+        if (task.mealType === 'breakfast') return 'morning';
+        if (task.mealType === 'lunch') return 'midday';
+        return 'evening';
+      }
+      return 'midday';
+    case 'kids': return 'morning';
+    case 'laundry': return 'morning';
+    case 'focus-work': return 'midday';
+    case 'kitchen': return 'afternoon';
+    case 'cleaning': return 'afternoon';
+    case 'tidying': return 'evening';
+    case 'self-care': return 'morning';
+    case 'errands': return 'midday';
+    default: return 'midday';
+  }
+}
+
+type ViewMode = 'priority' | 'chronological';
 
 interface TaskWithInstance {
   task: Task;
@@ -299,9 +340,10 @@ export function Today() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [editingTier, setEditingTier] = useState<TaskTier | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('priority');
   const [recentlyCompleted, setRecentlyCompleted] = useState<Set<string>>(new Set());
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
-  const [expandedDoneTiers, setExpandedDoneTiers] = useState<Set<TaskTier>>(new Set());
+  const [expandedDoneSections, setExpandedDoneSections] = useState<Set<string>>(new Set());
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>[]>>(new Map());
 
   const tasks = useTaskStore((state) => state.tasks);
@@ -399,11 +441,11 @@ export function Today() {
     }
   }, [completeTask, resetTaskInstance]);
 
-  const toggleDoneTier = (tier: TaskTier) => {
-    setExpandedDoneTiers((prev) => {
+  const toggleDoneSection = (key: string) => {
+    setExpandedDoneSections((prev) => {
       const next = new Set(prev);
-      if (next.has(tier)) next.delete(tier);
-      else next.add(tier);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
@@ -427,105 +469,227 @@ export function Today() {
             <p className="text-bark/40 text-sm mt-2">Add some tasks to get started.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {groupedByTier.map((group) => {
-              const visibleItems = group.items
-                .filter(
-                  (item) => item.instance.status !== 'completed' || recentlyCompleted.has(item.instance.id)
-                )
-                .sort((a, b) => {
-                  const aSuggested = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
-                  const bSuggested = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
-                  if (aSuggested && !bSuggested) return -1;
-                  if (!aSuggested && bSuggested) return 1;
-                  return 0;
-                });
-              const doneItems = group.items.filter(
-                (item) => item.instance.status === 'completed' && !recentlyCompleted.has(item.instance.id)
-              );
-              const isExpanded = expandedDoneTiers.has(group.tier);
+          <>
+            {/* View mode toggle */}
+            <div className="flex items-center gap-1 mb-4 bg-parchment rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('priority')}
+                className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
+                  viewMode === 'priority' ? 'bg-cream text-bark shadow-sm' : 'text-bark/50'
+                }`}
+              >
+                By Priority
+              </button>
+              <button
+                onClick={() => setViewMode('chronological')}
+                className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
+                  viewMode === 'chronological' ? 'bg-cream text-bark shadow-sm' : 'text-bark/50'
+                }`}
+              >
+                By Time
+              </button>
+            </div>
 
-              return (
-                <section key={group.tier}>
-                  <div className="mb-2">
-                    <div className="flex items-center gap-2">
-                      <h2 className={`font-body font-semibold text-sm ${group.config.color}`}>
-                        {group.config.label}s
-                      </h2>
-                      <span className="text-xs text-bark/40">
-                        {tierProgress.get(group.tier)?.completed ?? 0}/{tierProgress.get(group.tier)?.total ?? 0}
-                      </span>
-                      <button
-                        onClick={() => setEditingTier(group.tier)}
-                        className="ml-auto text-bark/30 hover:text-bark/60 p-1"
-                        aria-label={`Edit ${group.config.label}s`}
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </button>
-                    </div>
-                    <p className="text-xs text-bark/40 mt-0.5">{group.config.subtitle}</p>
-                  </div>
-                  <div className="space-y-2">
-                    {visibleItems.map(({ task, instance }) => {
-                      const isFading = fadingOut.has(instance.id);
-                      const suggested = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
-                      return (
-                        <div
-                          key={instance.id}
-                          className={`transition-all duration-300 ease-in-out ${
-                            isFading ? 'opacity-0 max-h-0 overflow-hidden -my-1' : 'opacity-100 max-h-40'
-                          }`}
-                        >
-                          <TaskCard
-                            task={task}
-                            instance={instance}
-                            today={today}
-                            suggested={suggested}
-                            onTap={() => handleTaskTap(instance)}
-                            onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => deferTask(instance.id, null) : undefined}
-                          />
-                        </div>
-                      );
-                    })}
-                    {doneItems.length > 0 && (
-                      <div>
-                        <button
-                          onClick={() => toggleDoneTier(group.tier)}
-                          className="flex items-center gap-2 text-xs text-bark/40 hover:text-bark/60 py-1 transition-colors"
-                        >
-                          <svg
-                            className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
+            {viewMode === 'priority' ? (
+              <div className="space-y-4">
+                {groupedByTier.map((group) => {
+                  const visibleItems = group.items
+                    .filter(
+                      (item) => item.instance.status !== 'completed' || recentlyCompleted.has(item.instance.id)
+                    )
+                    .sort((a, b) => {
+                      const aSuggested = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
+                      const bSuggested = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
+                      if (aSuggested && !bSuggested) return -1;
+                      if (!aSuggested && bSuggested) return 1;
+                      return 0;
+                    });
+                  const doneItems = group.items.filter(
+                    (item) => item.instance.status === 'completed' && !recentlyCompleted.has(item.instance.id)
+                  );
+                  const isExpanded = expandedDoneSections.has(group.tier);
+
+                  return (
+                    <section key={group.tier}>
+                      <div className="mb-2">
+                        <div className="flex items-center gap-2">
+                          <h2 className={`font-body font-semibold text-sm ${group.config.color}`}>
+                            {group.config.label}s
+                          </h2>
+                          <span className="text-xs text-bark/40">
+                            {tierProgress.get(group.tier)?.completed ?? 0}/{tierProgress.get(group.tier)?.total ?? 0}
+                          </span>
+                          <button
+                            onClick={() => setEditingTier(group.tier)}
+                            className="ml-auto text-bark/30 hover:text-bark/60 p-1"
+                            aria-label={`Edit ${group.config.label}s`}
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                          </svg>
-                          <span>{doneItems.length} done</span>
-                        </button>
-                        {isExpanded && (
-                          <div className="space-y-2 mt-2">
-                            {doneItems.map(({ task, instance }) => (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                        </div>
+                        <p className="text-xs text-bark/40 mt-0.5">{group.config.subtitle}</p>
+                      </div>
+                      <div className="space-y-2">
+                        {visibleItems.map(({ task, instance }) => {
+                          const isFading = fadingOut.has(instance.id);
+                          const suggested = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
+                          return (
+                            <div
+                              key={instance.id}
+                              className={`transition-all duration-300 ease-in-out ${
+                                isFading ? 'opacity-0 max-h-0 overflow-hidden -my-1' : 'opacity-100 max-h-40'
+                              }`}
+                            >
                               <TaskCard
-                                key={instance.id}
                                 task={task}
                                 instance={instance}
                                 today={today}
+                                suggested={suggested}
                                 onTap={() => handleTaskTap(instance)}
+                                onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => deferTask(instance.id, null) : undefined}
                               />
-                            ))}
+                            </div>
+                          );
+                        })}
+                        {doneItems.length > 0 && (
+                          <div>
+                            <button
+                              onClick={() => toggleDoneSection(group.tier)}
+                              className="flex items-center gap-2 text-xs text-bark/40 hover:text-bark/60 py-1 transition-colors"
+                            >
+                              <svg
+                                className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                              <span>{doneItems.length} done</span>
+                            </button>
+                            {isExpanded && (
+                              <div className="space-y-2 mt-2">
+                                {doneItems.map(({ task, instance }) => (
+                                  <TaskCard
+                                    key={instance.id}
+                                    task={task}
+                                    instance={instance}
+                                    today={today}
+                                    onTap={() => handleTaskTap(instance)}
+                                  />
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+                    </section>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {TIME_BLOCK_ORDER.map((block) => {
+                  const blockConfig = TIME_BLOCK_CONFIG[block];
+                  const blockItems = tasksWithInstances
+                    .filter((item) => getTimeBlockForTask(item.task) === block)
+                    .filter(
+                      (item) => item.instance.status !== 'completed' || recentlyCompleted.has(item.instance.id)
+                    )
+                    .sort((a, b) => {
+                      // Anchors first (by scheduledTime), then suggested, then rest
+                      if (a.task.scheduledTime && !b.task.scheduledTime) return -1;
+                      if (!a.task.scheduledTime && b.task.scheduledTime) return 1;
+                      if (a.task.scheduledTime && b.task.scheduledTime) {
+                        return a.task.scheduledTime.localeCompare(b.task.scheduledTime);
+                      }
+                      const aSuggested = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
+                      const bSuggested = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
+                      if (aSuggested && !bSuggested) return -1;
+                      if (!aSuggested && bSuggested) return 1;
+                      return 0;
+                    });
+                  const doneItems = tasksWithInstances
+                    .filter((item) => getTimeBlockForTask(item.task) === block)
+                    .filter(
+                      (item) => item.instance.status === 'completed' && !recentlyCompleted.has(item.instance.id)
+                    );
+                  const isExpanded = expandedDoneSections.has(block);
+
+                  if (blockItems.length === 0 && doneItems.length === 0) return null;
+
+                  return (
+                    <section key={block}>
+                      <div className="mb-2">
+                        <h2 className="font-body font-semibold text-sm text-bark">
+                          {blockConfig.label}
+                        </h2>
+                        <p className="text-xs text-bark/40">{blockConfig.timeRange}</p>
+                      </div>
+                      <div className="space-y-2">
+                        {blockItems.map(({ task, instance }) => {
+                          const isFading = fadingOut.has(instance.id);
+                          const suggested = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
+                          return (
+                            <div
+                              key={instance.id}
+                              className={`transition-all duration-300 ease-in-out ${
+                                isFading ? 'opacity-0 max-h-0 overflow-hidden -my-1' : 'opacity-100 max-h-40'
+                              }`}
+                            >
+                              <TaskCard
+                                task={task}
+                                instance={instance}
+                                today={today}
+                                suggested={suggested}
+                                onTap={() => handleTaskTap(instance)}
+                                onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => deferTask(instance.id, null) : undefined}
+                              />
+                            </div>
+                          );
+                        })}
+                        {doneItems.length > 0 && (
+                          <div>
+                            <button
+                              onClick={() => toggleDoneSection(block)}
+                              className="flex items-center gap-2 text-xs text-bark/40 hover:text-bark/60 py-1 transition-colors"
+                            >
+                              <svg
+                                className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                              <span>{doneItems.length} done</span>
+                            </button>
+                            {isExpanded && (
+                              <div className="space-y-2 mt-2">
+                                {doneItems.map(({ task, instance }) => (
+                                  <TaskCard
+                                    key={instance.id}
+                                    task={task}
+                                    instance={instance}
+                                    today={today}
+                                    onTap={() => handleTaskTap(instance)}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
 
         {/* Bottom padding for mobile */}

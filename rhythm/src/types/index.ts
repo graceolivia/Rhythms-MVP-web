@@ -64,6 +64,8 @@ export type TaskStatus =
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
+export type TimeBlock = 'morning' | 'midday' | 'afternoon' | 'evening';
+
 interface BaseTask {
   id: string;
   title: string;
@@ -74,6 +76,7 @@ interface BaseTask {
   isActive: boolean;
   category: TaskCategory;
   daysOfWeek?: number[] | null; // 0=Sunday, 6=Saturday; null/undefined=every day
+  preferredTimeBlock?: TimeBlock | null; // when this task is best done
 }
 
 export interface StandardTask extends BaseTask {
