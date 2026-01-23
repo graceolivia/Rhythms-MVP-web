@@ -165,6 +165,7 @@ export function TaskEditor({ tier, isOpen, onClose }: TaskEditorProps) {
 
   const handleAdd = () => {
     addTask({
+      type: 'standard',
       title: 'New task',
       tier,
       scheduledTime: tier === 'anchor' ? '09:00' : null,

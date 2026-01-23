@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format, getDay, subDays, differenceInDays, parseISO } from 'date-fns';
-import type { Task, TaskInstance, TaskStatus } from '../types';
+import type { Task, TaskInstance, TaskStatus, MealTask } from '../types';
 
 const SEED_MAX_AGE_DAYS = 14;
 
@@ -28,6 +28,10 @@ interface TaskState {
   generateDailyInstances: (date: Date) => void;
   getInstancesForDate: (date: string) => TaskInstance[];
   getDeferredTasks: () => TaskInstance[];
+
+  // Meal task actions
+  updateMealPlan: (taskId: string, date: string, meal: string) => void;
+  getMealPlan: (taskId: string, date: string) => string | undefined;
 
   // Seeds queue management
   getSeeds: () => TaskInstance[];
@@ -245,6 +249,23 @@ export const useTaskStore = create<TaskState>()(
         return get().taskInstances.filter((instance) => instance.status === 'deferred');
       },
 
+      // Meal task actions
+      updateMealPlan: (taskId, date, meal) => {
+        set((state) => ({
+          tasks: state.tasks.map((task) => {
+            if (task.id !== taskId || task.type !== 'meal') return task;
+            const plannedMeals = { ...task.plannedMeals, [date]: meal };
+            return { ...task, plannedMeals };
+          }),
+        }));
+      },
+
+      getMealPlan: (taskId, date) => {
+        const task = get().tasks.find((t) => t.id === taskId);
+        if (!task || task.type !== 'meal') return undefined;
+        return task.plannedMeals?.[date];
+      },
+
       // Seeds queue management
       getSeeds: () => {
         return get().taskInstances.filter(
@@ -257,6 +278,7 @@ export const useTaskStore = create<TaskState>()(
         const taskId = uuidv4();
         const newTask: Task = {
           id: taskId,
+          type: 'standard',
           title,
           tier: 'tending',
           scheduledTime: null,
@@ -333,6 +355,19 @@ export const useTaskStore = create<TaskState>()(
     }),
     {
       name: 'rhythm_tasks',
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        if (version === 0) {
+          const state = persisted as TaskState;
+          return {
+            ...state,
+            tasks: state.tasks.map((task) =>
+              'type' in task ? task : { ...task, type: 'standard' as const }
+            ),
+          };
+        }
+        return persisted as TaskState;
+      },
     }
   )
 );

@@ -62,7 +62,9 @@ export type TaskStatus =
   | 'skipped'
   | 'deferred';
 
-export interface Task {
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+interface BaseTask {
   id: string;
   title: string;
   tier: TaskTier;
@@ -73,6 +75,18 @@ export interface Task {
   category: TaskCategory;
   daysOfWeek?: number[] | null; // 0=Sunday, 6=Saturday; null/undefined=every day
 }
+
+export interface StandardTask extends BaseTask {
+  type: 'standard';
+}
+
+export interface MealTask extends BaseTask {
+  type: 'meal';
+  mealType: MealType;
+  plannedMeals?: Record<string, string>; // ISO date -> what's planned
+}
+
+export type Task = StandardTask | MealTask;
 
 export interface TaskInstance {
   id: string;

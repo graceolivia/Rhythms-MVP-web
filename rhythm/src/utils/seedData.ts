@@ -63,6 +63,7 @@ export const seedBabyNapSchedules: Omit<NapSchedule, 'id' | 'childId'>[] = [
 export const seedTasks: Omit<Task, 'id'>[] = [
   // ANCHORS - fixed time events
   {
+    type: 'standard',
     title: 'Milo daycare dropoff',
     tier: 'anchor',
     scheduledTime: '08:45',
@@ -72,6 +73,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'kids',
   },
   {
+    type: 'standard',
     title: 'Milo pickup',
     tier: 'anchor',
     scheduledTime: '12:30',
@@ -81,6 +83,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'kids',
   },
   {
+    type: 'standard',
     title: 'Hazel bedtime',
     tier: 'anchor',
     scheduledTime: '19:00',
@@ -90,6 +93,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'kids',
   },
   {
+    type: 'standard',
     title: 'Milo bedtime',
     tier: 'anchor',
     scheduledTime: '20:00',
@@ -101,6 +105,8 @@ export const seedTasks: Omit<Task, 'id'>[] = [
 
   // RHYTHMS - daily non-negotiables
   {
+    type: 'meal',
+    mealType: 'breakfast',
     title: 'Breakfast for everyone',
     tier: 'rhythm',
     scheduledTime: null,
@@ -110,6 +116,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'meals',
   },
   {
+    type: 'standard',
     title: 'Dress & change both kids',
     tier: 'rhythm',
     scheduledTime: null,
@@ -119,6 +126,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'kids',
   },
   {
+    type: 'standard',
     title: 'Lunch for me',
     tier: 'rhythm',
     scheduledTime: null,
@@ -128,6 +136,8 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'self-care',
   },
   {
+    type: 'meal',
+    mealType: 'lunch',
     title: 'Lunch for Milo',
     tier: 'rhythm',
     scheduledTime: null,
@@ -137,6 +147,8 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'meals',
   },
   {
+    type: 'meal',
+    mealType: 'dinner',
     title: 'Dinner for everyone',
     tier: 'rhythm',
     scheduledTime: null,
@@ -146,6 +158,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'meals',
   },
   {
+    type: 'standard',
     title: 'House reset',
     tier: 'rhythm',
     scheduledTime: null,
@@ -157,6 +170,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
 
   // TENDING - nice to haves
   {
+    type: 'standard',
     title: 'Empty dishwasher',
     tier: 'tending',
     scheduledTime: null,
@@ -166,6 +180,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'kitchen',
   },
   {
+    type: 'standard',
     title: 'Wipe kitchen counters',
     tier: 'tending',
     scheduledTime: null,
@@ -175,6 +190,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'kitchen',
   },
   {
+    type: 'standard',
     title: 'Sweep kitchen',
     tier: 'tending',
     scheduledTime: null,
@@ -184,6 +200,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'kitchen',
   },
   {
+    type: 'standard',
     title: 'Focused computer work',
     tier: 'tending',
     scheduledTime: null,
@@ -193,6 +210,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'focus-work',
   },
   {
+    type: 'standard',
     title: 'Fold laundry',
     tier: 'tending',
     scheduledTime: null,
@@ -202,6 +220,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'laundry',
   },
   {
+    type: 'standard',
     title: 'Start a load of laundry',
     tier: 'tending',
     scheduledTime: null,
@@ -211,6 +230,7 @@ export const seedTasks: Omit<Task, 'id'>[] = [
     category: 'laundry',
   },
   {
+    type: 'standard',
     title: 'Vacuum living room',
     tier: 'tending',
     scheduledTime: null,

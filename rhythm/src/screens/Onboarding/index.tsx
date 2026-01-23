@@ -636,6 +636,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
       .filter((t) => t.selected)
       .forEach((task) => {
         addTask({
+          type: 'standard',
           title: task.title,
           tier: task.tier,
           scheduledTime: task.scheduledTime,
