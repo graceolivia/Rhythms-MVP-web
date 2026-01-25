@@ -11,7 +11,7 @@ import {
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
 import { useTaskStore, shouldTaskOccurOnDate } from '../stores/useTaskStore';
-import type { ChildColor, TaskTier, Task, TimeBlock } from '../types';
+import type { ChildColor, TaskTier, Task } from '../types';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
