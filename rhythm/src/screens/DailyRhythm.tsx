@@ -64,6 +64,7 @@ function DailyTimelineView() {
   const taskInstances = useTaskStore((state) => state.taskInstances);
   const updateTaskCompletionTime = useTaskStore((state) => state.updateTaskCompletionTime);
   const completeTask = useTaskStore((state) => state.completeTask);
+  const resetTaskInstance = useTaskStore((state) => state.resetTaskInstance);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTime, setEditingTime] = useState('');
   const [editingPosition, setEditingPosition] = useState<{ top: number; left: number } | null>(null);
@@ -274,9 +275,13 @@ function DailyTimelineView() {
             const travelTop = anchorTop - travelHeight;
             const styles = TASK_TIER_STYLES.anchor;
 
-            const handleComplete = () => {
-              if (instance && !isCompleted) {
-                completeTask(instance.id);
+            const handleToggleComplete = () => {
+              if (instance) {
+                if (isCompleted) {
+                  resetTaskInstance(instance.id);
+                } else {
+                  completeTask(instance.id);
+                }
               }
             };
 
@@ -311,7 +316,7 @@ function DailyTimelineView() {
                     top: anchorTop,
                     height: anchorHeight,
                   }}
-                  onClick={handleComplete}
+                  onClick={handleToggleComplete}
                 >
                   <div className="flex items-start gap-2">
                     {/* Checkbox */}
@@ -708,14 +713,16 @@ function WeeklyAnchorTimeline() {
                             }}
                             onClick={handleClick}
                           >
+                            {/* Mobile: just car icon, Desktop: full text */}
                             <span className="text-xs text-bark/40 truncate block pt-0.5">
-                              🚗 {travelTime}m travel
+                              <span className="sm:hidden">🚗</span>
+                              <span className="hidden sm:inline">🚗 {travelTime}m</span>
                             </span>
                           </div>
                         )}
                         {/* Main anchor block */}
                         <div
-                          className={`absolute left-0.5 right-0.5 z-10 px-1 py-0.5 border cursor-pointer transition-shadow hover:shadow-md ${styles.bg} ${styles.border} ${
+                          className={`absolute left-0.5 right-0.5 z-10 px-1 py-0.5 border cursor-pointer transition-shadow hover:shadow-md overflow-hidden ${styles.bg} ${styles.border} ${
                             travelTime > 0 ? 'rounded-b' : 'rounded'
                           }`}
                           style={{
@@ -724,14 +731,15 @@ function WeeklyAnchorTimeline() {
                           }}
                           onClick={handleClick}
                         >
+                          {/* Mobile: truncated title only, Desktop: title + time */}
                           <span className={`text-xs font-medium truncate block ${styles.text}`}>
                             {anchor.title}
                           </span>
-                          <span className="text-xs text-bark/50">
+                          <span className="hidden sm:block text-xs text-bark/50">
                             {format(
                               new Date(`2000-01-01T${anchor.scheduledTime}`),
-                              'h:mm a'
-                            )}
+                              'h:mma'
+                            ).toLowerCase()}
                             {duration && <span className="ml-1">· {duration}m</span>}
                           </span>
                         </div>
