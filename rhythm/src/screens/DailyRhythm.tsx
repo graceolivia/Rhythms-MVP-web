@@ -11,7 +11,7 @@ import {
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
 import { useTaskStore, shouldTaskOccurOnDate } from '../stores/useTaskStore';
-import type { ChildColor, TaskTier } from '../types';
+import type { ChildColor, TaskTier, Task, TimeBlock } from '../types';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -36,6 +36,14 @@ const TASK_TIER_STYLES: Record<TaskTier, { bg: string; border: string; text: str
   anchor: { bg: 'bg-terracotta/15', border: 'border-terracotta/40', text: 'text-terracotta' },
   rhythm: { bg: 'bg-sage/15', border: 'border-sage/40', text: 'text-sage' },
   tending: { bg: 'bg-skyblue/15', border: 'border-skyblue/40', text: 'text-skyblue' },
+};
+
+// Map time blocks to approximate start times (minutes from START_HOUR which is 6 AM)
+const TIME_BLOCK_MINUTES: Record<string, number> = {
+  morning: 60,      // 7 AM
+  midday: 300,      // 11 AM
+  afternoon: 480,   // 2 PM
+  evening: 660,     // 5 PM
 };
 
 function formatHour(hour: number): string {
@@ -74,11 +82,27 @@ function DailyTimelineView() {
     (t) => t.tier === 'anchor' && t.isActive && t.scheduledTime && shouldTaskOccurOnDate(t, todayDate)
   );
 
+  // Get today's rhythms that should occur today (default to morning if no time set)
+  const todaysRhythms = tasks.filter(
+    (t) => t.tier === 'rhythm' && t.isActive && shouldTaskOccurOnDate(t, todayDate)
+  );
+
   // Get instances for today to check completion status
   const todaysInstances = taskInstances.filter((i) => i.date === today);
 
-  // Helper to check if an anchor is completed
-  const getAnchorInstance = (taskId: string) => todaysInstances.find((i) => i.taskId === taskId);
+  // Helper to get task instance
+  const getTaskInstance = (taskId: string) => todaysInstances.find((i) => i.taskId === taskId);
+
+  // Helper to get rhythm position in minutes from START_HOUR
+  const getRhythmMinutes = (rhythm: Task): number => {
+    if (rhythm.scheduledTime) {
+      return timeToMinutes(rhythm.scheduledTime);
+    }
+    if (rhythm.preferredTimeBlock) {
+      return TIME_BLOCK_MINUTES[rhythm.preferredTimeBlock] || 60;
+    }
+    return 60; // default to morning
+  };
 
   // Parse time string to minutes from START_HOUR
   const timeToMinutes = (time: string): number => {
@@ -265,7 +289,7 @@ function DailyTimelineView() {
             const minutes = timeToMinutes(anchor.scheduledTime!);
             if (minutes < 0 || minutes > TOTAL_HOURS * 60) return null;
 
-            const instance = getAnchorInstance(anchor.id);
+            const instance = getTaskInstance(anchor.id);
             const isCompleted = instance?.status === 'completed';
             const duration = anchor.duration || 30;
             const travelTime = anchor.travelTime || 0;
@@ -351,6 +375,96 @@ function DailyTimelineView() {
               </div>
             );
           })}
+
+          {/* Scheduled Rhythm blocks - stacked sequentially by time block */}
+          {(() => {
+            // Sort rhythms by base time and calculate stacked positions
+            const sortedRhythms = [...todaysRhythms].sort(
+              (a, b) => getRhythmMinutes(a) - getRhythmMinutes(b)
+            );
+
+            // Track cumulative offset per time block
+            const timeBlockOffsets: Record<string, number> = {};
+
+            return sortedRhythms.map((rhythm) => {
+              const baseMinutes = getRhythmMinutes(rhythm);
+              const timeBlock = rhythm.preferredTimeBlock || 'morning';
+
+              // Get current offset for this time block
+              const offset = timeBlockOffsets[timeBlock] || 0;
+              const minutes = baseMinutes + offset;
+
+              if (minutes < 0 || minutes > TOTAL_HOURS * 60) return null;
+
+              const instance = getTaskInstance(rhythm.id);
+              const isCompleted = instance?.status === 'completed';
+              const duration = rhythm.duration || 20;
+              const rhythmHeight = Math.max(24, (duration / 60) * HOUR_HEIGHT);
+              const rhythmTop = (minutes / 60) * HOUR_HEIGHT;
+              const styles = TASK_TIER_STYLES.rhythm;
+
+              // Update offset for next rhythm in same time block
+              timeBlockOffsets[timeBlock] = offset + duration;
+
+              const handleToggleComplete = () => {
+                if (instance) {
+                  if (isCompleted) {
+                    resetTaskInstance(instance.id);
+                  } else {
+                    completeTask(instance.id);
+                  }
+                }
+              };
+
+              return (
+                <div key={rhythm.id} className="absolute left-14 right-4" style={{ zIndex: 4 }}>
+                  <div
+                    className={`absolute left-0 right-0 px-2 py-1 rounded border-dashed border cursor-pointer transition-all ${
+                      isCompleted
+                        ? 'bg-sage/10 border-sage/20 opacity-50'
+                        : `${styles.bg} ${styles.border} hover:shadow-sm`
+                    }`}
+                    style={{
+                      top: rhythmTop,
+                      height: rhythmHeight,
+                    }}
+                    onClick={handleToggleComplete}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div
+                        className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                          isCompleted
+                            ? 'bg-sage border-sage text-cream'
+                            : 'border-sage/50 hover:border-sage'
+                        }`}
+                      >
+                        {isCompleted && (
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span
+                          className={`text-xs font-medium truncate block ${
+                            isCompleted ? 'text-bark/40 line-through' : styles.text
+                          }`}
+                        >
+                          {rhythm.title}
+                        </span>
+                        <span className={`text-xs ${isCompleted ? 'text-bark/20' : 'text-bark/40'}`}>
+                          {rhythm.scheduledTime
+                            ? format(new Date(`2000-01-01T${rhythm.scheduledTime}`), 'h:mm a')
+                            : rhythm.preferredTimeBlock}
+                          {duration && <span className="ml-1">· {duration}m</span>}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            });
+          })()}
 
           {/* Completed tasks */}
           {completedTaskMarkers.map((task) => {
@@ -541,10 +655,11 @@ function WeeklyAnchorTimeline() {
   const addTask = useTaskStore((state) => state.addTask);
   const deleteTask = useTaskStore((state) => state.deleteTask);
 
-  const [editingAnchorId, setEditingAnchorId] = useState<string | null>(null);
+  const [editingTaskId, setEditingAnchorId] = useState<string | null>(null);
   const [editingPosition, setEditingPosition] = useState<{ top: number; left: number } | null>(null);
 
   const anchors = tasks.filter((t) => t.tier === 'anchor' && t.isActive);
+  const rhythms = tasks.filter((t) => t.tier === 'rhythm' && t.isActive);
   const today = new Date();
   const weekStart = startOfWeek(today, { weekStartsOn: 0 });
   const weekEnd = addDays(weekStart, 6);
@@ -563,12 +678,23 @@ function WeeklyAnchorTimeline() {
     return (hours - START_HOUR) * 60 + minutes;
   };
 
-  // Check if anchor should appear on a given day
-  const anchorOccursOnDay = (anchor: typeof anchors[0], dayIndex: number): boolean => {
-    if (anchor.daysOfWeek == null || anchor.daysOfWeek.length === 0) {
+  // Check if task should appear on a given day
+  const taskOccursOnDay = (task: Task, dayIndex: number): boolean => {
+    if (task.daysOfWeek == null || task.daysOfWeek.length === 0) {
       return true; // No specific days = all days
     }
-    return anchor.daysOfWeek.includes(dayIndex);
+    return task.daysOfWeek.includes(dayIndex);
+  };
+
+  // Get rhythm position in minutes from START_HOUR
+  const getRhythmMinutes = (rhythm: Task): number => {
+    if (rhythm.scheduledTime) {
+      return timeToMinutes(rhythm.scheduledTime);
+    }
+    if (rhythm.preferredTimeBlock) {
+      return TIME_BLOCK_MINUTES[rhythm.preferredTimeBlock] || 60;
+    }
+    return 60; // default to morning
   };
 
   // Handle creating a new anchor
@@ -591,7 +717,9 @@ function WeeklyAnchorTimeline() {
     setEditingPosition({ top: 150, left: 100 });
   };
 
-  const editingAnchor = anchors.find((a) => a.id === editingAnchorId);
+  // Find task being edited (could be anchor or rhythm)
+  const editingTask = [...anchors, ...rhythms].find((t) => t.id === editingTaskId);
+  const isEditingRhythm = editingTask?.tier === 'rhythm';
 
   return (
     <>
@@ -679,7 +807,7 @@ function WeeklyAnchorTimeline() {
 
                 {/* Anchor blocks for this day */}
                 {anchors
-                  .filter((anchor) => anchor.scheduledTime && anchorOccursOnDay(anchor, dayIndex))
+                  .filter((anchor) => anchor.scheduledTime && taskOccursOnDay(anchor, dayIndex))
                   .map((anchor) => {
                     const minutes = timeToMinutes(anchor.scheduledTime!);
                     if (minutes < 0 || minutes > TOTAL_HOURS * 60) return null;
@@ -746,14 +874,68 @@ function WeeklyAnchorTimeline() {
                       </div>
                     );
                   })}
+
+                {/* Rhythm blocks for this day - stacked sequentially */}
+                {(() => {
+                  const dayRhythms = rhythms
+                    .filter((rhythm) => taskOccursOnDay(rhythm, dayIndex))
+                    .sort((a, b) => getRhythmMinutes(a) - getRhythmMinutes(b));
+
+                  const timeBlockOffsets: Record<string, number> = {};
+
+                  return dayRhythms.map((rhythm) => {
+                    const baseMinutes = getRhythmMinutes(rhythm);
+                    const timeBlock = rhythm.preferredTimeBlock || 'morning';
+                    const offset = timeBlockOffsets[timeBlock] || 0;
+                    const minutes = baseMinutes + offset;
+
+                    if (minutes < 0 || minutes > TOTAL_HOURS * 60) return null;
+
+                    const duration = rhythm.duration || 20;
+                    const rhythmHeight = Math.max(20, (duration / 60) * HOUR_HEIGHT);
+                    const rhythmTop = (minutes / 60) * HOUR_HEIGHT;
+                    const styles = TASK_TIER_STYLES.rhythm;
+
+                    timeBlockOffsets[timeBlock] = offset + duration;
+
+                    return (
+                      <div
+                        key={rhythm.id}
+                        className={`absolute left-0.5 right-0.5 z-8 px-1 py-0.5 rounded border-dashed border cursor-pointer transition-shadow hover:shadow-sm overflow-hidden ${styles.bg} ${styles.border}`}
+                        style={{
+                          top: rhythmTop,
+                          height: rhythmHeight,
+                        }}
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setEditingAnchorId(rhythm.id);
+                          setEditingPosition({
+                            top: rect.top - 100,
+                            left: rect.left,
+                          });
+                        }}
+                      >
+                        <span className={`text-xs font-medium truncate block ${styles.text}`}>
+                          {rhythm.title}
+                        </span>
+                        <span className="hidden sm:block text-xs text-bark/40">
+                          {rhythm.scheduledTime
+                            ? format(new Date(`2000-01-01T${rhythm.scheduledTime}`), 'h:mma').toLowerCase()
+                            : rhythm.preferredTimeBlock}
+                          {duration && <span className="ml-1">· {duration}m</span>}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Inline Anchor Editor Popover */}
-      {editingAnchor && editingPosition && (
+      {/* Inline Task Editor Popover */}
+      {editingTask && editingPosition && (
         <div
           className="fixed z-50 bg-cream border border-bark/20 rounded-xl shadow-xl p-4 w-72"
           style={{
@@ -762,7 +944,9 @@ function WeeklyAnchorTimeline() {
           }}
         >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display text-bark">Edit Anchor</h3>
+            <h3 className="font-display text-bark">
+              Edit {isEditingRhythm ? 'Rhythm' : 'Anchor'}
+            </h3>
             <button
               onClick={() => {
                 setEditingAnchorId(null);
@@ -781,25 +965,49 @@ function WeeklyAnchorTimeline() {
             <label className="text-xs text-bark/50 block mb-1">Title</label>
             <input
               type="text"
-              value={editingAnchor.title}
-              onChange={(e) => updateTask(editingAnchor.id, { title: e.target.value })}
+              value={editingTask.title}
+              onChange={(e) => updateTask(editingTask.id, { title: e.target.value })}
               className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
             />
           </div>
 
-          {/* Time picker */}
-          <div className="mb-3">
-            <label className="text-xs text-bark/50 block mb-1">Scheduled Time</label>
-            <input
-              type="time"
-              value={editingAnchor.scheduledTime || '09:00'}
-              onChange={(e) => updateTask(editingAnchor.id, { scheduledTime: e.target.value || null })}
-              className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
-            />
-          </div>
+          {/* Anchor: Exact time picker */}
+          {!isEditingRhythm && (
+            <div className="mb-3">
+              <label className="text-xs text-bark/50 block mb-1">Scheduled Time</label>
+              <input
+                type="time"
+                value={editingTask.scheduledTime || '09:00'}
+                onChange={(e) => updateTask(editingTask.id, { scheduledTime: e.target.value || null })}
+                className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
+              />
+            </div>
+          )}
 
-          {/* Duration and Travel Time */}
-          <div className="grid grid-cols-2 gap-2 mb-3">
+          {/* Rhythm: Time of day picker */}
+          {isEditingRhythm && (
+            <div className="mb-3">
+              <label className="text-xs text-bark/50 block mb-1">Time of Day</label>
+              <div className="grid grid-cols-2 gap-1">
+                {(['morning', 'midday', 'afternoon', 'evening'] as const).map((block) => (
+                  <button
+                    key={block}
+                    onClick={() => updateTask(editingTask.id, { preferredTimeBlock: block })}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      editingTask.preferredTimeBlock === block
+                        ? 'bg-sage text-cream'
+                        : 'bg-parchment text-bark/60 hover:text-bark'
+                    }`}
+                  >
+                    {block.charAt(0).toUpperCase() + block.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Duration (and Travel Time for anchors) */}
+          <div className={`grid ${isEditingRhythm ? 'grid-cols-1' : 'grid-cols-2'} gap-2 mb-3`}>
             <div>
               <label className="text-xs text-bark/50 block mb-1">Duration (min)</label>
               <input
@@ -807,23 +1015,25 @@ function WeeklyAnchorTimeline() {
                 min="5"
                 max="480"
                 step="5"
-                value={editingAnchor.duration || 30}
-                onChange={(e) => updateTask(editingAnchor.id, { duration: parseInt(e.target.value) || 30 })}
+                value={editingTask.duration || (isEditingRhythm ? 20 : 30)}
+                onChange={(e) => updateTask(editingTask.id, { duration: parseInt(e.target.value) || (isEditingRhythm ? 20 : 30) })}
                 className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
               />
             </div>
-            <div>
-              <label className="text-xs text-bark/50 block mb-1">Travel (min)</label>
-              <input
-                type="number"
-                min="0"
-                max="180"
-                step="5"
-                value={editingAnchor.travelTime || 0}
-                onChange={(e) => updateTask(editingAnchor.id, { travelTime: parseInt(e.target.value) || 0 })}
-                className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
-              />
-            </div>
+            {!isEditingRhythm && (
+              <div>
+                <label className="text-xs text-bark/50 block mb-1">Travel (min)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="180"
+                  step="5"
+                  value={editingTask.travelTime || 0}
+                  onChange={(e) => updateTask(editingTask.id, { travelTime: parseInt(e.target.value) || 0 })}
+                  className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
+                />
+              </div>
+            )}
           </div>
 
           {/* Day-of-week toggles */}
@@ -832,27 +1042,27 @@ function WeeklyAnchorTimeline() {
             <div className="flex gap-1">
               {DAY_LABELS.map((label, index) => {
                 const isSelected =
-                  editingAnchor.daysOfWeek == null ||
-                  editingAnchor.daysOfWeek.length === 0 ||
-                  editingAnchor.daysOfWeek.includes(index);
+                  editingTask.daysOfWeek == null ||
+                  editingTask.daysOfWeek.length === 0 ||
+                  editingTask.daysOfWeek.includes(index);
 
                 const toggleDay = () => {
                   let newDays: number[] | null;
-                  if (editingAnchor.daysOfWeek == null || editingAnchor.daysOfWeek.length === 0) {
+                  if (editingTask.daysOfWeek == null || editingTask.daysOfWeek.length === 0) {
                     // Currently "all days" - switching to exclude this day
                     newDays = [0, 1, 2, 3, 4, 5, 6].filter((d) => d !== index);
                   } else if (isSelected) {
                     // Remove this day
-                    newDays = editingAnchor.daysOfWeek.filter((d) => d !== index);
+                    newDays = editingTask.daysOfWeek.filter((d) => d !== index);
                     // If no days left, set to null (all days)
                     if (newDays.length === 0) newDays = null;
                   } else {
                     // Add this day
-                    newDays = [...editingAnchor.daysOfWeek, index].sort();
+                    newDays = [...editingTask.daysOfWeek, index].sort();
                     // If all days selected, set to null
                     if (newDays.length === 7) newDays = null;
                   }
-                  updateTask(editingAnchor.id, { daysOfWeek: newDays });
+                  updateTask(editingTask.id, { daysOfWeek: newDays });
                 };
 
                 return (
@@ -876,7 +1086,7 @@ function WeeklyAnchorTimeline() {
           <div className="flex items-center justify-between pt-2 border-t border-bark/10">
             <button
               onClick={() => {
-                deleteTask(editingAnchor.id);
+                deleteTask(editingTask.id);
                 setEditingAnchorId(null);
                 setEditingPosition(null);
               }}
@@ -898,7 +1108,7 @@ function WeeklyAnchorTimeline() {
       )}
 
       {/* Backdrop when editing */}
-      {editingAnchorId && (
+      {editingTaskId && (
         <div
           className="fixed inset-0 z-40"
           onClick={() => {
