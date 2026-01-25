@@ -10,7 +10,7 @@ import {
 } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
-import { useTaskStore } from '../stores/useTaskStore';
+import { useTaskStore, shouldTaskOccurOnDate } from '../stores/useTaskStore';
 import type { ChildColor, TaskTier } from '../types';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -57,14 +57,33 @@ interface NapBlock {
 
 function DailyTimelineView() {
   const today = format(new Date(), 'yyyy-MM-dd');
+  const todayDate = new Date();
   const children = useChildStore((state) => state.children);
   const napLogs = useNapStore((state) => state.napLogs);
   const tasks = useTaskStore((state) => state.tasks);
   const taskInstances = useTaskStore((state) => state.taskInstances);
   const updateTaskCompletionTime = useTaskStore((state) => state.updateTaskCompletionTime);
+  const completeTask = useTaskStore((state) => state.completeTask);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTime, setEditingTime] = useState('');
   const [editingPosition, setEditingPosition] = useState<{ top: number; left: number } | null>(null);
+
+  // Get today's anchors that should occur today
+  const todaysAnchors = tasks.filter(
+    (t) => t.tier === 'anchor' && t.isActive && t.scheduledTime && shouldTaskOccurOnDate(t, todayDate)
+  );
+
+  // Get instances for today to check completion status
+  const todaysInstances = taskInstances.filter((i) => i.date === today);
+
+  // Helper to check if an anchor is completed
+  const getAnchorInstance = (taskId: string) => todaysInstances.find((i) => i.taskId === taskId);
+
+  // Parse time string to minutes from START_HOUR
+  const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return (hours - START_HOUR) * 60 + minutes;
+  };
 
   // Get today's naps
   const todaysNaps = napLogs.filter((log) => log.date === today);
@@ -239,6 +258,94 @@ function DailyTimelineView() {
               <div className="flex-1 border-t border-bark/10" />
             </div>
           ))}
+
+          {/* Scheduled Anchor blocks */}
+          {todaysAnchors.map((anchor) => {
+            const minutes = timeToMinutes(anchor.scheduledTime!);
+            if (minutes < 0 || minutes > TOTAL_HOURS * 60) return null;
+
+            const instance = getAnchorInstance(anchor.id);
+            const isCompleted = instance?.status === 'completed';
+            const duration = anchor.duration || 30;
+            const travelTime = anchor.travelTime || 0;
+            const anchorHeight = Math.max(28, (duration / 60) * HOUR_HEIGHT);
+            const travelHeight = (travelTime / 60) * HOUR_HEIGHT;
+            const anchorTop = (minutes / 60) * HOUR_HEIGHT;
+            const travelTop = anchorTop - travelHeight;
+            const styles = TASK_TIER_STYLES.anchor;
+
+            const handleComplete = () => {
+              if (instance && !isCompleted) {
+                completeTask(instance.id);
+              }
+            };
+
+            return (
+              <div key={anchor.id} className="absolute left-14 right-4" style={{ zIndex: 5 }}>
+                {/* Travel time block */}
+                {travelTime > 0 && travelTop >= 0 && (
+                  <div
+                    className={`absolute left-0 right-0 px-2 rounded-t border border-b-0 ${
+                      isCompleted ? 'bg-bark/5 border-bark/10' : 'bg-bark/10 border-bark/20'
+                    }`}
+                    style={{
+                      top: travelTop,
+                      height: travelHeight,
+                    }}
+                  >
+                    <span className={`text-xs truncate block pt-1 ${isCompleted ? 'text-bark/30' : 'text-bark/50'}`}>
+                      🚗 {travelTime}m
+                    </span>
+                  </div>
+                )}
+                {/* Main anchor block */}
+                <div
+                  className={`absolute left-0 right-0 px-2 py-1 border cursor-pointer transition-all ${
+                    travelTime > 0 ? 'rounded-b' : 'rounded'
+                  } ${
+                    isCompleted
+                      ? 'bg-sage/20 border-sage/30 opacity-60'
+                      : `${styles.bg} ${styles.border} hover:shadow-md`
+                  }`}
+                  style={{
+                    top: anchorTop,
+                    height: anchorHeight,
+                  }}
+                  onClick={handleComplete}
+                >
+                  <div className="flex items-start gap-2">
+                    {/* Checkbox */}
+                    <div
+                      className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                        isCompleted
+                          ? 'bg-sage border-sage text-cream'
+                          : 'border-terracotta/50 hover:border-terracotta'
+                      }`}
+                    >
+                      {isCompleted && (
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span
+                        className={`text-xs font-medium truncate block ${
+                          isCompleted ? 'text-bark/50 line-through' : styles.text
+                        }`}
+                      >
+                        {anchor.title}
+                      </span>
+                      <span className={`text-xs ${isCompleted ? 'text-bark/30' : 'text-bark/50'}`}>
+                        {format(new Date(`2000-01-01T${anchor.scheduledTime}`), 'h:mm a')}
+                        {duration && <span className="ml-1">· {duration}m</span>}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
 
           {/* Completed tasks */}
           {completedTaskMarkers.map((task) => {
@@ -471,6 +578,8 @@ function WeeklyAnchorTimeline() {
       isActive: true,
       category: 'other',
       daysOfWeek: null,
+      duration: 30,
+      travelTime: 0,
     });
     setEditingAnchorId(newId);
     // Position editor near center
@@ -569,35 +678,63 @@ function WeeklyAnchorTimeline() {
                   .map((anchor) => {
                     const minutes = timeToMinutes(anchor.scheduledTime!);
                     if (minutes < 0 || minutes > TOTAL_HOURS * 60) return null;
-                    const top = (minutes / 60) * HOUR_HEIGHT;
+
+                    const duration = anchor.duration || 30; // default 30 min
+                    const travelTime = anchor.travelTime || 0;
+                    const anchorHeight = Math.max(24, (duration / 60) * HOUR_HEIGHT);
+                    const travelHeight = (travelTime / 60) * HOUR_HEIGHT;
+                    const anchorTop = (minutes / 60) * HOUR_HEIGHT;
+                    const travelTop = anchorTop - travelHeight;
                     const styles = TASK_TIER_STYLES.anchor;
 
+                    const handleClick = (e: React.MouseEvent) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setEditingAnchorId(anchor.id);
+                      setEditingPosition({
+                        top: rect.top - 100,
+                        left: rect.left,
+                      });
+                    };
+
                     return (
-                      <div
-                        key={anchor.id}
-                        className={`absolute left-0.5 right-0.5 z-10 px-1 py-0.5 rounded border cursor-pointer transition-shadow hover:shadow-md ${styles.bg} ${styles.border}`}
-                        style={{
-                          top,
-                          minHeight: 24,
-                        }}
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setEditingAnchorId(anchor.id);
-                          setEditingPosition({
-                            top: rect.top - 100,
-                            left: rect.left,
-                          });
-                        }}
-                      >
-                        <span className={`text-xs font-medium truncate block ${styles.text}`}>
-                          {anchor.title}
-                        </span>
-                        <span className="text-xs text-bark/50">
-                          {format(
-                            new Date(`2000-01-01T${anchor.scheduledTime}`),
-                            'h:mm a'
-                          )}
-                        </span>
+                      <div key={anchor.id}>
+                        {/* Travel time block */}
+                        {travelTime > 0 && travelTop >= 0 && (
+                          <div
+                            className="absolute left-0.5 right-0.5 z-9 px-1 rounded-t border border-b-0 cursor-pointer bg-bark/5 border-bark/20"
+                            style={{
+                              top: travelTop,
+                              height: travelHeight,
+                            }}
+                            onClick={handleClick}
+                          >
+                            <span className="text-xs text-bark/40 truncate block pt-0.5">
+                              🚗 {travelTime}m travel
+                            </span>
+                          </div>
+                        )}
+                        {/* Main anchor block */}
+                        <div
+                          className={`absolute left-0.5 right-0.5 z-10 px-1 py-0.5 border cursor-pointer transition-shadow hover:shadow-md ${styles.bg} ${styles.border} ${
+                            travelTime > 0 ? 'rounded-b' : 'rounded'
+                          }`}
+                          style={{
+                            top: anchorTop,
+                            height: anchorHeight,
+                          }}
+                          onClick={handleClick}
+                        >
+                          <span className={`text-xs font-medium truncate block ${styles.text}`}>
+                            {anchor.title}
+                          </span>
+                          <span className="text-xs text-bark/50">
+                            {format(
+                              new Date(`2000-01-01T${anchor.scheduledTime}`),
+                              'h:mm a'
+                            )}
+                            {duration && <span className="ml-1">· {duration}m</span>}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
@@ -651,6 +788,34 @@ function WeeklyAnchorTimeline() {
               onChange={(e) => updateTask(editingAnchor.id, { scheduledTime: e.target.value || null })}
               className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
             />
+          </div>
+
+          {/* Duration and Travel Time */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div>
+              <label className="text-xs text-bark/50 block mb-1">Duration (min)</label>
+              <input
+                type="number"
+                min="5"
+                max="480"
+                step="5"
+                value={editingAnchor.duration || 30}
+                onChange={(e) => updateTask(editingAnchor.id, { duration: parseInt(e.target.value) || 30 })}
+                className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-bark/50 block mb-1">Travel (min)</label>
+              <input
+                type="number"
+                min="0"
+                max="180"
+                step="5"
+                value={editingAnchor.travelTime || 0}
+                onChange={(e) => updateTask(editingAnchor.id, { travelTime: parseInt(e.target.value) || 0 })}
+                className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
+              />
+            </div>
           </div>
 
           {/* Day-of-week toggles */}

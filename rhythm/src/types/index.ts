@@ -77,6 +77,8 @@ interface BaseTask {
   category: TaskCategory;
   daysOfWeek?: number[] | null; // 0=Sunday, 6=Saturday; null/undefined=every day
   preferredTimeBlock?: TimeBlock | null; // when this task is best done
+  duration?: number | null; // duration in minutes (for anchors)
+  travelTime?: number | null; // travel time before anchor in minutes
 }
 
 export interface StandardTask extends BaseTask {
