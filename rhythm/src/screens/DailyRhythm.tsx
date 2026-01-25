@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   format,
   parseISO,
@@ -11,7 +10,7 @@ import {
 } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
-import { useTaskStore, shouldTaskOccurOnDate } from '../stores/useTaskStore';
+import { useTaskStore } from '../stores/useTaskStore';
 import type { ChildColor, TaskTier } from '../types';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -424,76 +423,326 @@ function DailyTimelineView() {
   );
 }
 
-function WeeklyRhythmView() {
-  const navigate = useNavigate();
+function WeeklyAnchorTimeline() {
   const tasks = useTaskStore((state) => state.tasks);
+  const updateTask = useTaskStore((state) => state.updateTask);
+  const addTask = useTaskStore((state) => state.addTask);
+  const deleteTask = useTaskStore((state) => state.deleteTask);
 
+  const [editingAnchorId, setEditingAnchorId] = useState<string | null>(null);
+  const [editingPosition, setEditingPosition] = useState<{ top: number; left: number } | null>(null);
+
+  const anchors = tasks.filter((t) => t.tier === 'anchor' && t.isActive);
   const today = new Date();
-  const weekStart = startOfWeek(today, { weekStartsOn: 0 }); // Sunday
+  const weekStart = startOfWeek(today, { weekStartsOn: 0 });
   const weekEnd = addDays(weekStart, 6);
-
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  const getTaskCountForDay = (date: Date): number => {
-    return tasks.filter((task) => task.isActive && shouldTaskOccurOnDate(task, date)).length;
+  // Current time indicator
+  const now = new Date();
+  const nowStartOfDay = new Date(now);
+  nowStartOfDay.setHours(START_HOUR, 0, 0, 0);
+  const currentMinutes = differenceInMinutes(now, nowStartOfDay);
+  const showCurrentTime = currentMinutes >= 0 && currentMinutes <= TOTAL_HOURS * 60;
+
+  // Parse time string to minutes from START_HOUR
+  const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return (hours - START_HOUR) * 60 + minutes;
   };
+
+  // Check if anchor should appear on a given day
+  const anchorOccursOnDay = (anchor: typeof anchors[0], dayIndex: number): boolean => {
+    if (anchor.daysOfWeek == null || anchor.daysOfWeek.length === 0) {
+      return true; // No specific days = all days
+    }
+    return anchor.daysOfWeek.includes(dayIndex);
+  };
+
+  // Handle creating a new anchor
+  const handleAddAnchor = () => {
+    const newId = addTask({
+      type: 'standard',
+      title: 'New anchor',
+      tier: 'anchor',
+      scheduledTime: '09:00',
+      recurrence: 'daily',
+      napContext: null,
+      isActive: true,
+      category: 'other',
+      daysOfWeek: null,
+    });
+    setEditingAnchorId(newId);
+    // Position editor near center
+    setEditingPosition({ top: 150, left: 100 });
+  };
+
+  const editingAnchor = anchors.find((a) => a.id === editingAnchorId);
 
   return (
     <>
       <header className="mb-6">
-        <h1 className="font-display text-2xl text-bark">Weekly Rhythm</h1>
+        <h1 className="font-display text-2xl text-bark">Weekly Anchors</h1>
         <p className="text-bark/60 text-sm">
           {format(weekStart, 'MMM d')}–{format(weekEnd, 'MMM d')}
         </p>
       </header>
 
-      {/* Week grid */}
-      <div className="grid grid-cols-7 gap-2 mb-8">
-        {weekDays.map((day, index) => {
-          const taskCount = getTaskCountForDay(day);
-          const dayIsToday = isToday(day);
-          const dateStr = format(day, 'yyyy-MM-dd');
-
-          return (
-            <button
+      {/* Weekly Timeline Grid */}
+      <div className="bg-parchment rounded-xl p-2 overflow-x-auto">
+        {/* Day headers */}
+        <div className="grid grid-cols-8 gap-0.5 mb-1">
+          <div className="w-12" /> {/* Hour label column */}
+          {weekDays.map((day, index) => (
+            <div
               key={index}
-              onClick={() => navigate(`/rhythm/day/${dateStr}`)}
-              className={`flex flex-col items-center py-3 px-1 rounded-xl transition-all ${
-                dayIsToday
-                  ? 'bg-sage/20 border-2 border-sage'
-                  : 'bg-parchment border-2 border-transparent hover:border-bark/10'
+              className={`text-center py-2 rounded-t-lg ${
+                isToday(day) ? 'bg-sage/20' : ''
               }`}
             >
               <span
-                className={`text-xs font-semibold mb-1 ${
-                  dayIsToday ? 'text-sage' : 'text-bark/50'
+                className={`text-xs font-semibold ${
+                  isToday(day) ? 'text-sage' : 'text-bark/50'
                 }`}
               >
                 {DAY_LABELS[index]}
               </span>
-              <span className={`text-lg font-display ${dayIsToday ? 'text-sage' : 'text-bark'}`}>
+              <span
+                className={`block text-sm font-display ${
+                  isToday(day) ? 'text-sage' : 'text-bark'
+                }`}
+              >
                 {format(day, 'd')}
               </span>
-              {taskCount > 0 && (
-                <span
-                  className={`mt-1 text-xs font-medium px-1.5 py-0.5 rounded-full ${
-                    dayIsToday ? 'bg-sage/30 text-sage' : 'bg-bark/10 text-bark/60'
-                  }`}
+            </div>
+          ))}
+        </div>
+
+        {/* Timeline body */}
+        <div className="relative" style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}>
+          {/* Grid structure with hour lines */}
+          <div className="grid grid-cols-8 gap-0.5 h-full">
+            {/* Hour labels column */}
+            <div className="relative w-12">
+              {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => (
+                <div
+                  key={i}
+                  className="absolute left-0 right-0 flex items-center"
+                  style={{ top: i * HOUR_HEIGHT }}
                 >
-                  {taskCount}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                  <span className="text-xs text-bark/40 pr-1">{formatHour(START_HOUR + i)}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Day columns */}
+            {weekDays.map((day, dayIndex) => (
+              <div
+                key={dayIndex}
+                className={`relative border-l border-bark/10 ${
+                  isToday(day) ? 'bg-sage/5' : ''
+                }`}
+              >
+                {/* Hour lines */}
+                {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="absolute left-0 right-0 border-t border-bark/10"
+                    style={{ top: i * HOUR_HEIGHT }}
+                  />
+                ))}
+
+                {/* Current time indicator for today */}
+                {isToday(day) && showCurrentTime && (
+                  <div
+                    className="absolute left-0 right-0 z-20 flex items-center"
+                    style={{ top: (currentMinutes / 60) * HOUR_HEIGHT }}
+                  >
+                    <div className="w-2 h-2 rounded-full bg-terracotta -ml-1" />
+                    <div className="flex-1 border-t-2 border-terracotta" />
+                  </div>
+                )}
+
+                {/* Anchor blocks for this day */}
+                {anchors
+                  .filter((anchor) => anchor.scheduledTime && anchorOccursOnDay(anchor, dayIndex))
+                  .map((anchor) => {
+                    const minutes = timeToMinutes(anchor.scheduledTime!);
+                    if (minutes < 0 || minutes > TOTAL_HOURS * 60) return null;
+                    const top = (minutes / 60) * HOUR_HEIGHT;
+                    const styles = TASK_TIER_STYLES.anchor;
+
+                    return (
+                      <div
+                        key={anchor.id}
+                        className={`absolute left-0.5 right-0.5 z-10 px-1 py-0.5 rounded border cursor-pointer transition-shadow hover:shadow-md ${styles.bg} ${styles.border}`}
+                        style={{
+                          top,
+                          minHeight: 24,
+                        }}
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setEditingAnchorId(anchor.id);
+                          setEditingPosition({
+                            top: rect.top - 100,
+                            left: rect.left,
+                          });
+                        }}
+                      >
+                        <span className={`text-xs font-medium truncate block ${styles.text}`}>
+                          {anchor.title}
+                        </span>
+                        <span className="text-xs text-bark/50">
+                          {format(
+                            new Date(`2000-01-01T${anchor.scheduledTime}`),
+                            'h:mm a'
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Edit button */}
+      {/* Inline Anchor Editor Popover */}
+      {editingAnchor && editingPosition && (
+        <div
+          className="fixed z-50 bg-cream border border-bark/20 rounded-xl shadow-xl p-4 w-72"
+          style={{
+            top: Math.max(20, Math.min(editingPosition.top, window.innerHeight - 350)),
+            left: Math.max(20, Math.min(editingPosition.left, window.innerWidth - 300)),
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-display text-bark">Edit Anchor</h3>
+            <button
+              onClick={() => {
+                setEditingAnchorId(null);
+                setEditingPosition(null);
+              }}
+              className="text-bark/40 hover:text-bark p-1"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Title input */}
+          <div className="mb-3">
+            <label className="text-xs text-bark/50 block mb-1">Title</label>
+            <input
+              type="text"
+              value={editingAnchor.title}
+              onChange={(e) => updateTask(editingAnchor.id, { title: e.target.value })}
+              className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
+            />
+          </div>
+
+          {/* Time picker */}
+          <div className="mb-3">
+            <label className="text-xs text-bark/50 block mb-1">Scheduled Time</label>
+            <input
+              type="time"
+              value={editingAnchor.scheduledTime || '09:00'}
+              onChange={(e) => updateTask(editingAnchor.id, { scheduledTime: e.target.value || null })}
+              className="w-full bg-parchment rounded-lg px-3 py-2 text-sm text-bark border border-bark/10 focus:outline-none focus:border-sage"
+            />
+          </div>
+
+          {/* Day-of-week toggles */}
+          <div className="mb-4">
+            <label className="text-xs text-bark/50 block mb-2">Days of Week</label>
+            <div className="flex gap-1">
+              {DAY_LABELS.map((label, index) => {
+                const isSelected =
+                  editingAnchor.daysOfWeek == null ||
+                  editingAnchor.daysOfWeek.length === 0 ||
+                  editingAnchor.daysOfWeek.includes(index);
+
+                const toggleDay = () => {
+                  let newDays: number[] | null;
+                  if (editingAnchor.daysOfWeek == null || editingAnchor.daysOfWeek.length === 0) {
+                    // Currently "all days" - switching to exclude this day
+                    newDays = [0, 1, 2, 3, 4, 5, 6].filter((d) => d !== index);
+                  } else if (isSelected) {
+                    // Remove this day
+                    newDays = editingAnchor.daysOfWeek.filter((d) => d !== index);
+                    // If no days left, set to null (all days)
+                    if (newDays.length === 0) newDays = null;
+                  } else {
+                    // Add this day
+                    newDays = [...editingAnchor.daysOfWeek, index].sort();
+                    // If all days selected, set to null
+                    if (newDays.length === 7) newDays = null;
+                  }
+                  updateTask(editingAnchor.id, { daysOfWeek: newDays });
+                };
+
+                return (
+                  <button
+                    key={index}
+                    onClick={toggleDay}
+                    className={`w-8 h-8 rounded-full text-xs font-semibold transition-colors ${
+                      isSelected
+                        ? 'bg-terracotta text-cream'
+                        : 'bg-parchment text-bark/40 hover:text-bark'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between pt-2 border-t border-bark/10">
+            <button
+              onClick={() => {
+                deleteTask(editingAnchor.id);
+                setEditingAnchorId(null);
+                setEditingPosition(null);
+              }}
+              className="text-red-500 hover:text-red-600 text-sm font-medium"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => {
+                setEditingAnchorId(null);
+                setEditingPosition(null);
+              }}
+              className="bg-sage text-cream px-4 py-2 rounded-lg text-sm font-medium hover:bg-sage/90"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Backdrop when editing */}
+      {editingAnchorId && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => {
+            setEditingAnchorId(null);
+            setEditingPosition(null);
+          }}
+        />
+      )}
+
+      {/* Add anchor button */}
       <button
-        onClick={() => navigate('/rhythm/edit')}
-        className="w-full py-3 rounded-xl bg-sage text-cream font-medium hover:bg-sage/90 transition-colors"
+        onClick={handleAddAnchor}
+        className="fixed bottom-24 right-6 w-14 h-14 rounded-full bg-terracotta text-cream shadow-lg hover:bg-terracotta/90 flex items-center justify-center z-30"
       >
-        Edit Weekly Rhythm
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
       </button>
     </>
   );
@@ -528,7 +777,8 @@ export function DailyRhythm() {
           </button>
         </div>
 
-        {viewMode === 'daily' ? <DailyTimelineView /> : <WeeklyRhythmView />}
+        {viewMode === 'daily' && <DailyTimelineView />}
+        {viewMode === 'weekly' && <WeeklyAnchorTimeline />}
       </div>
     </div>
   );
