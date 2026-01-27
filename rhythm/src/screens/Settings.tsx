@@ -1,8 +1,9 @@
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
+import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useResetSeedData } from '../hooks/useResetSeedData';
 import { DEV_MODE } from '../config/devMode';
-import type { ChildColor } from '../types';
+import type { ChildColor, CareStatus } from '../types';
 
 const COLOR_OPTIONS: { value: ChildColor; label: string; bgClass: string; borderClass: string }[] = [
   { value: 'lavender', label: 'Lavender', bgClass: 'bg-lavender', borderClass: 'border-lavender' },
@@ -13,16 +14,30 @@ const COLOR_OPTIONS: { value: ChildColor; label: string; bgClass: string; border
   { value: 'clay', label: 'Clay', bgClass: 'bg-clay', borderClass: 'border-clay' },
 ];
 
+const CARE_STATUS_OPTIONS: { value: CareStatus; label: string; icon: string }[] = [
+  { value: 'home', label: 'Home', icon: '🏠' },
+  { value: 'away', label: 'Away', icon: '🚗' },
+  { value: 'asleep', label: 'Asleep', icon: '😴' },
+];
+
 export function Settings() {
   const children = useChildStore((state) => state.children);
   const addChild = useChildStore((state) => state.addChild);
   const updateChild = useChildStore((state) => state.updateChild);
   const removeChild = useChildStore((state) => state.removeChild);
+  const updateCareStatus = useChildStore((state) => state.updateCareStatus);
+  const getChild = useChildStore((state) => state.getChild);
   const napSchedules = useNapStore((state) => state.napSchedules);
   const addNapSchedule = useNapStore((state) => state.addNapSchedule);
   const updateNapSchedule = useNapStore((state) => state.updateNapSchedule);
   const removeNapSchedule = useNapStore((state) => state.removeNapSchedule);
+  const tasks = useTaskStore((state) => state.tasks);
   const resetSeedData = useResetSeedData();
+
+  // Get linked tasks for a child
+  const getLinkedTasks = (childId: string) => {
+    return tasks.filter((task) => task.childId === childId);
+  };
 
   const handleAddChild = () => {
     addChild({
@@ -140,6 +155,27 @@ export function Settings() {
                   </div>
                 </div>
 
+                {/* Care Status */}
+                <div className="border-t border-bark/10 pt-3 mt-3">
+                  <label className="text-xs text-bark/50 block mb-2">Care Status</label>
+                  <div className="flex gap-2">
+                    {CARE_STATUS_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => updateCareStatus(child.id, option.value)}
+                        className={`flex-1 py-2 px-3 rounded-lg text-sm transition-all ${
+                          (child.careStatus ?? 'home') === option.value
+                            ? 'bg-sage/20 border border-sage text-sage font-medium'
+                            : 'bg-cream border border-bark/10 text-bark/60 hover:border-bark/30'
+                        }`}
+                      >
+                        <span className="mr-1">{option.icon}</span>
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Nap Schedules (only for napping-age children) */}
                 {child.isNappingAge && (
                   <div className="border-t border-bark/10 pt-3 mt-3">
@@ -177,6 +213,24 @@ export function Settings() {
                     >
                       + Add Nap
                     </button>
+                  </div>
+                )}
+
+                {/* Linked Tasks */}
+                {getLinkedTasks(child.id).length > 0 && (
+                  <div className="border-t border-bark/10 pt-3 mt-3">
+                    <label className="text-xs text-bark/50 block mb-2">Linked Tasks</label>
+                    <div className="space-y-1">
+                      {getLinkedTasks(child.id).map((task) => (
+                        <div key={task.id} className="flex items-center gap-2 text-sm text-bark/70">
+                          <span className="text-bark/40">•</span>
+                          <span>{getTaskDisplayTitle(task, getChild)}</span>
+                          {task.scheduledTime && (
+                            <span className="text-xs text-bark/40 ml-auto">({task.scheduledTime})</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

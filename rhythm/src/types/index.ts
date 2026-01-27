@@ -2,6 +2,9 @@
 
 export type ChildColor = 'lavender' | 'sage' | 'skyblue' | 'dustyrose' | 'terracotta' | 'clay';
 
+// Care status per child
+export type CareStatus = 'home' | 'away' | 'asleep';
+
 export interface Child {
   id: string;
   name: string;
@@ -10,6 +13,7 @@ export interface Child {
   color?: ChildColor;
   bedtime?: string;   // HH:mm format (e.g., "19:30")
   wakeTime?: string;  // HH:mm format (e.g., "07:00")
+  careStatus?: CareStatus;  // Current care status (default: 'home')
 }
 
 export interface NapSchedule {
@@ -46,6 +50,12 @@ export type NapContext =
   | 'baby-asleep'
   | 'any';
 
+// Child task types for special behaviors
+export type ChildTaskType = 'bedtime' | 'wake-up' | 'dropoff' | 'pickup' | 'custom' | null;
+
+// Care context for task suggestions (based on care status)
+export type CareContext = 'all-home' | 'any-away' | 'all-away' | 'any';
+
 export type TaskCategory =
   | 'meals'
   | 'kids'
@@ -81,6 +91,9 @@ interface BaseTask {
   preferredTimeBlock?: TimeBlock | null; // when this task is best done
   duration?: number | null; // duration in minutes (for anchors)
   travelTime?: number | null; // travel time before anchor in minutes
+  childId?: string | null;           // Link to specific child
+  childTaskType?: ChildTaskType;     // Type of child task
+  careContext?: CareContext | null;  // When to suggest (based on care status)
 }
 
 export interface StandardTask extends BaseTask {

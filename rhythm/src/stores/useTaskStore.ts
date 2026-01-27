@@ -2,9 +2,40 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format, getDay, subDays, differenceInDays, parseISO } from 'date-fns';
-import type { Task, TaskInput, TaskInstance, TaskStatus } from '../types';
+import type { Task, TaskInput, TaskInstance, TaskStatus, CareStatus, ChildTaskType } from '../types';
+import { useChildStore } from './useChildStore';
 
 const SEED_MAX_AGE_DAYS = 14;
+
+/**
+ * Get the new care status based on completing a child task type
+ */
+function getStatusFromTaskType(taskType: ChildTaskType): CareStatus | null {
+  switch (taskType) {
+    case 'bedtime':
+      return 'asleep';
+    case 'dropoff':
+      return 'away';
+    case 'wake-up':
+    case 'pickup':
+      return 'home';
+    default:
+      return null;
+  }
+}
+
+/**
+ * Get the display title for a task (prepends child name for child-linked tasks)
+ */
+export function getTaskDisplayTitle(task: Task, getChild: (id: string) => { name: string } | undefined): string {
+  if (task.childId && task.childTaskType) {
+    const child = getChild(task.childId);
+    if (child) {
+      return `${child.name} ${task.title}`;
+    }
+  }
+  return task.title;
+}
 
 interface TaskState {
   tasks: Task[];
@@ -121,17 +152,28 @@ export const useTaskStore = create<TaskState>()(
 
       // Task instance actions
       completeTask: (instanceId) => {
+        const instance = get().taskInstances.find((i) => i.id === instanceId);
+        const task = instance ? get().tasks.find((t) => t.id === instance.taskId) : null;
+
         set((state) => ({
-          taskInstances: state.taskInstances.map((instance) =>
-            instance.id === instanceId
+          taskInstances: state.taskInstances.map((i) =>
+            i.id === instanceId
               ? {
-                  ...instance,
+                  ...i,
                   status: 'completed' as TaskStatus,
                   completedAt: new Date().toISOString(),
                 }
-              : instance
+              : i
           ),
         }));
+
+        // Update care status for child tasks
+        if (task?.childTaskType && task?.childId) {
+          const newStatus = getStatusFromTaskType(task.childTaskType);
+          if (newStatus) {
+            useChildStore.getState().updateCareStatus(task.childId, newStatus);
+          }
+        }
       },
 
       skipTask: (instanceId) => {

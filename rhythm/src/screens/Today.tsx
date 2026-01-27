@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { useTaskStore } from '../stores/useTaskStore';
+import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
+import { useChildStore } from '../stores/useChildStore';
 import { useGoodEnoughDay } from '../hooks/useGoodEnoughDay';
 import { useNapState } from '../hooks/useNapState';
 import { useSunTimes } from '../hooks/useSunTimes';
@@ -8,7 +9,7 @@ import { NapControls } from '../components/naps/NapControls';
 import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
 import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
 import { TaskEditor } from '../components/tasks/TaskEditor';
-import type { Task, TaskInstance, TaskTier, NapContext, TimeBlock } from '../types';
+import type { Task, TaskInstance, TaskTier, NapContext, TimeBlock, CareContext } from '../types';
 
 /**
  * Determines if a task is specifically suited to the current nap window.
@@ -30,6 +31,27 @@ function isTaskSuggestedForNapState(task: Task, napState: NapContext): boolean {
       return task.napContext === 'toddler-asleep';
     case 'both-awake':
       return task.napContext === 'both-awake';
+    default:
+      return false;
+  }
+}
+
+/**
+ * Determines if a task is suggested based on care context.
+ */
+function isTaskSuggestedForCareContext(task: Task, currentContext: CareContext): boolean {
+  if (!task.careContext || task.careContext === 'any') return false;
+
+  switch (currentContext) {
+    case 'all-away':
+      // All children away - can do all-away, any-away tasks
+      return task.careContext === 'all-away' || task.careContext === 'any-away';
+    case 'any-away':
+      // Some children away - can do any-away tasks
+      return task.careContext === 'any-away';
+    case 'all-home':
+      // All children home - can do all-home tasks
+      return task.careContext === 'all-home';
     default:
       return false;
   }
@@ -210,11 +232,13 @@ function TaskCard({
   onDefer?: () => void;
 }) {
   const updateMealPlan = useTaskStore((state) => state.updateMealPlan);
+  const getChild = useChildStore((state) => state.getChild);
   const config = TIER_CONFIG[task.tier];
   const isCompleted = instance.status === 'completed';
   const isMeal = task.type === 'meal';
   const savedMeal = isMeal ? (task.plannedMeals?.[today] ?? '') : '';
   const [mealInput, setMealInput] = useState(savedMeal);
+  const displayTitle = getTaskDisplayTitle(task, getChild);
 
   const handleMealBlur = () => {
     if (isMeal && mealInput !== savedMeal) {
@@ -265,7 +289,7 @@ function TaskCard({
             )}
           </div>
           <p className={`font-medium ${isCompleted ? 'text-bark/50 line-through' : 'text-bark'}`}>
-            {task.title}
+            {displayTitle}
           </p>
           {isMeal && (
             <input
@@ -319,6 +343,8 @@ export function Today() {
   const deferTask = useTaskStore((state) => state.deferTask);
   const resetTaskInstance = useTaskStore((state) => state.resetTaskInstance);
   const { napState } = useNapState();
+  const getCurrentCareContext = useChildStore((state) => state.getCurrentCareContext);
+  const careContext = getCurrentCareContext();
 
   // Generate today's instances on mount
   useEffect(() => {
@@ -462,8 +488,12 @@ export function Today() {
                       (item) => item.instance.status !== 'completed' || recentlyCompleted.has(item.instance.id)
                     )
                     .sort((a, b) => {
-                      const aSuggested = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
-                      const bSuggested = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
+                      const aSuggestedNap = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
+                      const bSuggestedNap = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
+                      const aSuggestedCare = isTaskSuggestedForCareContext(a.task, careContext) && a.instance.status !== 'completed';
+                      const bSuggestedCare = isTaskSuggestedForCareContext(b.task, careContext) && b.instance.status !== 'completed';
+                      const aSuggested = aSuggestedNap || aSuggestedCare;
+                      const bSuggested = bSuggestedNap || bSuggestedCare;
                       if (aSuggested && !bSuggested) return -1;
                       if (!aSuggested && bSuggested) return 1;
                       return 0;
@@ -498,7 +528,9 @@ export function Today() {
                       <div className="space-y-2">
                         {visibleItems.map(({ task, instance }) => {
                           const isFading = fadingOut.has(instance.id);
-                          const suggested = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
+                          const suggestedNap = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
+                          const suggestedCare = isTaskSuggestedForCareContext(task, careContext) && instance.status !== 'completed';
+                          const suggested = suggestedNap || suggestedCare;
                           return (
                             <div
                               key={instance.id}
@@ -570,8 +602,12 @@ export function Today() {
                       if (a.task.scheduledTime && b.task.scheduledTime) {
                         return a.task.scheduledTime.localeCompare(b.task.scheduledTime);
                       }
-                      const aSuggested = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
-                      const bSuggested = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
+                      const aSuggestedNap = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
+                      const bSuggestedNap = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
+                      const aSuggestedCare = isTaskSuggestedForCareContext(a.task, careContext) && a.instance.status !== 'completed';
+                      const bSuggestedCare = isTaskSuggestedForCareContext(b.task, careContext) && b.instance.status !== 'completed';
+                      const aSuggested = aSuggestedNap || aSuggestedCare;
+                      const bSuggested = bSuggestedNap || bSuggestedCare;
                       if (aSuggested && !bSuggested) return -1;
                       if (!aSuggested && bSuggested) return 1;
                       return 0;
@@ -596,7 +632,9 @@ export function Today() {
                       <div className="space-y-2">
                         {blockItems.map(({ task, instance }) => {
                           const isFading = fadingOut.has(instance.id);
-                          const suggested = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
+                          const suggestedNap = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
+                          const suggestedCare = isTaskSuggestedForCareContext(task, careContext) && instance.status !== 'completed';
+                          const suggested = suggestedNap || suggestedCare;
                           return (
                             <div
                               key={instance.id}

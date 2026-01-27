@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTaskStore } from '../../stores/useTaskStore';
-import type { Task, TaskInput, TaskTier, RecurrenceRule, NapContext, TaskCategory } from '../../types';
+import { useChildStore } from '../../stores/useChildStore';
+import type { Task, TaskInput, TaskTier, RecurrenceRule, NapContext, TaskCategory, ChildTaskType, CareContext } from '../../types';
 
 interface TaskEditorProps {
   tier: TaskTier;
@@ -43,6 +44,23 @@ const CATEGORY_OPTIONS: { value: TaskCategory; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
+const CHILD_TASK_TYPE_OPTIONS: { value: ChildTaskType | 'null'; label: string }[] = [
+  { value: 'null', label: 'None' },
+  { value: 'bedtime', label: 'Bedtime' },
+  { value: 'wake-up', label: 'Wake up' },
+  { value: 'dropoff', label: 'Dropoff' },
+  { value: 'pickup', label: 'Pickup' },
+  { value: 'custom', label: 'Custom' },
+];
+
+const CARE_CONTEXT_OPTIONS: { value: CareContext | 'null'; label: string }[] = [
+  { value: 'any', label: 'Any time' },
+  { value: 'all-home', label: 'All children home' },
+  { value: 'any-away', label: 'Any child away/asleep' },
+  { value: 'all-away', label: 'All children away/asleep' },
+  { value: 'null', label: 'N/A' },
+];
+
 function EditableTask({
   task,
   tier,
@@ -55,6 +73,13 @@ function EditableTask({
   onDelete: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const children = useChildStore((state) => state.children);
+  const getChild = useChildStore((state) => state.getChild);
+
+  // Get display title for child-linked tasks
+  const displayTitle = task.childId && task.childTaskType
+    ? `${getChild(task.childId)?.name ?? ''} ${task.title}`
+    : task.title;
 
   return (
     <div className="bg-cream rounded-lg p-3 border border-bark/5">
@@ -63,6 +88,7 @@ function EditableTask({
           type="text"
           value={task.title}
           onChange={(e) => onUpdate(task.id, { title: e.target.value })}
+          placeholder={task.childId ? 'Base title (child name will be prepended)' : 'Task title'}
           className="flex-1 bg-transparent font-medium text-bark text-sm border-b border-transparent focus:border-bark/20 focus:outline-none py-1"
         />
         <button
@@ -84,6 +110,11 @@ function EditableTask({
           </svg>
         </button>
       </div>
+
+      {/* Show computed title for child-linked tasks */}
+      {task.childId && task.childTaskType && (
+        <p className="text-xs text-bark/40 mt-1 ml-1">Shows as: {displayTitle}</p>
+      )}
 
       {expanded && (
         <div className="mt-3 space-y-3 pt-3 border-t border-bark/10">
@@ -112,6 +143,51 @@ function EditableTask({
             </select>
           </div>
 
+          {/* Child linking */}
+          {children.length > 0 && (
+            <>
+              <div>
+                <label className="text-xs text-bark/50 block mb-1">Linked child</label>
+                <select
+                  value={task.childId || 'null'}
+                  onChange={(e) => {
+                    const newChildId = e.target.value === 'null' ? null : e.target.value;
+                    onUpdate(task.id, {
+                      childId: newChildId,
+                      childTaskType: newChildId ? (task.childTaskType || 'custom') : null,
+                    });
+                  }}
+                  className="bg-parchment rounded px-2 py-1 text-sm text-bark border border-bark/10 w-full"
+                >
+                  <option value="null">None</option>
+                  {children.map((child) => (
+                    <option key={child.id} value={child.id}>{child.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {task.childId && (
+                <div>
+                  <label className="text-xs text-bark/50 block mb-1">Child task type</label>
+                  <select
+                    value={task.childTaskType || 'null'}
+                    onChange={(e) => onUpdate(task.id, {
+                      childTaskType: e.target.value === 'null' ? null : e.target.value as ChildTaskType
+                    })}
+                    className="bg-parchment rounded px-2 py-1 text-sm text-bark border border-bark/10 w-full"
+                  >
+                    {CHILD_TASK_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value ?? 'null'} value={opt.value ?? 'null'}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-bark/40 mt-1">
+                    Bedtime/dropoff marks child as away/asleep. Wake-up/pickup marks child as home.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
           {tier !== 'anchor' && (
             <div>
               <label className="text-xs text-bark/50 block mb-1">Nap context</label>
@@ -126,6 +202,23 @@ function EditableTask({
               </select>
             </div>
           )}
+
+          {/* Care context */}
+          <div>
+            <label className="text-xs text-bark/50 block mb-1">Care context (when to suggest)</label>
+            <select
+              value={task.careContext || 'null'}
+              onChange={(e) => onUpdate(task.id, { careContext: e.target.value === 'null' ? null : e.target.value as CareContext })}
+              className="bg-parchment rounded px-2 py-1 text-sm text-bark border border-bark/10 w-full"
+            >
+              {CARE_CONTEXT_OPTIONS.map((opt) => (
+                <option key={opt.value ?? 'null'} value={opt.value ?? 'null'}>{opt.label}</option>
+              ))}
+            </select>
+            <p className="text-xs text-bark/40 mt-1">
+              Suggest this task based on children's care status
+            </p>
+          </div>
 
           <div>
             <label className="text-xs text-bark/50 block mb-1">Category</label>

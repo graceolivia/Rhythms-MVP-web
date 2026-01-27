@@ -645,31 +645,38 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     // Auto-create bedtime and wake time anchor tasks for each child
     data.children.forEach((child) => {
       if (child.name) {
-        // Create bedtime anchor
-        addTask({
-          type: 'standard',
-          title: `${child.name} bedtime`,
-          tier: 'anchor',
-          scheduledTime: child.bedtime,
-          recurrence: 'daily',
-          napContext: null,
-          isActive: true,
-          category: 'kids',
-          preferredTimeBlock: 'evening',
-        });
+        const newChildId = childIdMap.get(child.id);
+        if (newChildId) {
+          // Create bedtime anchor (child-linked)
+          addTask({
+            type: 'standard',
+            title: 'bedtime',
+            tier: 'anchor',
+            scheduledTime: child.bedtime,
+            recurrence: 'daily',
+            napContext: null,
+            isActive: true,
+            category: 'kids',
+            preferredTimeBlock: 'evening',
+            childId: newChildId,
+            childTaskType: 'bedtime',
+          });
 
-        // Create wake time anchor
-        addTask({
-          type: 'standard',
-          title: `${child.name} wake up`,
-          tier: 'anchor',
-          scheduledTime: child.wakeTime,
-          recurrence: 'daily',
-          napContext: null,
-          isActive: true,
-          category: 'kids',
-          preferredTimeBlock: 'morning',
-        });
+          // Create wake time anchor (child-linked)
+          addTask({
+            type: 'standard',
+            title: 'wake up',
+            tier: 'anchor',
+            scheduledTime: child.wakeTime,
+            recurrence: 'daily',
+            napContext: null,
+            isActive: true,
+            category: 'kids',
+            preferredTimeBlock: 'morning',
+            childId: newChildId,
+            childTaskType: 'wake-up',
+          });
+        }
       }
     });
 
