@@ -1,5 +1,6 @@
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
+import { useChildcareStore } from '../stores/useChildcareStore';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useResetSeedData } from '../hooks/useResetSeedData';
 import { DEV_MODE } from '../config/devMode';
@@ -14,29 +15,40 @@ const COLOR_OPTIONS: { value: ChildColor; label: string; bgClass: string; border
   { value: 'clay', label: 'Clay', bgClass: 'bg-clay', borderClass: 'border-clay' },
 ];
 
-const CARE_STATUS_OPTIONS: { value: CareStatus; label: string; icon: string }[] = [
-  { value: 'home', label: 'Home', icon: '🏠' },
-  { value: 'away', label: 'Away', icon: '🚗' },
-  { value: 'asleep', label: 'Asleep', icon: '😴' },
-];
+const CARE_STATUS_DISPLAY: Record<CareStatus, { label: string; icon: string }> = {
+  home: { label: 'Home', icon: '🏠' },
+  away: { label: 'Away', icon: '🚗' },
+  asleep: { label: 'Asleep', icon: '😴' },
+};
+
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export function Settings() {
   const children = useChildStore((state) => state.children);
   const addChild = useChildStore((state) => state.addChild);
   const updateChild = useChildStore((state) => state.updateChild);
   const removeChild = useChildStore((state) => state.removeChild);
-  const updateCareStatus = useChildStore((state) => state.updateCareStatus);
   const getChild = useChildStore((state) => state.getChild);
   const napSchedules = useNapStore((state) => state.napSchedules);
   const addNapSchedule = useNapStore((state) => state.addNapSchedule);
   const updateNapSchedule = useNapStore((state) => state.updateNapSchedule);
   const removeNapSchedule = useNapStore((state) => state.removeNapSchedule);
+  const childcareSchedules = useChildcareStore((state) => state.schedules);
+  const addChildcareSchedule = useChildcareStore((state) => state.addSchedule);
+  const updateChildcareSchedule = useChildcareStore((state) => state.updateSchedule);
+  const removeChildcareSchedule = useChildcareStore((state) => state.removeSchedule);
   const tasks = useTaskStore((state) => state.tasks);
+  const ensureChildcareTasksExist = useTaskStore((state) => state.ensureChildcareTasksExist);
   const resetSeedData = useResetSeedData();
 
   // Get linked tasks for a child
   const getLinkedTasks = (childId: string) => {
     return tasks.filter((task) => task.childId === childId);
+  };
+
+  // Get childcare schedules for a child
+  const getChildcareSchedules = (childId: string) => {
+    return childcareSchedules.filter((s) => s.childId === childId);
   };
 
   const handleAddChild = () => {
@@ -58,6 +70,44 @@ export function Settings() {
       typicalStart: '13:00',
       typicalEnd: '15:00',
     });
+  };
+
+  const handleAddChildcare = (childId: string) => {
+    const scheduleId = addChildcareSchedule({
+      childId,
+      name: 'Daycare',
+      daysOfWeek: [1, 2, 3, 4, 5], // Weekdays
+      dropoffTime: '08:30',
+      pickupTime: '16:00',
+      isActive: true,
+    });
+    // Create the associated tasks
+    const newSchedule = childcareSchedules.find((s) => s.id === scheduleId) ?? {
+      id: scheduleId,
+      childId,
+      name: 'Daycare',
+      daysOfWeek: [1, 2, 3, 4, 5],
+      dropoffTime: '08:30',
+      pickupTime: '16:00',
+      isActive: true,
+    };
+    ensureChildcareTasksExist(newSchedule);
+  };
+
+  const handleUpdateChildcare = (scheduleId: string, updates: Parameters<typeof updateChildcareSchedule>[1]) => {
+    updateChildcareSchedule(scheduleId, updates);
+    // Update the associated tasks
+    const schedule = childcareSchedules.find((s) => s.id === scheduleId);
+    if (schedule) {
+      ensureChildcareTasksExist({ ...schedule, ...updates });
+    }
+  };
+
+  const toggleChildcareDay = (scheduleId: string, currentDays: number[], day: number) => {
+    const newDays = currentDays.includes(day)
+      ? currentDays.filter((d) => d !== day)
+      : [...currentDays, day].sort();
+    handleUpdateChildcare(scheduleId, { daysOfWeek: newDays });
   };
 
   return (
@@ -155,25 +205,79 @@ export function Settings() {
                   </div>
                 </div>
 
-                {/* Care Status */}
+                {/* Care Status (display only - updated by completing tasks) */}
                 <div className="border-t border-bark/10 pt-3 mt-3">
-                  <label className="text-xs text-bark/50 block mb-2">Care Status</label>
-                  <div className="flex gap-2">
-                    {CARE_STATUS_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => updateCareStatus(child.id, option.value)}
-                        className={`flex-1 py-2 px-3 rounded-lg text-sm transition-all ${
-                          (child.careStatus ?? 'home') === option.value
-                            ? 'bg-sage/20 border border-sage text-sage font-medium'
-                            : 'bg-cream border border-bark/10 text-bark/60 hover:border-bark/30'
-                        }`}
-                      >
-                        <span className="mr-1">{option.icon}</span>
-                        {option.label}
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-bark/50">Current Status</label>
+                    <span className="text-sm font-medium text-bark">
+                      {CARE_STATUS_DISPLAY[child.careStatus ?? 'home'].icon}{' '}
+                      {CARE_STATUS_DISPLAY[child.careStatus ?? 'home'].label}
+                    </span>
                   </div>
+                  <p className="text-xs text-bark/40 mt-1">
+                    Updated when you complete dropoff/pickup tasks
+                  </p>
+                </div>
+
+                {/* Childcare Schedules */}
+                <div className="border-t border-bark/10 pt-3 mt-3">
+                  <label className="text-xs text-bark/50 block mb-2">Childcare Schedules</label>
+                  {getChildcareSchedules(child.id).map((schedule) => (
+                    <div key={schedule.id} className="bg-cream rounded-lg p-3 mb-2 border border-bark/10">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={schedule.name}
+                          onChange={(e) => handleUpdateChildcare(schedule.id, { name: e.target.value })}
+                          placeholder="Name (e.g., Daycare)"
+                          className="flex-1 text-sm font-medium bg-transparent border-b border-transparent focus:border-bark/20 focus:outline-none py-1"
+                        />
+                        <button
+                          onClick={() => removeChildcareSchedule(schedule.id)}
+                          className="text-bark/40 hover:text-bark text-xs px-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="text-xs text-bark/40 w-14">Drop</label>
+                        <input
+                          type="time"
+                          value={schedule.dropoffTime}
+                          onChange={(e) => handleUpdateChildcare(schedule.id, { dropoffTime: e.target.value })}
+                          className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-parchment focus:outline-none focus:border-sage"
+                        />
+                        <label className="text-xs text-bark/40 w-14 text-right">Pick</label>
+                        <input
+                          type="time"
+                          value={schedule.pickupTime}
+                          onChange={(e) => handleUpdateChildcare(schedule.id, { pickupTime: e.target.value })}
+                          className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-parchment focus:outline-none focus:border-sage"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {DAY_LABELS.map((label, dayIndex) => (
+                          <button
+                            key={dayIndex}
+                            onClick={() => toggleChildcareDay(schedule.id, schedule.daysOfWeek, dayIndex)}
+                            className={`w-7 h-7 rounded-full text-xs font-medium transition-all ${
+                              schedule.daysOfWeek.includes(dayIndex)
+                                ? 'bg-sage text-cream'
+                                : 'bg-parchment text-bark/40 hover:bg-parchment/80'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => handleAddChildcare(child.id)}
+                    className="w-full py-1 border border-dashed border-bark/20 rounded-lg text-bark/50 hover:border-bark/40 text-xs"
+                  >
+                    + Add Childcare
+                  </button>
                 </div>
 
                 {/* Nap Schedules (only for napping-age children) */}

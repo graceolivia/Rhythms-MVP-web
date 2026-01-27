@@ -32,6 +32,16 @@ export interface NapLog {
   endedAt: string | null; // null if still sleeping
 }
 
+export interface ChildcareSchedule {
+  id: string;
+  childId: string;
+  name: string;              // "Daycare", "Preschool", "Grandma's"
+  daysOfWeek: number[];      // [1, 2, 3, 4, 5] for weekdays (0=Sun, 6=Sat)
+  dropoffTime: string;       // "08:30" HH:mm format
+  pickupTime: string;        // "16:00" HH:mm format
+  isActive: boolean;
+}
+
 // Tasks
 
 export type TaskTier = 'anchor' | 'rhythm' | 'tending';
