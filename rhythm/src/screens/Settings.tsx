@@ -1,4 +1,5 @@
 import { useChildStore } from '../stores/useChildStore';
+import { useNapStore } from '../stores/useNapStore';
 import { useResetSeedData } from '../hooks/useResetSeedData';
 import { DEV_MODE } from '../config/devMode';
 import type { ChildColor } from '../types';
@@ -17,6 +18,10 @@ export function Settings() {
   const addChild = useChildStore((state) => state.addChild);
   const updateChild = useChildStore((state) => state.updateChild);
   const removeChild = useChildStore((state) => state.removeChild);
+  const napSchedules = useNapStore((state) => state.napSchedules);
+  const addNapSchedule = useNapStore((state) => state.addNapSchedule);
+  const updateNapSchedule = useNapStore((state) => state.updateNapSchedule);
+  const removeNapSchedule = useNapStore((state) => state.removeNapSchedule);
   const resetSeedData = useResetSeedData();
 
   const handleAddChild = () => {
@@ -25,6 +30,18 @@ export function Settings() {
       birthdate: '',
       isNappingAge: true,
       color: 'lavender',
+      bedtime: '19:30',
+      wakeTime: '07:00',
+    });
+  };
+
+  const handleAddNap = (childId: string) => {
+    const existingNaps = napSchedules.filter((n) => n.childId === childId);
+    addNapSchedule({
+      childId,
+      napNumber: existingNaps.length + 1,
+      typicalStart: '13:00',
+      typicalEnd: '15:00',
     });
   };
 
@@ -91,7 +108,7 @@ export function Settings() {
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-sm text-bark/70">
+                <label className="flex items-center gap-2 text-sm text-bark/70 mb-3">
                   <input
                     type="checkbox"
                     checked={child.isNappingAge}
@@ -100,6 +117,68 @@ export function Settings() {
                   />
                   Still naps
                 </label>
+
+                {/* Bedtime and Wake time */}
+                <div className="flex gap-3 mb-3">
+                  <div className="flex-1">
+                    <label className="text-xs text-bark/50 block mb-1">Bedtime</label>
+                    <input
+                      type="time"
+                      value={child.bedtime || '19:30'}
+                      onChange={(e) => updateChild(child.id, { bedtime: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-bark/50 block mb-1">Wake time</label>
+                    <input
+                      type="time"
+                      value={child.wakeTime || '07:00'}
+                      onChange={(e) => updateChild(child.id, { wakeTime: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                    />
+                  </div>
+                </div>
+
+                {/* Nap Schedules (only for napping-age children) */}
+                {child.isNappingAge && (
+                  <div className="border-t border-bark/10 pt-3 mt-3">
+                    <label className="text-xs text-bark/50 block mb-2">Nap Schedule</label>
+                    {napSchedules
+                      .filter((nap) => nap.childId === child.id)
+                      .sort((a, b) => a.napNumber - b.napNumber)
+                      .map((nap) => (
+                        <div key={nap.id} className="flex items-center gap-2 mb-2">
+                          <span className="text-xs text-bark/40 w-12">Nap {nap.napNumber}</span>
+                          <input
+                            type="time"
+                            value={nap.typicalStart}
+                            onChange={(e) => updateNapSchedule(nap.id, { typicalStart: e.target.value })}
+                            className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                          />
+                          <span className="text-bark/40 text-xs">to</span>
+                          <input
+                            type="time"
+                            value={nap.typicalEnd}
+                            onChange={(e) => updateNapSchedule(nap.id, { typicalEnd: e.target.value })}
+                            className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                          />
+                          <button
+                            onClick={() => removeNapSchedule(nap.id)}
+                            className="text-bark/40 hover:text-bark text-xs px-1"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    <button
+                      onClick={() => handleAddNap(child.id)}
+                      className="w-full py-1 border border-dashed border-bark/20 rounded-lg text-bark/50 hover:border-bark/40 text-xs"
+                    >
+                      + Add Nap
+                    </button>
+                  </div>
+                )}
               </div>
             ))
           )}

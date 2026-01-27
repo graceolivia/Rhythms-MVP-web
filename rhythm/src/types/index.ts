@@ -8,6 +8,8 @@ export interface Child {
   birthdate: string; // ISO date
   isNappingAge: boolean;
   color?: ChildColor;
+  bedtime?: string;   // HH:mm format (e.g., "19:30")
+  wakeTime?: string;  // HH:mm format (e.g., "07:00")
 }
 
 export interface NapSchedule {

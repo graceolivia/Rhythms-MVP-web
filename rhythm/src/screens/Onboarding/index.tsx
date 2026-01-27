@@ -16,6 +16,8 @@ interface OnboardingChild {
   name: string;
   birthdate: string;
   isNappingAge: boolean;
+  bedtime: string;   // HH:mm format (e.g., "19:30")
+  wakeTime: string;  // HH:mm format (e.g., "07:00")
 }
 
 interface OnboardingNapSchedule {
@@ -139,7 +141,7 @@ function ChildrenStep({
   const addChild = () => {
     onChange([
       ...children,
-      { id: uuidv4(), name: '', birthdate: '', isNappingAge: true },
+      { id: uuidv4(), name: '', birthdate: '', isNappingAge: true, bedtime: '19:30', wakeTime: '07:00' },
     ]);
   };
 
@@ -185,7 +187,7 @@ function ChildrenStep({
               onChange={(e) => updateChild(child.id, { birthdate: e.target.value })}
               className="w-full mb-3 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
             />
-            <label className="flex items-center gap-2 text-sm text-bark/70">
+            <label className="flex items-center gap-2 text-sm text-bark/70 mb-3">
               <input
                 type="checkbox"
                 checked={child.isNappingAge}
@@ -194,6 +196,26 @@ function ChildrenStep({
               />
               Still naps
             </label>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-xs text-bark/50 block mb-1">Bedtime</label>
+                <input
+                  type="time"
+                  value={child.bedtime}
+                  onChange={(e) => updateChild(child.id, { bedtime: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-bark/50 block mb-1">Wake time</label>
+                <input
+                  type="time"
+                  value={child.wakeTime}
+                  onChange={(e) => updateChild(child.id, { wakeTime: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                />
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -577,7 +599,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
   const [step, setStep] = useState<Step>('welcome');
   const [data, setData] = useState<OnboardingData>({
-    children: [{ id: uuidv4(), name: '', birthdate: '', isNappingAge: true }],
+    children: [{ id: uuidv4(), name: '', birthdate: '', isNappingAge: true, bedtime: '19:30', wakeTime: '07:00' }],
     napSchedules: [],
     anchors: PRESET_ANCHORS.map((t) => ({ ...t, id: uuidv4(), selected: false })),
     rhythms: PRESET_RHYTHMS.map((t) => ({ ...t, id: uuidv4(), selected: false })),
@@ -613,8 +635,41 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           name: child.name,
           birthdate: child.birthdate,
           isNappingAge: child.isNappingAge,
+          bedtime: child.bedtime,
+          wakeTime: child.wakeTime,
         });
         childIdMap.set(child.id, newId);
+      }
+    });
+
+    // Auto-create bedtime and wake time anchor tasks for each child
+    data.children.forEach((child) => {
+      if (child.name) {
+        // Create bedtime anchor
+        addTask({
+          type: 'standard',
+          title: `${child.name} bedtime`,
+          tier: 'anchor',
+          scheduledTime: child.bedtime,
+          recurrence: 'daily',
+          napContext: null,
+          isActive: true,
+          category: 'kids',
+          preferredTimeBlock: 'evening',
+        });
+
+        // Create wake time anchor
+        addTask({
+          type: 'standard',
+          title: `${child.name} wake up`,
+          tier: 'anchor',
+          scheduledTime: child.wakeTime,
+          recurrence: 'daily',
+          napContext: null,
+          isActive: true,
+          category: 'kids',
+          preferredTimeBlock: 'morning',
+        });
       }
     });
 
