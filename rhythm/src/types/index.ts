@@ -42,6 +42,44 @@ export interface ChildcareSchedule {
   isActive: boolean;
 }
 
+// Availability States - the core states that determine what tasks to suggest
+export type AvailabilityState =
+  | 'unavailable'  // I'm busy (driving, at appointment with kid)
+  | 'free'         // Kids are away, I have alone time
+  | 'quiet'        // Kids asleep, I'm home but have quiet time
+  | 'parenting';   // Kids home and awake (default)
+
+// Care Block Types - determines the availability state created
+export type CareBlockType =
+  | 'childcare'    // Kid is away → I'm "free"
+  | 'appointment'  // I'm with kid somewhere → I'm "unavailable"
+  | 'activity'     // Kid's class/activity → I'm "unavailable"
+  | 'babysitter'   // Sitter at home, I leave → I'm "free"
+  | 'sleep';       // Nap or nighttime → I'm "quiet"
+
+// A block of time that affects availability
+export interface CareBlock {
+  id: string;
+  childIds: string[];           // Which children this affects (can be multiple)
+  name: string;                 // "Daycare", "Doctor Appt", "Babysitter"
+  blockType: CareBlockType;     // Determines the availability state created
+
+  // Scheduling - either recurring OR one-off
+  recurrence: 'one-off' | RecurrenceRule;
+  oneOffDate?: string;          // ISO date for one-off events (YYYY-MM-DD)
+  daysOfWeek?: number[];        // For recurring [0-6]
+
+  // Time
+  startTime: string;            // "08:30" HH:mm
+  endTime: string;              // "16:00" HH:mm
+
+  // Travel (optional)
+  travelTimeBefore?: number;    // Minutes to get there
+  travelTimeAfter?: number;     // Minutes to return
+
+  isActive: boolean;
+}
+
 // Tasks
 
 export type TaskTier = 'anchor' | 'rhythm' | 'tending';
@@ -49,6 +87,7 @@ export type TaskTier = 'anchor' | 'rhythm' | 'tending';
 export type RecurrenceRule =
   | 'daily'
   | 'weekdays'
+  | 'weekends'    // Sat-Sun
   | 'weekly'
   | 'monthly'
   | { type: 'specific-days'; days: number[] }; // 0=Sun
@@ -94,7 +133,7 @@ interface BaseTask {
   tier: TaskTier;
   scheduledTime: string | null; // '08:45' for anchors
   recurrence: RecurrenceRule;
-  napContext: NapContext | null; // when to suggest
+  napContext: NapContext | null; // when to suggest (deprecated - use bestWhen)
   isActive: boolean;
   category: TaskCategory;
   daysOfWeek?: number[] | null; // 0=Sunday, 6=Saturday; null/undefined=every day
@@ -103,7 +142,15 @@ interface BaseTask {
   travelTime?: number | null; // travel time before anchor in minutes
   childId?: string | null;           // Link to specific child
   childTaskType?: ChildTaskType;     // Type of child task
-  careContext?: CareContext | null;  // When to suggest (based on care status)
+  careContext?: CareContext | null;  // When to suggest (deprecated - use bestWhen)
+
+  // NEW: When is this task best done? (replaces napContext + careContext)
+  bestWhen?: AvailabilityState[] | null;  // e.g., ['free', 'quiet'] or ['parenting']
+                                           // null/empty = any time
+
+  // NEW: Routine grouping (simple phase)
+  routineGroup?: string | null;     // e.g., "bedtime", "morning-routine"
+  routineOrder?: number | null;     // Sort order within routine (1, 2, 3...)
 }
 
 export interface StandardTask extends BaseTask {

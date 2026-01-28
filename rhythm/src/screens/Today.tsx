@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
+import { useTaskStore, getTaskDisplayTitle, isTaskSuggestedForAvailability } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
+import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useGoodEnoughDay } from '../hooks/useGoodEnoughDay';
 import { useNapState } from '../hooks/useNapState';
 import { useSunTimes } from '../hooks/useSunTimes';
@@ -9,7 +10,7 @@ import { NapControls } from '../components/naps/NapControls';
 import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
 import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
 import { TaskEditor } from '../components/tasks/TaskEditor';
-import type { Task, TaskInstance, TaskTier, NapContext, TimeBlock, CareContext } from '../types';
+import type { Task, TaskInstance, TaskTier, NapContext, TimeBlock, CareContext, AvailabilityState } from '../types';
 
 /**
  * Determines if a task is specifically suited to the current nap window.
@@ -146,8 +147,16 @@ function SkyHeader() {
   );
 }
 
+const AVAILABILITY_DISPLAY: Record<AvailabilityState, { label: string; icon: string; color: string }> = {
+  unavailable: { label: 'Busy', icon: '🚗', color: 'text-terracotta' },
+  free: { label: 'Free time', icon: '✨', color: 'text-sage' },
+  quiet: { label: 'Quiet time', icon: '🤫', color: 'text-lavender' },
+  parenting: { label: 'Parenting', icon: '👶', color: 'text-bark/70' },
+};
+
 function TimeBlockBanner() {
   const { sleepingChildren } = useNapState();
+  const currentAvailability = useCareBlockStore((state) => state.getCurrentAvailabilityState());
   const now = new Date();
   const hours = now.getHours();
 
@@ -161,25 +170,38 @@ function TimeBlockBanner() {
   };
 
   const block = getTimeBlock();
+  const availabilityDisplay = AVAILABILITY_DISPLAY[currentAvailability];
   const napMessage =
     sleepingChildren.length > 0
       ? `${sleepingChildren.map((c) => c.name).join(' & ')} sleeping`
       : null;
 
   return (
-    <div className="bg-parchment rounded-xl p-4 mb-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">{block.icon}</span>
-        <div>
-          <p className="font-medium text-bark">{block.name}</p>
-          {napMessage && (
-            <p className="text-sm text-sage">{napMessage} 💤</p>
-          )}
+    <div className="bg-parchment rounded-xl p-4 mb-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{block.icon}</span>
+          <div>
+            <p className="font-medium text-bark">{block.name}</p>
+            {napMessage && (
+              <p className="text-sm text-sage">{napMessage} 💤</p>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-display text-bark">{format(now, 'h:mm')}</p>
+          <p className="text-xs text-bark/50">{format(now, 'a')}</p>
         </div>
       </div>
-      <div className="text-right">
-        <p className="text-2xl font-display text-bark">{format(now, 'h:mm')}</p>
-        <p className="text-xs text-bark/50">{format(now, 'a')}</p>
+      {/* Availability status */}
+      <div className={`mt-3 pt-3 border-t border-bark/10 flex items-center gap-2 ${availabilityDisplay.color}`}>
+        <span>{availabilityDisplay.icon}</span>
+        <span className="text-sm font-medium">{availabilityDisplay.label}</span>
+        {currentAvailability !== 'parenting' && (
+          <span className="text-xs text-bark/40 ml-auto">
+            Suggesting matching tasks
+          </span>
+        )}
       </div>
     </div>
   );
@@ -345,6 +367,7 @@ export function Today() {
   const { napState } = useNapState();
   const getCurrentCareContext = useChildStore((state) => state.getCurrentCareContext);
   const careContext = getCurrentCareContext();
+  const currentAvailability = useCareBlockStore((state) => state.getCurrentAvailabilityState());
 
   // Generate today's instances on mount
   useEffect(() => {
@@ -488,14 +511,18 @@ export function Today() {
                       (item) => item.instance.status !== 'completed' || recentlyCompleted.has(item.instance.id)
                     )
                     .sort((a, b) => {
+                      // Use new availability-based suggestion (includes legacy fallback)
+                      const aSuggested = isTaskSuggestedForAvailability(a.task, currentAvailability) && a.instance.status !== 'completed';
+                      const bSuggested = isTaskSuggestedForAvailability(b.task, currentAvailability) && b.instance.status !== 'completed';
+                      // Also check legacy systems for backwards compatibility
                       const aSuggestedNap = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
                       const bSuggestedNap = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
                       const aSuggestedCare = isTaskSuggestedForCareContext(a.task, careContext) && a.instance.status !== 'completed';
                       const bSuggestedCare = isTaskSuggestedForCareContext(b.task, careContext) && b.instance.status !== 'completed';
-                      const aSuggested = aSuggestedNap || aSuggestedCare;
-                      const bSuggested = bSuggestedNap || bSuggestedCare;
-                      if (aSuggested && !bSuggested) return -1;
-                      if (!aSuggested && bSuggested) return 1;
+                      const aAnySuggested = aSuggested || aSuggestedNap || aSuggestedCare;
+                      const bAnySuggested = bSuggested || bSuggestedNap || bSuggestedCare;
+                      if (aAnySuggested && !bAnySuggested) return -1;
+                      if (!aAnySuggested && bAnySuggested) return 1;
                       return 0;
                     });
                   const doneItems = group.items.filter(
@@ -528,9 +555,10 @@ export function Today() {
                       <div className="space-y-2">
                         {visibleItems.map(({ task, instance }) => {
                           const isFading = fadingOut.has(instance.id);
+                          const suggestedAvailability = isTaskSuggestedForAvailability(task, currentAvailability) && instance.status !== 'completed';
                           const suggestedNap = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
                           const suggestedCare = isTaskSuggestedForCareContext(task, careContext) && instance.status !== 'completed';
-                          const suggested = suggestedNap || suggestedCare;
+                          const suggested = suggestedAvailability || suggestedNap || suggestedCare;
                           return (
                             <div
                               key={instance.id}
@@ -602,14 +630,18 @@ export function Today() {
                       if (a.task.scheduledTime && b.task.scheduledTime) {
                         return a.task.scheduledTime.localeCompare(b.task.scheduledTime);
                       }
+                      // Use new availability-based suggestion
+                      const aSuggested = isTaskSuggestedForAvailability(a.task, currentAvailability) && a.instance.status !== 'completed';
+                      const bSuggested = isTaskSuggestedForAvailability(b.task, currentAvailability) && b.instance.status !== 'completed';
+                      // Also check legacy for backwards compatibility
                       const aSuggestedNap = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
                       const bSuggestedNap = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
                       const aSuggestedCare = isTaskSuggestedForCareContext(a.task, careContext) && a.instance.status !== 'completed';
                       const bSuggestedCare = isTaskSuggestedForCareContext(b.task, careContext) && b.instance.status !== 'completed';
-                      const aSuggested = aSuggestedNap || aSuggestedCare;
-                      const bSuggested = bSuggestedNap || bSuggestedCare;
-                      if (aSuggested && !bSuggested) return -1;
-                      if (!aSuggested && bSuggested) return 1;
+                      const aAnySuggested = aSuggested || aSuggestedNap || aSuggestedCare;
+                      const bAnySuggested = bSuggested || bSuggestedNap || bSuggestedCare;
+                      if (aAnySuggested && !bAnySuggested) return -1;
+                      if (!aAnySuggested && bAnySuggested) return 1;
                       return 0;
                     });
                   const doneItems = tasksWithInstances
@@ -632,9 +664,10 @@ export function Today() {
                       <div className="space-y-2">
                         {blockItems.map(({ task, instance }) => {
                           const isFading = fadingOut.has(instance.id);
+                          const suggestedAvailability = isTaskSuggestedForAvailability(task, currentAvailability) && instance.status !== 'completed';
                           const suggestedNap = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
                           const suggestedCare = isTaskSuggestedForCareContext(task, careContext) && instance.status !== 'completed';
-                          const suggested = suggestedNap || suggestedCare;
+                          const suggested = suggestedAvailability || suggestedNap || suggestedCare;
                           return (
                             <div
                               key={instance.id}

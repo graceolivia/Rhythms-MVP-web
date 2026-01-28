@@ -1,10 +1,12 @@
+import { format, addDays } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
 import { useChildcareStore } from '../stores/useChildcareStore';
+import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useResetSeedData } from '../hooks/useResetSeedData';
 import { DEV_MODE } from '../config/devMode';
-import type { ChildColor, CareStatus } from '../types';
+import type { ChildColor, CareStatus, CareBlockType, RecurrenceRule } from '../types';
 
 const COLOR_OPTIONS: { value: ChildColor; label: string; bgClass: string; borderClass: string }[] = [
   { value: 'lavender', label: 'Lavender', bgClass: 'bg-lavender', borderClass: 'border-lavender' },
@@ -23,6 +25,22 @@ const CARE_STATUS_DISPLAY: Record<CareStatus, { label: string; icon: string }> =
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+const BLOCK_TYPE_OPTIONS: { value: CareBlockType; label: string; icon: string; description: string }[] = [
+  { value: 'childcare', label: 'Childcare', icon: '🏫', description: 'Daycare, school, etc. (I\'m free)' },
+  { value: 'babysitter', label: 'Babysitter', icon: '👤', description: 'Sitter at home (I\'m free)' },
+  { value: 'appointment', label: 'Appointment', icon: '📅', description: 'Doctor, etc. with kid (I\'m busy)' },
+  { value: 'activity', label: 'Activity', icon: '⚽', description: 'Class, sports, etc. (I\'m busy)' },
+  { value: 'sleep', label: 'Sleep', icon: '😴', description: 'Nap or nighttime (I have quiet time)' },
+];
+
+const RECURRENCE_OPTIONS: { value: 'one-off' | RecurrenceRule; label: string }[] = [
+  { value: 'one-off', label: 'One-time event' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekdays', label: 'Weekdays' },
+  { value: 'weekends', label: 'Weekends' },
+  { value: 'weekly', label: 'Weekly' },
+];
+
 export function Settings() {
   const children = useChildStore((state) => state.children);
   const addChild = useChildStore((state) => state.addChild);
@@ -37,6 +55,11 @@ export function Settings() {
   const addChildcareSchedule = useChildcareStore((state) => state.addSchedule);
   const updateChildcareSchedule = useChildcareStore((state) => state.updateSchedule);
   const removeChildcareSchedule = useChildcareStore((state) => state.removeSchedule);
+  const careBlocks = useCareBlockStore((state) => state.blocks);
+  const addCareBlock = useCareBlockStore((state) => state.addBlock);
+  const updateCareBlock = useCareBlockStore((state) => state.updateBlock);
+  const removeCareBlock = useCareBlockStore((state) => state.removeBlock);
+  const getLeaveByTime = useCareBlockStore((state) => state.getLeaveByTime);
   const tasks = useTaskStore((state) => state.tasks);
   const ensureChildcareTasksExist = useTaskStore((state) => state.ensureChildcareTasksExist);
   const resetSeedData = useResetSeedData();
@@ -108,6 +131,36 @@ export function Settings() {
       ? currentDays.filter((d) => d !== day)
       : [...currentDays, day].sort();
     handleUpdateChildcare(scheduleId, { daysOfWeek: newDays });
+  };
+
+  const handleAddCareBlock = (childId: string) => {
+    addCareBlock({
+      childIds: [childId],
+      name: 'New Care Block',
+      blockType: 'childcare',
+      recurrence: 'weekdays',
+      daysOfWeek: [1, 2, 3, 4, 5],
+      startTime: '08:30',
+      endTime: '16:00',
+      isActive: true,
+    });
+  };
+
+  const toggleCareBlockDay = (blockId: string, currentDays: number[] | undefined, day: number) => {
+    const days = currentDays ?? [];
+    const newDays = days.includes(day)
+      ? days.filter((d) => d !== day)
+      : [...days, day].sort();
+    updateCareBlock(blockId, { daysOfWeek: newDays });
+  };
+
+  const toggleCareBlockChild = (blockId: string, currentChildIds: string[], childId: string) => {
+    const newChildIds = currentChildIds.includes(childId)
+      ? currentChildIds.filter((id) => id !== childId)
+      : [...currentChildIds, childId];
+    if (newChildIds.length > 0) {
+      updateCareBlock(blockId, { childIds: newChildIds });
+    }
   };
 
   return (
@@ -348,6 +401,230 @@ export function Settings() {
         >
           + Add Child
         </button>
+      </section>
+
+      {/* Care Blocks Section */}
+      <section className="mb-8">
+        <h2 className="font-display text-lg text-bark mb-2">Care Blocks</h2>
+        <p className="text-bark/60 text-sm mb-4">
+          Schedule when children are away, at activities, or asleep. This helps suggest the right tasks at the right time.
+        </p>
+
+        <div className="space-y-4">
+          {careBlocks.length === 0 ? (
+            <p className="text-bark/50 text-sm py-4 text-center bg-parchment rounded-xl">
+              No care blocks yet. Add one to get started.
+            </p>
+          ) : (
+            careBlocks.map((block) => (
+              <div key={block.id} className="bg-parchment rounded-xl p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">
+                      {BLOCK_TYPE_OPTIONS.find((t) => t.value === block.blockType)?.icon ?? '📅'}
+                    </span>
+                    <input
+                      type="text"
+                      value={block.name}
+                      onChange={(e) => updateCareBlock(block.id, { name: e.target.value })}
+                      className="font-medium text-bark bg-transparent border-b border-transparent focus:border-bark/20 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={() => removeCareBlock(block.id)}
+                    className="text-bark/40 hover:text-bark text-sm"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                {/* Block type selector */}
+                <div className="mb-3">
+                  <label className="text-xs text-bark/50 block mb-1">Type</label>
+                  <select
+                    value={block.blockType}
+                    onChange={(e) => updateCareBlock(block.id, { blockType: e.target.value as CareBlockType })}
+                    className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+                  >
+                    {BLOCK_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.icon} {opt.label} - {opt.description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Children affected */}
+                {children.length > 1 && (
+                  <div className="mb-3">
+                    <label className="text-xs text-bark/50 block mb-1">Children</label>
+                    <div className="flex flex-wrap gap-2">
+                      {children.map((child) => {
+                        const isSelected = block.childIds.includes(child.id);
+                        return (
+                          <button
+                            key={child.id}
+                            onClick={() => toggleCareBlockChild(block.id, block.childIds, child.id)}
+                            className={`px-3 py-1 rounded-full text-sm transition-all ${
+                              isSelected
+                                ? 'bg-sage text-cream'
+                                : 'bg-cream text-bark/50 border border-bark/20'
+                            }`}
+                          >
+                            {child.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recurrence */}
+                <div className="mb-3">
+                  <label className="text-xs text-bark/50 block mb-1">Recurrence</label>
+                  <select
+                    value={block.recurrence === 'one-off' ? 'one-off' : (typeof block.recurrence === 'string' ? block.recurrence : 'daily')}
+                    onChange={(e) => {
+                      const value = e.target.value as 'one-off' | RecurrenceRule;
+                      updateCareBlock(block.id, {
+                        recurrence: value,
+                        oneOffDate: value === 'one-off' ? format(addDays(new Date(), 1), 'yyyy-MM-dd') : undefined,
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+                  >
+                    {RECURRENCE_OPTIONS.map((opt) => (
+                      <option key={String(opt.value)} value={String(opt.value)}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* One-off date picker */}
+                {block.recurrence === 'one-off' && (
+                  <div className="mb-3">
+                    <label className="text-xs text-bark/50 block mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={block.oneOffDate || ''}
+                      onChange={(e) => updateCareBlock(block.id, { oneOffDate: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+                    />
+                  </div>
+                )}
+
+                {/* Days of week (for recurring) */}
+                {block.recurrence !== 'one-off' && (
+                  <div className="mb-3">
+                    <label className="text-xs text-bark/50 block mb-1">Days</label>
+                    <div className="flex items-center gap-1">
+                      {DAY_LABELS.map((label, dayIndex) => (
+                        <button
+                          key={dayIndex}
+                          onClick={() => toggleCareBlockDay(block.id, block.daysOfWeek, dayIndex)}
+                          className={`w-7 h-7 rounded-full text-xs font-medium transition-all ${
+                            block.daysOfWeek?.includes(dayIndex)
+                              ? 'bg-sage text-cream'
+                              : 'bg-cream text-bark/40 hover:bg-cream/80'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Time range */}
+                <div className="flex gap-3 mb-3">
+                  <div className="flex-1">
+                    <label className="text-xs text-bark/50 block mb-1">Start</label>
+                    <input
+                      type="time"
+                      value={block.startTime}
+                      onChange={(e) => updateCareBlock(block.id, { startTime: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-bark/50 block mb-1">End</label>
+                    <input
+                      type="time"
+                      value={block.endTime}
+                      onChange={(e) => updateCareBlock(block.id, { endTime: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Travel time (optional) */}
+                <div className="border-t border-bark/10 pt-3">
+                  <label className="text-xs text-bark/50 block mb-2">Travel time (optional)</label>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="text-xs text-bark/40 block mb-1">Before (mins)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={block.travelTimeBefore || ''}
+                        onChange={(e) => updateCareBlock(block.id, {
+                          travelTimeBefore: e.target.value ? parseInt(e.target.value) : undefined
+                        })}
+                        placeholder="0"
+                        className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-bark/40 block mb-1">After (mins)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={block.travelTimeAfter || ''}
+                        onChange={(e) => updateCareBlock(block.id, {
+                          travelTimeAfter: e.target.value ? parseInt(e.target.value) : undefined
+                        })}
+                        placeholder="0"
+                        className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+                      />
+                    </div>
+                  </div>
+                  {block.travelTimeBefore && (
+                    <p className="text-xs text-sage mt-2">
+                      Leave by: {getLeaveByTime(block)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Active toggle */}
+                <div className="border-t border-bark/10 pt-3 mt-3">
+                  <label className="flex items-center gap-2 text-sm text-bark/70 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={block.isActive}
+                      onChange={(e) => updateCareBlock(block.id, { isActive: e.target.checked })}
+                      className="rounded border-bark/20"
+                    />
+                    Active
+                  </label>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <button
+          onClick={() => handleAddCareBlock(children[0]?.id || '')}
+          disabled={children.length === 0}
+          className="w-full mt-4 py-2 border-2 border-dashed border-bark/20 rounded-xl text-bark/50 hover:border-bark/40 hover:text-bark/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          + Add Care Block
+        </button>
+        {children.length === 0 && (
+          <p className="text-xs text-bark/40 text-center mt-2">Add a child first to create care blocks</p>
+        )}
       </section>
 
       {DEV_MODE && (

@@ -2,8 +2,50 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format, getDay, subDays, differenceInDays, parseISO } from 'date-fns';
-import type { Task, TaskInput, TaskInstance, TaskStatus, CareStatus, ChildTaskType, ChildcareSchedule } from '../types';
+import type { Task, TaskInput, TaskInstance, TaskStatus, CareStatus, ChildTaskType, ChildcareSchedule, AvailabilityState } from '../types';
 import { useChildStore } from './useChildStore';
+
+/**
+ * Check if a task is suggested for the current availability state.
+ * Uses the new bestWhen field, falling back to legacy napContext/careContext.
+ */
+export function isTaskSuggestedForAvailability(
+  task: Task,
+  currentAvailability: AvailabilityState
+): boolean {
+  // If task has bestWhen set, use it
+  if (task.bestWhen && task.bestWhen.length > 0) {
+    return task.bestWhen.includes(currentAvailability);
+  }
+
+  // Fall back to legacy logic for migration compatibility
+  // Convert napContext to availability suggestion
+  if (task.napContext && task.napContext !== 'any') {
+    switch (task.napContext) {
+      case 'both-asleep':
+        return currentAvailability === 'quiet';
+      case 'baby-asleep':
+      case 'toddler-asleep':
+        return currentAvailability === 'quiet';
+      case 'both-awake':
+        return currentAvailability === 'parenting';
+    }
+  }
+
+  // Convert careContext to availability suggestion
+  if (task.careContext && task.careContext !== 'any') {
+    switch (task.careContext) {
+      case 'all-away':
+      case 'any-away':
+        return currentAvailability === 'free' || currentAvailability === 'quiet';
+      case 'all-home':
+        return currentAvailability === 'parenting';
+    }
+  }
+
+  // No specific availability preference
+  return false;
+}
 
 const SEED_MAX_AGE_DAYS = 14;
 
@@ -98,6 +140,9 @@ export function shouldTaskOccurOnDate(task: Task, date: Date): boolean {
 
     case 'weekdays':
       return dayOfWeek >= 1 && dayOfWeek <= 5;
+
+    case 'weekends':
+      return dayOfWeek === 0 || dayOfWeek === 6;
 
     case 'weekly':
       // Default to Sunday for weekly tasks

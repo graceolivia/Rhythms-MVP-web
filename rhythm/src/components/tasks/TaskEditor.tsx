@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { useChildStore } from '../../stores/useChildStore';
-import type { Task, TaskInput, TaskTier, RecurrenceRule, NapContext, TaskCategory, ChildTaskType, CareContext } from '../../types';
+import type { Task, TaskInput, TaskTier, RecurrenceRule, NapContext, TaskCategory, ChildTaskType, CareContext, AvailabilityState } from '../../types';
 
 interface TaskEditorProps {
   tier: TaskTier;
@@ -18,9 +18,21 @@ const TIER_LABELS: Record<TaskTier, string> = {
 const RECURRENCE_OPTIONS: { value: RecurrenceRule; label: string }[] = [
   { value: 'daily', label: 'Daily' },
   { value: 'weekdays', label: 'Weekdays' },
+  { value: 'weekends', label: 'Weekends' },
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
 ];
+
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+const AVAILABILITY_OPTIONS: { value: AvailabilityState; label: string; description: string }[] = [
+  { value: 'free', label: 'Free', description: 'Kids are away (daycare, school)' },
+  { value: 'quiet', label: 'Quiet', description: 'Kids are asleep (nap, bedtime)' },
+  { value: 'parenting', label: 'Parenting', description: 'Kids are home and awake' },
+  { value: 'unavailable', label: 'Any', description: 'Any availability' },
+];
+
+const ROUTINE_GROUP_PRESETS = ['morning', 'bedtime', 'mealtime', 'custom'];
 
 const NAP_CONTEXT_OPTIONS: { value: NapContext | 'null'; label: string }[] = [
   { value: 'any', label: 'Any time' },
@@ -143,6 +155,41 @@ function EditableTask({
             </select>
           </div>
 
+          {/* Day of week picker */}
+          <div>
+            <label className="text-xs text-bark/50 block mb-1">Specific days (optional)</label>
+            <div className="flex items-center gap-1">
+              {DAY_LABELS.map((label, dayIndex) => {
+                const isSelected = task.daysOfWeek?.includes(dayIndex) ?? false;
+                return (
+                  <button
+                    key={dayIndex}
+                    type="button"
+                    onClick={() => {
+                      const currentDays = task.daysOfWeek ?? [];
+                      const newDays = isSelected
+                        ? currentDays.filter((d) => d !== dayIndex)
+                        : [...currentDays, dayIndex].sort();
+                      onUpdate(task.id, { daysOfWeek: newDays.length > 0 ? newDays : null });
+                    }}
+                    className={`w-7 h-7 rounded-full text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'bg-sage text-cream'
+                        : 'bg-parchment text-bark/40 hover:bg-parchment/80'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-bark/40 mt-1">
+              {task.daysOfWeek && task.daysOfWeek.length > 0
+                ? 'Overrides recurrence setting'
+                : 'Leave empty to use recurrence pattern'}
+            </p>
+          </div>
+
           {/* Child linking */}
           {children.length > 0 && (
             <>
@@ -203,9 +250,9 @@ function EditableTask({
             </div>
           )}
 
-          {/* Care context */}
+          {/* Care context (legacy) */}
           <div>
-            <label className="text-xs text-bark/50 block mb-1">Care context (when to suggest)</label>
+            <label className="text-xs text-bark/50 block mb-1">Care context (legacy)</label>
             <select
               value={task.careContext || 'null'}
               onChange={(e) => onUpdate(task.id, { careContext: e.target.value === 'null' ? null : e.target.value as CareContext })}
@@ -217,6 +264,74 @@ function EditableTask({
             </select>
             <p className="text-xs text-bark/40 mt-1">
               Suggest this task based on children's care status
+            </p>
+          </div>
+
+          {/* Best When - availability-based suggestions (new) */}
+          <div>
+            <label className="text-xs text-bark/50 block mb-1">Best when (availability)</label>
+            <div className="space-y-2">
+              {AVAILABILITY_OPTIONS.filter(opt => opt.value !== 'unavailable').map((opt) => {
+                const isChecked = task.bestWhen?.includes(opt.value) ?? false;
+                return (
+                  <label key={opt.value} className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {
+                        const currentBestWhen = task.bestWhen ?? [];
+                        const newBestWhen = isChecked
+                          ? currentBestWhen.filter((v) => v !== opt.value)
+                          : [...currentBestWhen, opt.value];
+                        onUpdate(task.id, { bestWhen: newBestWhen.length > 0 ? newBestWhen : null });
+                      }}
+                      className="mt-0.5 rounded border-bark/20"
+                    />
+                    <div>
+                      <span className="text-sm text-bark font-medium">{opt.label}</span>
+                      <p className="text-xs text-bark/40">{opt.description}</p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-xs text-bark/40 mt-2">
+              {task.bestWhen && task.bestWhen.length > 0
+                ? 'Task will be suggested during selected times'
+                : 'No preference (shown any time)'}
+            </p>
+          </div>
+
+          {/* Routine group */}
+          <div>
+            <label className="text-xs text-bark/50 block mb-1">Routine group</label>
+            <div className="flex gap-2 mb-2">
+              {ROUTINE_GROUP_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => onUpdate(task.id, { routineGroup: preset === 'custom' ? '' : preset })}
+                  className={`px-2 py-1 text-xs rounded-full transition-all ${
+                    task.routineGroup === preset
+                      ? 'bg-lavender text-cream'
+                      : 'bg-parchment text-bark/50 hover:bg-parchment/80'
+                  }`}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+            {task.routineGroup !== null && task.routineGroup !== undefined && (
+              <input
+                type="text"
+                value={task.routineGroup || ''}
+                onChange={(e) => onUpdate(task.id, { routineGroup: e.target.value || null })}
+                placeholder="Custom routine name..."
+                className="w-full bg-parchment rounded px-2 py-1 text-sm text-bark border border-bark/10"
+              />
+            )}
+            <p className="text-xs text-bark/40 mt-1">
+              Group related tasks (e.g., all bedtime tasks together)
             </p>
           </div>
 
