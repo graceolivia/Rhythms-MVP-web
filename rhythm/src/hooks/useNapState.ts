@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { parseISO, differenceInMonths } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
-import type { Child, NapContext, NapLog } from '../types';
+import { useCareBlockStore } from '../stores/useCareBlockStore';
+import type { Child, NapContext, NapLog, AvailabilityState } from '../types';
 
 interface NapStateResult {
   napState: NapContext;
@@ -11,6 +12,9 @@ interface NapStateResult {
   currentNaps: NapLog[];
   baby: Child | null;
   toddler: Child | null;
+  // New: availability-based state
+  availabilityState: AvailabilityState;
+  isQuietTime: boolean;
 }
 
 /**
@@ -51,8 +55,11 @@ function classifyChildren(children: Child[]): { baby: Child | null; toddler: Chi
 export function useNapState(): NapStateResult {
   const children = useChildStore((state) => state.children);
   const napLogs = useNapStore((state) => state.napLogs);
+  const getCurrentAvailabilityState = useCareBlockStore((state) => state.getCurrentAvailabilityState);
 
   return useMemo(() => {
+    const availabilityState = getCurrentAvailabilityState();
+    const isQuietTime = availabilityState === 'quiet';
     // Get active naps (no end time)
     const currentNaps = napLogs.filter((log) => log.endedAt === null);
     const sleepingChildIds = new Set(currentNaps.map((nap) => nap.childId));
@@ -104,6 +111,8 @@ export function useNapState(): NapStateResult {
       currentNaps,
       baby,
       toddler,
+      availabilityState,
+      isQuietTime,
     };
-  }, [children, napLogs]);
+  }, [children, napLogs, getCurrentAvailabilityState]);
 }

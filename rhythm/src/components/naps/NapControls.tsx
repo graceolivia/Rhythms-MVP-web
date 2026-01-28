@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { parseISO, differenceInMinutes, format, set as setTime } from 'date-fns';
 import { useChildStore } from '../../stores/useChildStore';
 import { useNapStore } from '../../stores/useNapStore';
+import { useAvailability } from '../../hooks/useAvailability';
 
 function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
@@ -19,6 +20,7 @@ export function NapControls() {
   const endNap = useNapStore((state) => state.endNap);
   const updateNapLog = useNapStore((state) => state.updateNapLog);
   const isChildNapping = useNapStore((state) => state.isChildNapping);
+  const { currentState, isAnyChildAsleep, childrenAsleep, childrenHome } = useAvailability();
 
   const [editingNapId, setEditingNapId] = useState<string | null>(null);
   const [editTime, setEditTime] = useState('');
@@ -35,6 +37,28 @@ export function NapControls() {
   if (nappingAgeChildren.length === 0) {
     return null;
   }
+
+  // Calculate what the availability would be if we change nap state
+  const getAvailabilityPreview = (childId: string, wouldBeNapping: boolean): string => {
+    const otherChildrenAsleep = childrenAsleep.filter((id) => id !== childId);
+    const otherChildrenHome = childrenHome.filter((id) => id !== childId);
+
+    if (wouldBeNapping) {
+      // If this child starts napping
+      const allWouldBeAsleep = otherChildrenHome.length === 0;
+      if (allWouldBeAsleep) {
+        return 'quiet time';
+      }
+      return 'some quiet';
+    } else {
+      // If this child wakes up
+      const anyStillAsleep = otherChildrenAsleep.length > 0;
+      if (!anyStillAsleep && currentState === 'quiet') {
+        return 'parenting';
+      }
+      return 'parenting';
+    }
+  };
 
   const getActiveNap = (childId: string) => {
     return napLogs.find((log) => log.childId === childId && log.endedAt === null);
@@ -64,9 +88,17 @@ export function NapControls() {
 
   return (
     <div className="bg-parchment rounded-lg p-4">
-      <h2 className="font-body font-semibold text-bark/80 text-sm uppercase tracking-wide mb-3">
-        Nap Tracking
-      </h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-body font-semibold text-bark/80 text-sm uppercase tracking-wide">
+          Nap Tracking
+        </h2>
+        {isAnyChildAsleep && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-lavender/20 text-lavender flex items-center gap-1">
+            <span>🤫</span>
+            <span>Quiet time</span>
+          </span>
+        )}
+      </div>
       <div className="space-y-3">
         {nappingAgeChildren.map((child) => {
           const isNapping = isChildNapping(child.id);
@@ -75,6 +107,7 @@ export function NapControls() {
             ? differenceInMinutes(new Date(), parseISO(activeNap.startedAt))
             : 0;
           const isEditing = activeNap && editingNapId === activeNap.id;
+          const availabilityPreview = getAvailabilityPreview(child.id, !isNapping);
 
           return (
             <div key={child.id} className="space-y-2">
@@ -82,23 +115,30 @@ export function NapControls() {
                 <div className="flex-1">
                   <span className="text-bark font-medium">{child.name}</span>
                   {isNapping && !isEditing && (
-                    <span className="ml-2 text-sm text-sage">
-                      sleeping {formatDuration(duration)}
+                    <span className="ml-2 text-sm text-lavender">
+                      💤 {formatDuration(duration)}
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() =>
-                    isNapping ? endNap(child.id) : startNap(child.id)
-                  }
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isNapping
-                      ? 'bg-terracotta text-cream hover:bg-terracotta/90'
-                      : 'bg-sage text-cream hover:bg-sage/90'
-                  }`}
-                >
-                  {isNapping ? 'Wake Up' : 'Start Nap'}
-                </button>
+                <div className="flex flex-col items-end gap-1">
+                  <button
+                    onClick={() =>
+                      isNapping ? endNap(child.id) : startNap(child.id)
+                    }
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isNapping
+                        ? 'bg-terracotta text-cream hover:bg-terracotta/90'
+                        : 'bg-lavender text-cream hover:bg-lavender/90'
+                    }`}
+                  >
+                    {isNapping ? 'Wake Up' : 'Start Nap'}
+                  </button>
+                  {!isNapping && nappingAgeChildren.length > 0 && childrenHome.length > 0 && (
+                    <span className="text-xs text-bark/40">
+                      → {availabilityPreview}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Edit start time section */}
