@@ -1,4 +1,4 @@
-import type { TaskTier, TaskCategory, NapContext } from '../types';
+import type { TaskTier, TaskCategory, NapContext, RecurrenceRule, AvailabilityState } from '../types';
 
 export interface ChoreTemplate {
   title: string;
@@ -6,6 +6,10 @@ export interface ChoreTemplate {
   category: TaskCategory;
   napContext: NapContext | null;
   scheduledTime?: string;
+  // New fields for Phase 3
+  bestWhen?: AvailabilityState[];
+  recurrence?: RecurrenceRule;
+  routineGroup?: string;
 }
 
 export interface ChoreCategory {
@@ -21,15 +25,15 @@ export const choreLibrary: ChoreCategory[] = [
     label: 'Meals',
     emoji: '🍳',
     chores: [
-      { title: 'Make breakfast', tier: 'rhythm', category: 'meals', napContext: 'any' },
-      { title: 'Pack lunches', tier: 'rhythm', category: 'meals', napContext: 'any' },
+      { title: 'Make breakfast', tier: 'rhythm', category: 'meals', napContext: 'any', routineGroup: 'morning' },
+      { title: 'Pack lunches', tier: 'rhythm', category: 'meals', napContext: 'any', routineGroup: 'morning' },
       { title: 'Lunch for kids', tier: 'rhythm', category: 'meals', napContext: 'any' },
-      { title: 'Lunch for me', tier: 'rhythm', category: 'meals', napContext: 'any' },
-      { title: 'Afternoon snack', tier: 'rhythm', category: 'meals', napContext: 'both-awake' },
+      { title: 'Lunch for me', tier: 'rhythm', category: 'meals', napContext: 'any', bestWhen: ['quiet'] },
+      { title: 'Afternoon snack', tier: 'rhythm', category: 'meals', napContext: 'both-awake', bestWhen: ['parenting'] },
       { title: 'Make dinner', tier: 'rhythm', category: 'meals', napContext: 'any' },
-      { title: 'Meal prep', tier: 'tending', category: 'meals', napContext: 'both-asleep' },
-      { title: 'Plan weekly meals', tier: 'tending', category: 'meals', napContext: 'both-asleep' },
-      { title: 'Grocery list', tier: 'tending', category: 'meals', napContext: 'any' },
+      { title: 'Meal prep', tier: 'tending', category: 'meals', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
+      { title: 'Plan weekly meals', tier: 'tending', category: 'meals', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
+      { title: 'Grocery list', tier: 'tending', category: 'meals', napContext: 'any', bestWhen: ['quiet'], recurrence: 'weekly' },
     ],
   },
   {
@@ -38,13 +42,13 @@ export const choreLibrary: ChoreCategory[] = [
     emoji: '🧽',
     chores: [
       { title: 'Load dishwasher', tier: 'rhythm', category: 'kitchen', napContext: 'any' },
-      { title: 'Empty dishwasher', tier: 'tending', category: 'kitchen', napContext: 'baby-asleep' },
-      { title: 'Hand wash dishes', tier: 'tending', category: 'kitchen', napContext: 'both-asleep' },
+      { title: 'Empty dishwasher', tier: 'tending', category: 'kitchen', napContext: 'baby-asleep', bestWhen: ['quiet'] },
+      { title: 'Hand wash dishes', tier: 'tending', category: 'kitchen', napContext: 'both-asleep', bestWhen: ['quiet'] },
       { title: 'Wipe counters', tier: 'tending', category: 'kitchen', napContext: 'any' },
-      { title: 'Clean stovetop', tier: 'tending', category: 'kitchen', napContext: 'both-asleep' },
-      { title: 'Clean out fridge', tier: 'tending', category: 'kitchen', napContext: 'both-asleep' },
+      { title: 'Clean stovetop', tier: 'tending', category: 'kitchen', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly' },
+      { title: 'Clean out fridge', tier: 'tending', category: 'kitchen', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
       { title: 'Take out kitchen trash', tier: 'tending', category: 'kitchen', napContext: 'any' },
-      { title: 'Wipe down appliances', tier: 'tending', category: 'kitchen', napContext: 'both-asleep' },
+      { title: 'Wipe down appliances', tier: 'tending', category: 'kitchen', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly' },
     ],
   },
   {
@@ -52,13 +56,13 @@ export const choreLibrary: ChoreCategory[] = [
     label: 'Laundry',
     emoji: '👕',
     chores: [
-      { title: 'Start a load of laundry', tier: 'tending', category: 'laundry', napContext: 'any' },
+      { title: 'Start a load of laundry', tier: 'tending', category: 'laundry', napContext: 'any', recurrence: { type: 'specific-days', days: [1, 4] } }, // Mon & Thu
       { title: 'Switch laundry to dryer', tier: 'tending', category: 'laundry', napContext: 'any' },
-      { title: 'Fold laundry', tier: 'tending', category: 'laundry', napContext: 'toddler-asleep' },
-      { title: 'Put away laundry', tier: 'tending', category: 'laundry', napContext: 'any' },
-      { title: 'Sort dirty laundry', tier: 'tending', category: 'laundry', napContext: 'any' },
-      { title: 'Wash bedding', tier: 'tending', category: 'laundry', napContext: 'both-awake' },
-      { title: 'Iron clothes', tier: 'tending', category: 'laundry', napContext: 'both-asleep' },
+      { title: 'Fold laundry', tier: 'tending', category: 'laundry', napContext: 'toddler-asleep', bestWhen: ['quiet'] },
+      { title: 'Put away laundry', tier: 'tending', category: 'laundry', napContext: 'any', bestWhen: ['parenting'] },
+      { title: 'Sort dirty laundry', tier: 'tending', category: 'laundry', napContext: 'any', recurrence: 'weekly' },
+      { title: 'Wash bedding', tier: 'tending', category: 'laundry', napContext: 'both-awake', bestWhen: ['parenting'], recurrence: 'weekly' },
+      { title: 'Iron clothes', tier: 'tending', category: 'laundry', napContext: 'both-asleep', bestWhen: ['quiet', 'free'] },
     ],
   },
   {
@@ -66,14 +70,14 @@ export const choreLibrary: ChoreCategory[] = [
     label: 'Tidying',
     emoji: '🧹',
     chores: [
-      { title: 'Morning tidy up', tier: 'rhythm', category: 'tidying', napContext: 'both-awake' },
-      { title: 'Evening reset', tier: 'rhythm', category: 'tidying', napContext: 'both-asleep' },
-      { title: 'Make beds', tier: 'tending', category: 'tidying', napContext: 'any' },
-      { title: 'Pick up toys', tier: 'tending', category: 'tidying', napContext: 'both-awake' },
+      { title: 'Morning tidy up', tier: 'rhythm', category: 'tidying', napContext: 'both-awake', routineGroup: 'morning', bestWhen: ['parenting'] },
+      { title: 'Evening reset', tier: 'rhythm', category: 'tidying', napContext: 'both-asleep', routineGroup: 'bedtime', bestWhen: ['quiet'] },
+      { title: 'Make beds', tier: 'tending', category: 'tidying', napContext: 'any', routineGroup: 'morning' },
+      { title: 'Pick up toys', tier: 'tending', category: 'tidying', napContext: 'both-awake', bestWhen: ['parenting'] },
       { title: 'Clear clutter hotspots', tier: 'tending', category: 'tidying', napContext: 'any' },
       { title: 'Tidy entryway', tier: 'tending', category: 'tidying', napContext: 'any' },
-      { title: 'Sort mail/papers', tier: 'tending', category: 'tidying', napContext: 'both-asleep' },
-      { title: 'Organize one drawer', tier: 'tending', category: 'tidying', napContext: 'both-asleep' },
+      { title: 'Sort mail/papers', tier: 'tending', category: 'tidying', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
+      { title: 'Organize one drawer', tier: 'tending', category: 'tidying', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
     ],
   },
   {
@@ -81,15 +85,15 @@ export const choreLibrary: ChoreCategory[] = [
     label: 'Cleaning',
     emoji: '✨',
     chores: [
-      { title: 'Sweep floors', tier: 'tending', category: 'cleaning', napContext: 'both-asleep' },
-      { title: 'Vacuum', tier: 'tending', category: 'cleaning', napContext: 'both-awake' },
-      { title: 'Mop floors', tier: 'tending', category: 'cleaning', napContext: 'both-asleep' },
-      { title: 'Clean bathroom sink', tier: 'tending', category: 'cleaning', napContext: 'any' },
-      { title: 'Clean toilet', tier: 'tending', category: 'cleaning', napContext: 'both-asleep' },
-      { title: 'Clean shower/tub', tier: 'tending', category: 'cleaning', napContext: 'both-asleep' },
-      { title: 'Dust surfaces', tier: 'tending', category: 'cleaning', napContext: 'both-asleep' },
-      { title: 'Clean mirrors', tier: 'tending', category: 'cleaning', napContext: 'any' },
-      { title: 'Wipe light switches & handles', tier: 'tending', category: 'cleaning', napContext: 'any' },
+      { title: 'Sweep floors', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly' },
+      { title: 'Vacuum', tier: 'tending', category: 'cleaning', napContext: 'both-awake', bestWhen: ['parenting'], recurrence: 'weekly' },
+      { title: 'Mop floors', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
+      { title: 'Clean bathroom sink', tier: 'tending', category: 'cleaning', napContext: 'any', recurrence: 'weekly' },
+      { title: 'Clean toilet', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly' },
+      { title: 'Clean shower/tub', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
+      { title: 'Dust surfaces', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly' },
+      { title: 'Clean mirrors', tier: 'tending', category: 'cleaning', napContext: 'any', recurrence: 'weekly' },
+      { title: 'Wipe light switches & handles', tier: 'tending', category: 'cleaning', napContext: 'any', recurrence: 'weekly' },
     ],
   },
   {
@@ -97,13 +101,13 @@ export const choreLibrary: ChoreCategory[] = [
     label: 'Errands',
     emoji: '🚗',
     chores: [
-      { title: 'Grocery shopping', tier: 'tending', category: 'errands', napContext: null },
-      { title: 'Return library books', tier: 'tending', category: 'errands', napContext: null },
-      { title: 'Pick up prescriptions', tier: 'tending', category: 'errands', napContext: null },
-      { title: 'Mail packages', tier: 'tending', category: 'errands', napContext: null },
-      { title: 'Take car for service', tier: 'tending', category: 'errands', napContext: null },
-      { title: 'Bank errands', tier: 'tending', category: 'errands', napContext: null },
-      { title: 'Drop off donations', tier: 'tending', category: 'errands', napContext: null },
+      { title: 'Grocery shopping', tier: 'tending', category: 'errands', napContext: null, bestWhen: ['free'], recurrence: 'weekly' },
+      { title: 'Return library books', tier: 'tending', category: 'errands', napContext: null, bestWhen: ['free'] },
+      { title: 'Pick up prescriptions', tier: 'tending', category: 'errands', napContext: null, bestWhen: ['free'] },
+      { title: 'Mail packages', tier: 'tending', category: 'errands', napContext: null, bestWhen: ['free'] },
+      { title: 'Take car for service', tier: 'tending', category: 'errands', napContext: null, bestWhen: ['free'] },
+      { title: 'Bank errands', tier: 'tending', category: 'errands', napContext: null, bestWhen: ['free'] },
+      { title: 'Drop off donations', tier: 'tending', category: 'errands', napContext: null, bestWhen: ['free'] },
     ],
   },
   {
@@ -111,15 +115,15 @@ export const choreLibrary: ChoreCategory[] = [
     label: 'Self-Care',
     emoji: '💆',
     chores: [
-      { title: 'Eat a real lunch', tier: 'rhythm', category: 'self-care', napContext: 'both-asleep' },
+      { title: 'Eat a real lunch', tier: 'rhythm', category: 'self-care', napContext: 'both-asleep', bestWhen: ['quiet'] },
       { title: 'Drink water', tier: 'rhythm', category: 'self-care', napContext: 'any' },
-      { title: 'Take vitamins/meds', tier: 'rhythm', category: 'self-care', napContext: 'any' },
-      { title: 'Shower', tier: 'tending', category: 'self-care', napContext: 'both-asleep' },
-      { title: 'Exercise/movement', tier: 'tending', category: 'self-care', napContext: 'any' },
-      { title: 'Read for pleasure', tier: 'tending', category: 'self-care', napContext: 'both-asleep' },
-      { title: 'Call a friend', tier: 'tending', category: 'self-care', napContext: 'both-asleep' },
-      { title: 'Journal/reflect', tier: 'tending', category: 'self-care', napContext: 'both-asleep' },
-      { title: 'Rest/nap', tier: 'tending', category: 'self-care', napContext: 'both-asleep' },
+      { title: 'Take vitamins/meds', tier: 'rhythm', category: 'self-care', napContext: 'any', routineGroup: 'morning' },
+      { title: 'Shower', tier: 'tending', category: 'self-care', napContext: 'both-asleep', bestWhen: ['quiet', 'free'] },
+      { title: 'Exercise/movement', tier: 'tending', category: 'self-care', napContext: 'any', bestWhen: ['free'] },
+      { title: 'Read for pleasure', tier: 'tending', category: 'self-care', napContext: 'both-asleep', bestWhen: ['quiet'] },
+      { title: 'Call a friend', tier: 'tending', category: 'self-care', napContext: 'both-asleep', bestWhen: ['quiet', 'free'] },
+      { title: 'Journal/reflect', tier: 'tending', category: 'self-care', napContext: 'both-asleep', bestWhen: ['quiet'] },
+      { title: 'Rest/nap', tier: 'tending', category: 'self-care', napContext: 'both-asleep', bestWhen: ['quiet'] },
     ],
   },
   {
@@ -127,15 +131,15 @@ export const choreLibrary: ChoreCategory[] = [
     label: 'Kids',
     emoji: '👶',
     chores: [
-      { title: 'Morning wake up routine', tier: 'anchor', category: 'kids', napContext: null, scheduledTime: '07:00' },
-      { title: 'Get kids dressed', tier: 'rhythm', category: 'kids', napContext: 'both-awake' },
-      { title: 'Brush teeth (morning)', tier: 'rhythm', category: 'kids', napContext: 'both-awake' },
-      { title: 'Brush teeth (evening)', tier: 'rhythm', category: 'kids', napContext: 'both-awake' },
-      { title: 'Bath time', tier: 'rhythm', category: 'kids', napContext: 'both-awake' },
-      { title: 'Bedtime routine', tier: 'anchor', category: 'kids', napContext: null, scheduledTime: '19:30' },
-      { title: 'Read stories', tier: 'tending', category: 'kids', napContext: 'both-awake' },
-      { title: 'Outdoor play time', tier: 'tending', category: 'kids', napContext: 'both-awake' },
-      { title: 'Art/craft activity', tier: 'tending', category: 'kids', napContext: 'toddler-asleep' },
+      { title: 'Morning wake up routine', tier: 'anchor', category: 'kids', napContext: null, scheduledTime: '07:00', routineGroup: 'morning' },
+      { title: 'Get kids dressed', tier: 'rhythm', category: 'kids', napContext: 'both-awake', bestWhen: ['parenting'], routineGroup: 'morning' },
+      { title: 'Brush teeth (morning)', tier: 'rhythm', category: 'kids', napContext: 'both-awake', bestWhen: ['parenting'], routineGroup: 'morning' },
+      { title: 'Brush teeth (evening)', tier: 'rhythm', category: 'kids', napContext: 'both-awake', bestWhen: ['parenting'], routineGroup: 'bedtime' },
+      { title: 'Bath time', tier: 'rhythm', category: 'kids', napContext: 'both-awake', bestWhen: ['parenting'], routineGroup: 'bedtime' },
+      { title: 'Bedtime routine', tier: 'anchor', category: 'kids', napContext: null, scheduledTime: '19:30', routineGroup: 'bedtime' },
+      { title: 'Read stories', tier: 'tending', category: 'kids', napContext: 'both-awake', bestWhen: ['parenting'], routineGroup: 'bedtime' },
+      { title: 'Outdoor play time', tier: 'tending', category: 'kids', napContext: 'both-awake', bestWhen: ['parenting'] },
+      { title: 'Art/craft activity', tier: 'tending', category: 'kids', napContext: 'toddler-asleep', bestWhen: ['parenting'] },
       { title: 'School pickup', tier: 'anchor', category: 'kids', napContext: null, scheduledTime: '15:00' },
       { title: 'School dropoff', tier: 'anchor', category: 'kids', napContext: null, scheduledTime: '08:30' },
     ],
@@ -145,12 +149,12 @@ export const choreLibrary: ChoreCategory[] = [
     label: 'Focus Work',
     emoji: '💻',
     chores: [
-      { title: 'Focused computer work', tier: 'tending', category: 'focus-work', napContext: 'both-asleep' },
-      { title: 'Pay bills', tier: 'tending', category: 'focus-work', napContext: 'both-asleep' },
-      { title: 'Check/respond to emails', tier: 'tending', category: 'focus-work', napContext: 'both-asleep' },
-      { title: 'Schedule appointments', tier: 'tending', category: 'focus-work', napContext: 'both-asleep' },
-      { title: 'Budget review', tier: 'tending', category: 'focus-work', napContext: 'both-asleep' },
-      { title: 'Creative project time', tier: 'tending', category: 'focus-work', napContext: 'both-asleep' },
+      { title: 'Focused computer work', tier: 'tending', category: 'focus-work', napContext: 'both-asleep', bestWhen: ['quiet', 'free'] },
+      { title: 'Pay bills', tier: 'tending', category: 'focus-work', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
+      { title: 'Check/respond to emails', tier: 'tending', category: 'focus-work', napContext: 'both-asleep', bestWhen: ['quiet', 'free'] },
+      { title: 'Schedule appointments', tier: 'tending', category: 'focus-work', napContext: 'both-asleep', bestWhen: ['quiet', 'free'] },
+      { title: 'Budget review', tier: 'tending', category: 'focus-work', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
+      { title: 'Creative project time', tier: 'tending', category: 'focus-work', napContext: 'both-asleep', bestWhen: ['quiet', 'free'] },
     ],
   },
 ];
