@@ -312,6 +312,14 @@ export function DailyRhythm() {
     ? sleepBlocks.find((b) => b.id === selectedSleepLogId)
     : null;
 
+  // Get unique children with sleep or away blocks for column layout
+  const childIdsWithBlocks = [...new Set([
+    ...sleepBlocks.map(b => b.childId),
+    ...awayBlocks.map(b => b.childId),
+  ])];
+  const numColumns = childIdsWithBlocks.length || 1;
+  const childColumnIndex = new Map(childIdsWithBlocks.map((id, idx) => [id, idx]));
+
   return (
     <div className="min-h-screen bg-cream">
       <div className="max-w-lg mx-auto p-4 pb-24">
@@ -349,7 +357,7 @@ export function DailyRhythm() {
               </div>
             ))}
 
-            {/* Sleep blocks */}
+            {/* Sleep blocks - in columns by child */}
             {sleepBlocks.map((block) => {
               const top = (block.startMinutes / 60) * HOUR_HEIGHT;
               const height = Math.max(24, ((block.endMinutes - block.startMinutes) / 60) * HOUR_HEIGHT);
@@ -357,14 +365,22 @@ export function DailyRhythm() {
               const isSelected = selectedSleepLogId === block.id;
               const sleepEmoji = block.sleepType === 'night' ? '🌙' : '💤';
 
+              // Column positioning
+              const colIndex = childColumnIndex.get(block.childId) || 0;
+
               return (
                 <button
                   key={block.id}
                   onClick={() => setSelectedSleepLogId(isSelected ? null : block.id)}
-                  className={`absolute left-14 right-4 rounded-lg border-2 ${colors.bg} ${colors.border} overflow-hidden text-left transition-all cursor-pointer z-10 ${
+                  className={`absolute rounded-lg border-2 ${colors.bg} ${colors.border} overflow-hidden text-left transition-all cursor-pointer z-10 ${
                     block.isActive ? 'animate-pulse' : ''
                   } ${isSelected ? 'ring-2 ring-offset-2 ring-lavender/50 scale-[1.02]' : 'hover:scale-[1.01] hover:brightness-105'}`}
-                  style={{ top, height }}
+                  style={{
+                    top,
+                    height,
+                    left: `calc(3.5rem + (100% - 4.5rem) * ${colIndex} / ${numColumns})`,
+                    width: `calc((100% - 4.5rem) / ${numColumns} - 4px)`,
+                  }}
                 >
                   <div className={`px-2 py-1 text-xs font-medium ${colors.text} truncate flex items-center gap-1`}>
                     <span>{sleepEmoji}</span>
@@ -383,18 +399,26 @@ export function DailyRhythm() {
               );
             })}
 
-            {/* Away blocks */}
+            {/* Away blocks - in columns by child */}
             {awayBlocks.map((block) => {
               const top = (block.startMinutes / 60) * HOUR_HEIGHT;
               const height = Math.max(24, ((block.endMinutes - block.startMinutes) / 60) * HOUR_HEIGHT);
 
+              // Column positioning
+              const colIndex = childColumnIndex.get(block.childId) || 0;
+
               return (
                 <div
                   key={block.id}
-                  className={`absolute left-14 right-4 rounded-lg border-2 bg-sage/30 border-sage overflow-hidden z-5 ${
+                  className={`absolute rounded-lg border-2 bg-sage/30 border-sage overflow-hidden z-5 ${
                     block.isActive ? 'animate-pulse' : ''
                   }`}
-                  style={{ top, height }}
+                  style={{
+                    top,
+                    height,
+                    left: `calc(3.5rem + (100% - 4.5rem) * ${colIndex} / ${numColumns})`,
+                    width: `calc((100% - 4.5rem) / ${numColumns} - 4px)`,
+                  }}
                 >
                   <div className="px-2 py-1 text-xs font-medium text-sage truncate flex items-center gap-1">
                     <span>🚗</span>
