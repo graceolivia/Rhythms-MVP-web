@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
-import type { NapSchedule, NapLog, SleepType } from '../types';
+import type { NapSchedule, NapLog, SleepType, ChildTaskType } from '../types';
+import { useTaskStore } from './useTaskStore';
 
 interface NapState {
   napSchedules: NapSchedule[];
@@ -29,6 +30,30 @@ interface NapState {
   isChildSleeping: (childId: string) => boolean;
   getActiveSleepForChild: (childId: string) => NapLog | undefined;
   getLastWakeTime: (childId: string) => string | null;
+}
+
+/**
+ * Auto-complete a child's task (bedtime or wake-up) for today
+ */
+function autoCompleteChildTask(childId: string, taskType: ChildTaskType) {
+  const taskStore = useTaskStore.getState();
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  // Find the task for this child and type
+  const task = taskStore.tasks.find(
+    (t) => t.childId === childId && t.childTaskType === taskType && t.isActive
+  );
+
+  if (!task) return;
+
+  // Find today's instance for this task
+  const instance = taskStore.taskInstances.find(
+    (i) => i.taskId === task.id && i.date === today && i.status !== 'completed'
+  );
+
+  if (instance) {
+    taskStore.completeTask(instance.id);
+  }
 }
 
 export const useNapStore = create<NapState>()(
@@ -90,6 +115,12 @@ export const useNapStore = create<NapState>()(
         set((state) => ({
           napLogs: [...state.napLogs, newLog],
         }));
+
+        // Auto-complete bedtime task for night sleep
+        if (sleepType === 'night') {
+          autoCompleteChildTask(childId, 'bedtime');
+        }
+
         return id;
       },
 
@@ -98,6 +129,12 @@ export const useNapStore = create<NapState>()(
       },
 
       endSleep: (childId) => {
+        // Check if this was night sleep before ending it
+        const activeSleep = get().napLogs.find(
+          (log) => log.childId === childId && log.endedAt === null
+        );
+        const wasNightSleep = activeSleep?.sleepType === 'night';
+
         const now = new Date().toISOString();
         set((state) => ({
           napLogs: state.napLogs.map((log) =>
@@ -106,6 +143,11 @@ export const useNapStore = create<NapState>()(
               : log
           ),
         }));
+
+        // Auto-complete wake-up task for night sleep
+        if (wasNightSleep) {
+          autoCompleteChildTask(childId, 'wake-up');
+        }
       },
 
       updateNapLog: (logId, updates) => {
