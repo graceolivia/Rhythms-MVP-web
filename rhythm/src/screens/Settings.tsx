@@ -5,6 +5,7 @@ import { useChildcareStore } from '../stores/useChildcareStore';
 import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useResetSeedData } from '../hooks/useResetSeedData';
+import { useResetAppData } from '../hooks/useResetAppData';
 import { DEV_MODE } from '../config/devMode';
 import type { ChildColor, CareStatus, CareBlockType, RecurrenceRule } from '../types';
 
@@ -63,6 +64,7 @@ export function Settings() {
   const tasks = useTaskStore((state) => state.tasks);
   const ensureChildcareTasksExist = useTaskStore((state) => state.ensureChildcareTasksExist);
   const resetSeedData = useResetSeedData();
+  const resetAppData = useResetAppData();
 
   // Get linked tasks for a child
   const getLinkedTasks = (childId: string) => {
@@ -161,6 +163,15 @@ export function Settings() {
     if (newChildIds.length > 0) {
       updateCareBlock(blockId, { childIds: newChildIds });
     }
+  };
+
+  const handleResetApp = () => {
+    const confirmed = window.confirm(
+      'This will clear all local data and restart onboarding. This cannot be undone. Continue?'
+    );
+    if (!confirmed) return;
+    resetAppData();
+    window.location.assign('/onboarding');
   };
 
   return (
@@ -641,6 +652,19 @@ export function Settings() {
           </p>
         </section>
       )}
+      
+      <section className="mb-8">
+        <h2 className="font-display text-lg text-bark mb-4">Reset App</h2>
+        <button
+          onClick={handleResetApp}
+          className="w-full py-2 rounded-xl bg-bark text-cream hover:bg-bark/90 transition-colors"
+        >
+          Clear Local Data &amp; Restart Onboarding
+        </button>
+        <p className="text-xs text-bark/50 mt-2">
+          Removes all stored data and restarts onboarding without seed data.
+        </p>
+      </section>
       </div>
     </div>
   );

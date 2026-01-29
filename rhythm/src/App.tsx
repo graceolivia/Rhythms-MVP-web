@@ -12,7 +12,7 @@ import { Timeline } from './screens/Timeline';
 import { Onboarding } from './screens/Onboarding';
 import { BottomNav } from './components/common/BottomNav';
 import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
-import { isFreshInstall } from './utils/storageHelpers';
+import { isFreshInstall, consumeSkipSeedDataOnce } from './utils/storageHelpers';
 import { useChildStore } from './stores/useChildStore';
 import { useNapStore } from './stores/useNapStore';
 import { useTaskStore } from './stores/useTaskStore';
@@ -45,7 +45,10 @@ function App() {
   useEffect(() => {
     // Check if user needs onboarding
     if (isFreshInstall()) {
-      if (DEV_SKIP_ONBOARDING) {
+      const skipSeedData = consumeSkipSeedDataOnce();
+      if (skipSeedData) {
+        setNeedsOnboarding(true);
+      } else if (DEV_SKIP_ONBOARDING) {
         loadSeedData({
           childStore: useChildStore,
           napStore: useNapStore,
