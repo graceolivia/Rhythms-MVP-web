@@ -221,6 +221,161 @@ function SleepLogPopup({
   );
 }
 
+function AwayLogPopup({
+  block,
+  onClose,
+  onUpdate,
+  onDelete,
+}: {
+  block: AwayBlockData;
+  onClose: () => void;
+  onUpdate: (logId: string, updates: { startedAt?: string; endedAt?: string }) => void;
+  onDelete: (logId: string) => void;
+}) {
+  const [startTime, setStartTime] = useState(() => {
+    const date = new Date(block.startedAt);
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  });
+  const [endTime, setEndTime] = useState(() => {
+    if (!block.endedAt) return '';
+    const date = new Date(block.endedAt);
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const isOngoing = block.endedAt === null;
+  const duration = formatDuration(block.startedAt, block.endedAt);
+
+  const handleSave = () => {
+    const updates: { startedAt?: string; endedAt?: string } = {};
+
+    const [startH, startM] = startTime.split(':').map(Number);
+    const startDate = new Date(block.startedAt);
+    startDate.setHours(startH, startM, 0, 0);
+    updates.startedAt = startDate.toISOString();
+
+    if (endTime && !isOngoing) {
+      const [endH, endM] = endTime.split(':').map(Number);
+      const endDate = new Date(block.endedAt || block.startedAt);
+      endDate.setHours(endH, endM, 0, 0);
+      updates.endedAt = endDate.toISOString();
+    }
+
+    onUpdate(block.id, updates);
+    onClose();
+  };
+
+  const handleDelete = () => {
+    onDelete(block.id);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-cream rounded-xl shadow-xl p-4 w-full max-w-sm border border-bark/10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {showDeleteConfirm ? (
+          <div className="text-center py-2">
+            <p className="text-bark mb-4">Delete this away log?</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2 rounded-lg bg-bark/10 text-bark hover:bg-bark/20"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xl">🚗</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-sage/20 text-sage">
+                    Away
+                  </span>
+                  {isOngoing && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-sage/30 text-sage animate-pulse">
+                      Ongoing
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-medium text-bark">{block.childName}</h3>
+                {block.scheduleName && (
+                  <p className="text-sm text-bark/60">at {block.scheduleName}</p>
+                )}
+                <p className="text-sm text-bark/50">{duration}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-1 rounded-lg hover:bg-bark/10 text-bark/40"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="text-xs text-bark/60 block mb-1">Start time</label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
+                />
+              </div>
+              {!isOngoing && (
+                <div>
+                  <label className="text-xs text-bark/60 block mb-1">End time</label>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-4 py-2 rounded-lg text-red-500 hover:bg-red-50 text-sm"
+              >
+                Delete
+              </button>
+              <div className="flex-1" />
+              <button
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg bg-bark/10 text-bark hover:bg-bark/20 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 rounded-lg bg-sage text-white hover:bg-sage/90 text-sm"
+              >
+                Save
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Timeline() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const children = useChildStore((state) => state.children);
@@ -228,7 +383,10 @@ export function Timeline() {
   const awayLogs = useAwayStore((state) => state.awayLogs);
   const updateNapLog = useNapStore((state) => state.updateNapLog);
   const deleteNapLog = useNapStore((state) => state.deleteNapLog);
+  const updateAwayLog = useAwayStore((state) => state.updateAwayLog);
+  const deleteAwayLog = useAwayStore((state) => state.deleteAwayLog);
   const [selectedSleepLogId, setSelectedSleepLogId] = useState<string | null>(null);
+  const [selectedAwayLogId, setSelectedAwayLogId] = useState<string | null>(null);
 
   // Get today's sleep logs (naps and night sleep)
   const todaysSleepLogs = napLogs.filter((log) => {
@@ -310,6 +468,11 @@ export function Timeline() {
   // Get selected sleep block for popup
   const selectedSleepBlock = selectedSleepLogId
     ? sleepBlocks.find((b) => b.id === selectedSleepLogId)
+    : null;
+
+  // Get selected away block for popup
+  const selectedAwayBlock = selectedAwayLogId
+    ? awayBlocks.find((b) => b.id === selectedAwayLogId)
     : null;
 
   // Get unique children with sleep or away blocks for column layout
@@ -403,16 +566,18 @@ export function Timeline() {
             {awayBlocks.map((block) => {
               const top = (block.startMinutes / 60) * HOUR_HEIGHT;
               const height = Math.max(24, ((block.endMinutes - block.startMinutes) / 60) * HOUR_HEIGHT);
+              const isSelected = selectedAwayLogId === block.id;
 
               // Column positioning
               const colIndex = childColumnIndex.get(block.childId) || 0;
 
               return (
-                <div
+                <button
                   key={block.id}
-                  className={`absolute rounded-lg border-2 bg-sage/30 border-sage overflow-hidden z-5 ${
+                  onClick={() => setSelectedAwayLogId(isSelected ? null : block.id)}
+                  className={`absolute rounded-lg border-2 bg-sage/30 border-sage overflow-hidden text-left transition-all cursor-pointer z-5 ${
                     block.isActive ? 'animate-pulse' : ''
-                  }`}
+                  } ${isSelected ? 'ring-2 ring-offset-2 ring-sage/50 scale-[1.02]' : 'hover:scale-[1.01] hover:brightness-105'}`}
                   style={{
                     top,
                     height,
@@ -434,7 +599,7 @@ export function Timeline() {
                       )}
                     </div>
                   )}
-                </div>
+                </button>
               );
             })}
 
@@ -467,6 +632,16 @@ export function Timeline() {
           onClose={() => setSelectedSleepLogId(null)}
           onUpdate={(logId, updates) => updateNapLog(logId, updates)}
           onDelete={(logId) => deleteNapLog(logId)}
+        />
+      )}
+
+      {/* Away log popup */}
+      {selectedAwayBlock && (
+        <AwayLogPopup
+          block={selectedAwayBlock}
+          onClose={() => setSelectedAwayLogId(null)}
+          onUpdate={(logId, updates) => updateAwayLog(logId, updates)}
+          onDelete={(logId) => deleteAwayLog(logId)}
         />
       )}
     </div>

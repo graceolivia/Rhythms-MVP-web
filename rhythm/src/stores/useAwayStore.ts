@@ -12,6 +12,7 @@ interface AwayState {
   startAway: (childId: string, scheduleName?: string) => string;
   endAway: (childId: string) => void;
   updateAwayLog: (logId: string, updates: Partial<Pick<AwayLog, 'startedAt' | 'endedAt'>>) => void;
+  deleteAwayLog: (logId: string) => void;
   clearAwayLogs: () => void;
 
   // Query methods
@@ -66,6 +67,12 @@ export const useAwayStore = create<AwayState>()(
           awayLogs: state.awayLogs.map((log) =>
             log.id === logId ? { ...log, ...updates } : log
           ),
+        }));
+      },
+
+      deleteAwayLog: (logId) => {
+        set((state) => ({
+          awayLogs: state.awayLogs.filter((log) => log.id !== logId),
         }));
       },
 
