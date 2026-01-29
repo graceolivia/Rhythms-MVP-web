@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
-import type { NapSchedule, NapLog } from '../types';
+import type { NapSchedule, NapLog, SleepType } from '../types';
 
 interface NapState {
   napSchedules: NapSchedule[];
@@ -15,14 +15,20 @@ interface NapState {
   clearNapSchedules: () => void;
   getSchedulesForChild: (childId: string) => NapSchedule[];
 
-  // Nap log actions
+  // Sleep log actions (supports both naps and night sleep)
   startNap: (childId: string) => string;
+  startSleep: (childId: string, sleepType: SleepType) => string;
   endNap: (childId: string) => void;
+  endSleep: (childId: string) => void;
   updateNapLog: (logId: string, updates: Partial<Pick<NapLog, 'startedAt' | 'endedAt'>>) => void;
   clearNapLogs: () => void;
   getNapsForDate: (date: string) => NapLog[];
   getActiveNaps: () => NapLog[];
+  getActiveSleep: () => NapLog[];
   isChildNapping: (childId: string) => boolean;
+  isChildSleeping: (childId: string) => boolean;
+  getActiveSleepForChild: (childId: string) => NapLog | undefined;
+  getLastWakeTime: (childId: string) => string | null;
 }
 
 export const useNapStore = create<NapState>()(
@@ -65,8 +71,12 @@ export const useNapStore = create<NapState>()(
           .sort((a, b) => a.napNumber - b.napNumber);
       },
 
-      // Nap log actions
+      // Sleep log actions (supports both naps and night sleep)
       startNap: (childId) => {
+        return get().startSleep(childId, 'nap');
+      },
+
+      startSleep: (childId, sleepType) => {
         const now = new Date();
         const id = uuidv4();
         const newLog: NapLog = {
@@ -75,6 +85,7 @@ export const useNapStore = create<NapState>()(
           date: format(now, 'yyyy-MM-dd'),
           startedAt: now.toISOString(),
           endedAt: null,
+          sleepType,
         };
         set((state) => ({
           napLogs: [...state.napLogs, newLog],
@@ -83,6 +94,10 @@ export const useNapStore = create<NapState>()(
       },
 
       endNap: (childId) => {
+        get().endSleep(childId);
+      },
+
+      endSleep: (childId) => {
         const now = new Date().toISOString();
         set((state) => ({
           napLogs: state.napLogs.map((log) =>
@@ -110,13 +125,43 @@ export const useNapStore = create<NapState>()(
       },
 
       getActiveNaps: () => {
+        return get().napLogs.filter(
+          (log) => log.endedAt === null && (log.sleepType === 'nap' || !log.sleepType)
+        );
+      },
+
+      getActiveSleep: () => {
         return get().napLogs.filter((log) => log.endedAt === null);
       },
 
       isChildNapping: (childId) => {
         return get().napLogs.some(
+          (log) =>
+            log.childId === childId &&
+            log.endedAt === null &&
+            (log.sleepType === 'nap' || !log.sleepType)
+        );
+      },
+
+      isChildSleeping: (childId) => {
+        return get().napLogs.some(
           (log) => log.childId === childId && log.endedAt === null
         );
+      },
+
+      getActiveSleepForChild: (childId) => {
+        return get().napLogs.find(
+          (log) => log.childId === childId && log.endedAt === null
+        );
+      },
+
+      getLastWakeTime: (childId) => {
+        // Find the most recent ended sleep for this child
+        const endedSleeps = get()
+          .napLogs.filter((log) => log.childId === childId && log.endedAt !== null)
+          .sort((a, b) => new Date(b.endedAt!).getTime() - new Date(a.endedAt!).getTime());
+
+        return endedSleeps[0]?.endedAt || null;
       },
     }),
     {

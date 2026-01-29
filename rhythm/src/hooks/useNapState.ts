@@ -15,6 +15,10 @@ interface NapStateResult {
   // New: availability-based state
   availabilityState: AvailabilityState;
   isQuietTime: boolean;
+  // Sleep tracking for all children (including night sleep)
+  allSleepingChildren: Child[];
+  allAwakeChildren: Child[];
+  activeSleepLogs: NapLog[];
 }
 
 /**
@@ -60,14 +64,19 @@ export function useNapState(): NapStateResult {
   return useMemo(() => {
     const availabilityState = getCurrentAvailabilityState();
     const isQuietTime = availabilityState === 'quiet';
-    // Get active naps (no end time)
-    const currentNaps = napLogs.filter((log) => log.endedAt === null);
-    const sleepingChildIds = new Set(currentNaps.map((nap) => nap.childId));
+    // Get all active sleep logs (no end time) - includes both naps and night sleep
+    const activeSleepLogs = napLogs.filter((log) => log.endedAt === null);
+    const sleepingChildIds = new Set(activeSleepLogs.map((log) => log.childId));
 
-    // Classify children
+    // Get only nap logs (for backwards compatibility)
+    const currentNaps = activeSleepLogs.filter(
+      (log) => log.sleepType === 'nap' || !log.sleepType
+    );
+
+    // Classify children (for nap state calculation)
     const { baby, toddler } = classifyChildren(children);
 
-    // Determine sleeping vs awake children (only napping-age children)
+    // Determine sleeping vs awake children (only napping-age children) - for nap state
     const nappingAgeChildren = children.filter((child) => child.isNappingAge);
     const sleepingChildren = nappingAgeChildren.filter((child) =>
       sleepingChildIds.has(child.id)
@@ -76,7 +85,15 @@ export function useNapState(): NapStateResult {
       (child) => !sleepingChildIds.has(child.id)
     );
 
-    // Compute nap state
+    // ALL children sleeping/awake status (includes night sleep)
+    const allSleepingChildren = children.filter((child) =>
+      sleepingChildIds.has(child.id)
+    );
+    const allAwakeChildren = children.filter(
+      (child) => !sleepingChildIds.has(child.id)
+    );
+
+    // Compute nap state (legacy, based on napping-age children only)
     let napState: NapContext = 'any';
 
     if (nappingAgeChildren.length === 0) {
@@ -113,6 +130,10 @@ export function useNapState(): NapStateResult {
       toddler,
       availabilityState,
       isQuietTime,
+      // New fields for all sleep tracking
+      allSleepingChildren,
+      allAwakeChildren,
+      activeSleepLogs,
     };
   }, [children, napLogs, getCurrentAvailabilityState]);
 }

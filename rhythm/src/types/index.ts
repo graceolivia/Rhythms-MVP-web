@@ -24,12 +24,15 @@ export interface NapSchedule {
   typicalEnd: string; // '11:00'
 }
 
+export type SleepType = 'nap' | 'night';
+
 export interface NapLog {
   id: string;
   childId: string;
   date: string; // ISO date
   startedAt: string; // ISO datetime
   endedAt: string | null; // null if still sleeping
+  sleepType?: SleepType; // 'nap' or 'night', defaults to 'nap' for backwards compatibility
 }
 
 export interface ChildcareSchedule {
