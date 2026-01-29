@@ -1,47 +1,35 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { format, addDays, subDays } from 'date-fns';
+import { useState } from 'react';
+import { format, parseISO, differenceInMinutes, addDays } from 'date-fns';
+import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
 import { useAwayStore } from '../stores/useAwayStore';
-import { useChildStore } from '../stores/useChildStore';
+import type { ChildColor } from '../types';
 
-// Timeline configuration
-const TIMELINE_START_HOUR = 6; // 6 AM
-const TIMELINE_END_HOUR = 22; // 10 PM
-const HOUR_HEIGHT_PX = 60; // pixels per hour
-const TOTAL_HOURS = TIMELINE_END_HOUR - TIMELINE_START_HOUR;
+// Timeline config
+const START_HOUR = 6; // 6 AM
+const END_HOUR = 21; // 9 PM
+const TOTAL_HOURS = END_HOUR - START_HOUR;
+const HOUR_HEIGHT = 48; // pixels per hour
 
-/**
- * Convert time string (HH:mm) to pixels from top of timeline
- */
-function timeToPixels(time: string): number {
-  const [h, m] = time.split(':').map(Number);
-  const hoursFromStart = h - TIMELINE_START_HOUR + m / 60;
-  return Math.max(0, Math.min(hoursFromStart * HOUR_HEIGHT_PX, TOTAL_HOURS * HOUR_HEIGHT_PX));
+// Color styles mapped to ChildColor values
+const COLOR_STYLES: Record<ChildColor, { bg: string; border: string; text: string }> = {
+  lavender: { bg: 'bg-lavender/60', border: 'border-lavender', text: 'text-purple-900' },
+  sage: { bg: 'bg-sage/60', border: 'border-sage', text: 'text-green-900' },
+  skyblue: { bg: 'bg-skyblue/60', border: 'border-skyblue', text: 'text-blue-900' },
+  dustyrose: { bg: 'bg-dustyrose/60', border: 'border-dustyrose', text: 'text-rose-900' },
+  terracotta: { bg: 'bg-terracotta/60', border: 'border-terracotta', text: 'text-orange-900' },
+  clay: { bg: 'bg-clay/60', border: 'border-clay', text: 'text-amber-900' },
+};
+
+const DEFAULT_COLOR: ChildColor = 'lavender';
+
+function formatHour(hour: number): string {
+  if (hour === 0) return '12 AM';
+  if (hour === 12) return '12 PM';
+  if (hour < 12) return `${hour} AM`;
+  return `${hour - 12} PM`;
 }
 
-/**
- * Get height in pixels for a time range
- */
-function getHeightForTimeRange(startTime: string, endTime: string): number {
-  const startPx = timeToPixels(startTime);
-  const endPx = timeToPixels(endTime);
-  return Math.max(0, endPx - startPx);
-}
-
-/**
- * Format time for display
- */
-function formatTime(time: string): string {
-  const [h, m] = time.split(':').map(Number);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const hour12 = h % 12 || 12;
-  return m === 0 ? `${hour12}${ampm}` : `${hour12}:${String(m).padStart(2, '0')}${ampm}`;
-}
-
-/**
- * Calculate duration string from start and end times
- */
 function formatDuration(startedAt: string, endedAt: string | null): string {
   const start = new Date(startedAt);
   const end = endedAt ? new Date(endedAt) : new Date();
@@ -54,133 +42,79 @@ function formatDuration(startedAt: string, endedAt: string | null): string {
   return `${mins}m`;
 }
 
-/**
- * Convert ISO timestamp to HH:mm, clipped to timeline bounds
- */
-function isoToTimeString(isoString: string, clipStart: number, clipEnd: number): string {
-  const date = new Date(isoString);
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-
-  // Clip to timeline bounds
-  if (hours < clipStart) {
-    return `${String(clipStart).padStart(2, '0')}:00`;
-  }
-  if (hours >= clipEnd) {
-    return `${String(clipEnd).padStart(2, '0')}:00`;
-  }
-
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
-
-interface ActualSleepBlockProps {
+interface SleepBlock {
+  id: string;
+  childId: string;
   childName: string;
+  startMinutes: number;
+  endMinutes: number;
+  isActive: boolean;
+  color: ChildColor;
+  sleepType?: 'nap' | 'night';
   startedAt: string;
   endedAt: string | null;
-  sleepType?: 'nap' | 'night';
-  isSelected?: boolean;
-  onClick?: () => void;
 }
 
-function ActualSleepBlock({ childName, startedAt, endedAt, sleepType, isSelected, onClick }: ActualSleepBlockProps) {
-  const isOngoing = endedAt === null;
-  const sleepEmoji = sleepType === 'night' ? '🌙' : '💤';
-
-  // Convert ISO timestamps to timeline times, clipped to bounds
-  const startTime = isoToTimeString(startedAt, TIMELINE_START_HOUR, TIMELINE_END_HOUR);
-  const endTime = endedAt
-    ? isoToTimeString(endedAt, TIMELINE_START_HOUR, TIMELINE_END_HOUR)
-    : isoToTimeString(new Date().toISOString(), TIMELINE_START_HOUR, TIMELINE_END_HOUR);
-
-  const top = timeToPixels(startTime);
-  const height = getHeightForTimeRange(startTime, endTime);
-  const duration = formatDuration(startedAt, endedAt);
-
-  // Don't render if completely outside timeline bounds
-  if (height <= 0) return null;
-
-  return (
-    <button
-      onClick={onClick}
-      className={`absolute left-16 right-4 rounded-lg border-2 border-lavender bg-lavender/40 overflow-hidden text-left transition-all cursor-pointer z-10 ${
-        isOngoing ? 'animate-pulse' : ''
-      } ${isSelected ? 'ring-2 ring-offset-2 ring-lavender/50 scale-[1.02]' : 'hover:scale-[1.01] hover:bg-lavender/50'}`}
-      style={{ top, height: Math.max(height, 24) }}
-    >
-      <div className="px-3 py-1 h-full flex flex-col justify-center">
-        <div className="flex items-center gap-2">
-          <span>{sleepEmoji}</span>
-          <span className="font-medium text-sm text-lavender">{childName}</span>
-          <span className="text-xs text-lavender/80">{duration}</span>
-          {isOngoing && (
-            <span className="text-xs bg-lavender/30 px-1.5 py-0.5 rounded-full text-lavender">
-              sleeping
-            </span>
-          )}
-        </div>
-        {height > 40 && (
-          <div className="text-xs text-bark/50 mt-1">
-            {formatTime(startTime)} - {isOngoing ? 'now' : formatTime(endTime)}
-          </div>
-        )}
-      </div>
-    </button>
-  );
+interface AwayBlockData {
+  id: string;
+  childId: string;
+  childName: string;
+  startMinutes: number;
+  endMinutes: number;
+  isActive: boolean;
+  scheduleName?: string;
+  startedAt: string;
+  endedAt: string | null;
 }
 
-interface SleepLogPopupProps {
-  log: {
-    id: string;
-    childName: string;
-    startedAt: string;
-    endedAt: string | null;
-    sleepType?: 'nap' | 'night';
-  };
+function SleepLogPopup({
+  block,
+  onClose,
+  onUpdate,
+  onDelete,
+}: {
+  block: SleepBlock;
   onClose: () => void;
   onUpdate: (logId: string, updates: { startedAt?: string; endedAt?: string }) => void;
   onDelete: (logId: string) => void;
-}
-
-function SleepLogPopup({ log, onClose, onUpdate, onDelete }: SleepLogPopupProps) {
+}) {
   const [startTime, setStartTime] = useState(() => {
-    const date = new Date(log.startedAt);
+    const date = new Date(block.startedAt);
     return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   });
   const [endTime, setEndTime] = useState(() => {
-    if (!log.endedAt) return '';
-    const date = new Date(log.endedAt);
+    if (!block.endedAt) return '';
+    const date = new Date(block.endedAt);
     return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const isOngoing = log.endedAt === null;
-  const sleepEmoji = log.sleepType === 'night' ? '🌙' : '💤';
-  const sleepLabel = log.sleepType === 'night' ? 'Night Sleep' : 'Nap';
-  const duration = formatDuration(log.startedAt, log.endedAt);
+  const isOngoing = block.endedAt === null;
+  const sleepEmoji = block.sleepType === 'night' ? '🌙' : '💤';
+  const sleepLabel = block.sleepType === 'night' ? 'Night Sleep' : 'Nap';
+  const duration = formatDuration(block.startedAt, block.endedAt);
 
   const handleSave = () => {
     const updates: { startedAt?: string; endedAt?: string } = {};
 
-    // Parse start time
     const [startH, startM] = startTime.split(':').map(Number);
-    const startDate = new Date(log.startedAt);
+    const startDate = new Date(block.startedAt);
     startDate.setHours(startH, startM, 0, 0);
     updates.startedAt = startDate.toISOString();
 
-    // Parse end time if provided and not ongoing
     if (endTime && !isOngoing) {
       const [endH, endM] = endTime.split(':').map(Number);
-      const endDate = new Date(log.endedAt || log.startedAt);
+      const endDate = new Date(block.endedAt || block.startedAt);
       endDate.setHours(endH, endM, 0, 0);
       updates.endedAt = endDate.toISOString();
     }
 
-    onUpdate(log.id, updates);
+    onUpdate(block.id, updates);
     onClose();
   };
 
   const handleDelete = () => {
-    onDelete(log.id);
+    onDelete(block.id);
     onClose();
   };
 
@@ -223,7 +157,7 @@ function SleepLogPopup({ log, onClose, onUpdate, onDelete }: SleepLogPopupProps)
                     </span>
                   )}
                 </div>
-                <h3 className="font-medium text-bark">{log.childName}</h3>
+                <h3 className="font-medium text-bark">{block.childName}</h3>
                 <p className="text-sm text-bark/50">{duration}</p>
               </div>
               <button
@@ -236,7 +170,6 @@ function SleepLogPopup({ log, onClose, onUpdate, onDelete }: SleepLogPopupProps)
               </button>
             </div>
 
-            {/* Edit times */}
             <div className="space-y-3 mb-4">
               <div>
                 <label className="text-xs text-bark/60 block mb-1">Start time</label>
@@ -260,7 +193,6 @@ function SleepLogPopup({ log, onClose, onUpdate, onDelete }: SleepLogPopupProps)
               )}
             </div>
 
-            {/* Actions */}
             <div className="flex gap-2">
               <button
                 onClick={() => setShowDeleteConfirm(true)}
@@ -289,257 +221,254 @@ function SleepLogPopup({ log, onClose, onUpdate, onDelete }: SleepLogPopupProps)
   );
 }
 
-interface AwayBlockProps {
-  childName: string;
-  startedAt: string;
-  endedAt: string | null;
-  scheduleName?: string;
-}
-
-function AwayBlock({ childName, startedAt, endedAt, scheduleName }: AwayBlockProps) {
-  const isOngoing = endedAt === null;
-
-  // Convert ISO timestamps to timeline times, clipped to bounds
-  const startTime = isoToTimeString(startedAt, TIMELINE_START_HOUR, TIMELINE_END_HOUR);
-  const endTime = endedAt
-    ? isoToTimeString(endedAt, TIMELINE_START_HOUR, TIMELINE_END_HOUR)
-    : isoToTimeString(new Date().toISOString(), TIMELINE_START_HOUR, TIMELINE_END_HOUR);
-
-  const top = timeToPixels(startTime);
-  const height = getHeightForTimeRange(startTime, endTime);
-  const duration = formatDuration(startedAt, endedAt);
-
-  // Don't render if completely outside timeline bounds
-  if (height <= 0) return null;
-
-  return (
-    <div
-      className={`absolute left-16 right-4 rounded-lg border-2 border-sage bg-sage/30 overflow-hidden ${
-        isOngoing ? 'animate-pulse' : ''
-      }`}
-      style={{ top, height: Math.max(height, 24) }}
-    >
-      <div className="px-3 py-1 h-full flex flex-col justify-center">
-        <div className="flex items-center gap-2">
-          <span>🚗</span>
-          <span className="font-medium text-sm text-sage">{childName}</span>
-          {scheduleName && (
-            <span className="text-xs text-sage/70">at {scheduleName}</span>
-          )}
-          <span className="text-xs text-sage/80">{duration}</span>
-          {isOngoing && (
-            <span className="text-xs bg-sage/30 px-1.5 py-0.5 rounded-full text-sage">
-              away
-            </span>
-          )}
-        </div>
-        {height > 40 && (
-          <div className="text-xs text-bark/50 mt-1">
-            {formatTime(startTime)} - {isOngoing ? 'now' : formatTime(endTime)}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CurrentTimeLine() {
-  const now = new Date();
-  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const top = timeToPixels(currentTime);
-
-  // Only show if within timeline bounds
-  if (top <= 0 || top >= TOTAL_HOURS * HOUR_HEIGHT_PX) return null;
-
-  return (
-    <div
-      className="absolute left-0 right-0 flex items-center pointer-events-none z-20"
-      style={{ top }}
-    >
-      <div className="w-3 h-3 rounded-full bg-rose-500 -ml-1.5" />
-      <div className="flex-1 h-0.5 bg-rose-500" />
-      <span className="text-xs font-medium text-rose-500 ml-2">Now</span>
-    </div>
-  );
-}
-
 export function Timeline() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedSleepLogId, setSelectedSleepLogId] = useState<string | null>(null);
-
-  const getLogsForTimelineDate = useNapStore((state) => state.getLogsForTimelineDate);
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const children = useChildStore((state) => state.children);
+  const napLogs = useNapStore((state) => state.napLogs);
+  const awayLogs = useAwayStore((state) => state.awayLogs);
   const updateNapLog = useNapStore((state) => state.updateNapLog);
   const deleteNapLog = useNapStore((state) => state.deleteNapLog);
-  const getAwayLogsForTimelineDate = useAwayStore((state) => state.getLogsForTimelineDate);
-  const children = useChildStore((state) => state.children);
+  const [selectedSleepLogId, setSelectedSleepLogId] = useState<string | null>(null);
 
-  const dateStr = format(selectedDate, 'yyyy-MM-dd');
-  const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
+  // Get today's sleep logs (naps and night sleep)
+  const todaysSleepLogs = napLogs.filter((log) => {
+    if (log.date === today) return true;
+    if (log.endedAt && format(parseISO(log.endedAt), 'yyyy-MM-dd') === today) return true;
+    if (!log.endedAt) {
+      const startDate = format(parseISO(log.startedAt), 'yyyy-MM-dd');
+      const yesterday = format(addDays(new Date(), -1), 'yyyy-MM-dd');
+      if (startDate === yesterday) return true;
+    }
+    return false;
+  });
 
-  // Get data for selected date
-  const { sleepLogs, awayLogs } = useMemo(() => {
-    // Get actual sleep logs for this date
-    const logsForDate = getLogsForTimelineDate(dateStr);
-    const sleepLogsWithNames = logsForDate.map(log => {
-      const child = children.find(c => c.id === log.childId);
-      return {
-        ...log,
-        childName: child?.name || 'Child',
-      };
-    });
+  // Get today's away logs
+  const todaysAwayLogs = awayLogs.filter((log) => {
+    if (log.date === today) return true;
+    if (log.endedAt && format(parseISO(log.endedAt), 'yyyy-MM-dd') === today) return true;
+    return false;
+  });
 
-    // Get away logs for this date
-    const awayLogsForDate = getAwayLogsForTimelineDate(dateStr);
-    const awayLogsWithNames = awayLogsForDate.map(log => {
-      const child = children.find(c => c.id === log.childId);
-      return {
-        ...log,
-        childName: child?.name || 'Child',
-      };
-    });
+  // Convert sleep logs to blocks
+  const sleepBlocks: SleepBlock[] = todaysSleepLogs.map((log) => {
+    const child = children.find((c) => c.id === log.childId);
+    const startTime = parseISO(log.startedAt);
+    const endTime = log.endedAt ? parseISO(log.endedAt) : new Date();
+
+    const startOfDay = new Date(startTime);
+    startOfDay.setHours(START_HOUR, 0, 0, 0);
+
+    const startMinutes = differenceInMinutes(startTime, startOfDay);
+    const endMinutes = differenceInMinutes(endTime, startOfDay);
 
     return {
-      sleepLogs: sleepLogsWithNames,
-      awayLogs: awayLogsWithNames,
+      id: log.id,
+      childId: log.childId,
+      childName: child?.name || 'Unknown',
+      startMinutes: Math.max(0, startMinutes),
+      endMinutes: Math.min(TOTAL_HOURS * 60, endMinutes),
+      isActive: log.endedAt === null,
+      color: child?.color || DEFAULT_COLOR,
+      sleepType: log.sleepType,
+      startedAt: log.startedAt,
+      endedAt: log.endedAt,
     };
-  }, [dateStr, children, getLogsForTimelineDate, getAwayLogsForTimelineDate]);
+  });
 
-  // Generate hour markers
-  const hourMarkers = useMemo(() => {
-    const markers = [];
-    for (let h = TIMELINE_START_HOUR; h <= TIMELINE_END_HOUR; h++) {
-      markers.push({
-        hour: h,
-        label: h === 12 ? '12PM' : h > 12 ? `${h - 12}PM` : `${h}AM`,
-        top: (h - TIMELINE_START_HOUR) * HOUR_HEIGHT_PX,
-      });
-    }
-    return markers;
-  }, []);
+  // Convert away logs to blocks
+  const awayBlocks: AwayBlockData[] = todaysAwayLogs.map((log) => {
+    const child = children.find((c) => c.id === log.childId);
+    const startTime = parseISO(log.startedAt);
+    const endTime = log.endedAt ? parseISO(log.endedAt) : new Date();
+
+    const startOfDay = new Date(startTime);
+    startOfDay.setHours(START_HOUR, 0, 0, 0);
+
+    const startMinutes = differenceInMinutes(startTime, startOfDay);
+    const endMinutes = differenceInMinutes(endTime, startOfDay);
+
+    return {
+      id: log.id,
+      childId: log.childId,
+      childName: child?.name || 'Unknown',
+      startMinutes: Math.max(0, startMinutes),
+      endMinutes: Math.min(TOTAL_HOURS * 60, endMinutes),
+      isActive: log.endedAt === null,
+      scheduleName: log.scheduleName,
+      startedAt: log.startedAt,
+      endedAt: log.endedAt,
+    };
+  });
+
+  // Current time indicator
+  const now = new Date();
+  const nowStartOfDay = new Date(now);
+  nowStartOfDay.setHours(START_HOUR, 0, 0, 0);
+  const currentMinutes = differenceInMinutes(now, nowStartOfDay);
+  const showCurrentTime = currentMinutes >= 0 && currentMinutes <= TOTAL_HOURS * 60;
+
+  // Get selected sleep block for popup
+  const selectedSleepBlock = selectedSleepLogId
+    ? sleepBlocks.find((b) => b.id === selectedSleepLogId)
+    : null;
+
+  // Get unique children with sleep or away blocks for column layout
+  const childIdsWithBlocks = [...new Set([
+    ...sleepBlocks.map(b => b.childId),
+    ...awayBlocks.map(b => b.childId),
+  ])];
+  const numColumns = childIdsWithBlocks.length || 1;
+  const childColumnIndex = new Map(childIdsWithBlocks.map((id, idx) => [id, idx]));
 
   return (
     <div className="min-h-screen bg-cream">
-      <div className="max-w-lg mx-auto">
-        {/* Header */}
-        <header className="sticky top-0 bg-cream/95 backdrop-blur-sm z-30 p-4 border-b border-bark/10">
-          <div className="flex items-center justify-between mb-4">
-            <Link to="/" className="text-bark/60 hover:text-bark transition-colors">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </Link>
-            <h1 className="font-display text-xl text-bark">Day Timeline</h1>
-            <div className="w-6" /> {/* Spacer */}
-          </div>
-
-          {/* Date navigation */}
-          <div className="flex items-center justify-center gap-4">
-            <button
-              onClick={() => setSelectedDate(d => subDays(d, 1))}
-              className="p-2 rounded-lg hover:bg-parchment transition-colors"
-            >
-              <svg className="w-5 h-5 text-bark/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                isToday ? 'bg-sage text-cream' : 'bg-parchment text-bark hover:bg-linen'
-              }`}
-            >
-              {isToday ? 'Today' : format(selectedDate, 'EEE, MMM d')}
-            </button>
-
-            <button
-              onClick={() => setSelectedDate(d => addDays(d, 1))}
-              className="p-2 rounded-lg hover:bg-parchment transition-colors"
-            >
-              <svg className="w-5 h-5 text-bark/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
+      <div className="max-w-lg mx-auto p-4 pb-24">
+        <header className="mb-6">
+          <h1 className="font-display text-2xl text-bark">Timeline</h1>
+          <p className="text-bark/60 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
         </header>
 
         {/* Legend */}
-        <div className="px-4 py-3 flex flex-wrap gap-x-4 gap-y-2 text-xs border-b border-bark/10">
-          <div className="flex items-center gap-1">
+        <div className="flex flex-wrap gap-3 mb-4">
+          <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded bg-lavender/40 border border-lavender" />
-            <span className="text-bark/60">Sleep</span>
+            <span className="text-sm text-bark/70">Sleep</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded bg-sage/30 border border-sage" />
-            <span className="text-bark/60">Away</span>
+            <span className="text-sm text-bark/70">Away</span>
           </div>
         </div>
 
         {/* Timeline */}
-        <div className="relative px-4 pb-24" style={{ height: TOTAL_HOURS * HOUR_HEIGHT_PX + 100 }}>
-          {/* Hour markers */}
-          {hourMarkers.map(({ hour, label, top }) => (
-            <div key={hour} className="absolute left-4 right-4 flex items-center" style={{ top }}>
-              <span className="w-12 text-xs text-bark/40 font-medium">{label}</span>
-              <div className="flex-1 border-t border-bark/10" />
-            </div>
-          ))}
-
-          {/* Actual sleep logs (primary) */}
-          {sleepLogs.map(log => (
-            <ActualSleepBlock
-              key={log.id}
-              childName={log.childName}
-              startedAt={log.startedAt}
-              endedAt={log.endedAt}
-              sleepType={log.sleepType}
-              isSelected={selectedSleepLogId === log.id}
-              onClick={() => setSelectedSleepLogId(selectedSleepLogId === log.id ? null : log.id)}
-            />
-          ))}
-
-          {/* Away logs (primary - green/sage) */}
-          {awayLogs.map(log => (
-            <AwayBlock
-              key={log.id}
-              childName={log.childName}
-              startedAt={log.startedAt}
-              endedAt={log.endedAt}
-              scheduleName={log.scheduleName}
-            />
-          ))}
-
-          {/* Current time indicator (only on today) */}
-          {isToday && <CurrentTimeLine />}
-
-          {/* Empty state */}
-          {sleepLogs.length === 0 && awayLogs.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center p-8">
-                <div className="text-4xl mb-4">📅</div>
-                <p className="text-bark/60 mb-2">No sleep or away logs for this day</p>
-                <p className="text-sm text-bark/40">
-                  Use the sleep timer or away controls on the Today screen
-                </p>
+        <div className="bg-parchment rounded-xl p-4 overflow-hidden">
+          <div className="relative" style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}>
+            {/* Hour lines and labels */}
+            {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => (
+              <div
+                key={i}
+                className="absolute left-0 right-0 flex items-center"
+                style={{ top: i * HOUR_HEIGHT }}
+              >
+                <span className="text-xs text-bark/40 w-14 flex-shrink-0">
+                  {formatHour(START_HOUR + i)}
+                </span>
+                <div className="flex-1 border-t border-bark/10" />
               </div>
-            </div>
-          )}
+            ))}
+
+            {/* Sleep blocks - in columns by child */}
+            {sleepBlocks.map((block) => {
+              const top = (block.startMinutes / 60) * HOUR_HEIGHT;
+              const height = Math.max(24, ((block.endMinutes - block.startMinutes) / 60) * HOUR_HEIGHT);
+              const colors = COLOR_STYLES[block.color];
+              const isSelected = selectedSleepLogId === block.id;
+              const sleepEmoji = block.sleepType === 'night' ? '🌙' : '💤';
+
+              // Column positioning
+              const colIndex = childColumnIndex.get(block.childId) || 0;
+
+              return (
+                <button
+                  key={block.id}
+                  onClick={() => setSelectedSleepLogId(isSelected ? null : block.id)}
+                  className={`absolute rounded-lg border-2 ${colors.bg} ${colors.border} overflow-hidden text-left transition-all cursor-pointer z-10 ${
+                    block.isActive ? 'animate-pulse' : ''
+                  } ${isSelected ? 'ring-2 ring-offset-2 ring-lavender/50 scale-[1.02]' : 'hover:scale-[1.01] hover:brightness-105'}`}
+                  style={{
+                    top,
+                    height,
+                    left: `calc(3.5rem + (100% - 4.5rem) * ${colIndex} / ${numColumns})`,
+                    width: `calc((100% - 4.5rem) / ${numColumns} - 4px)`,
+                  }}
+                >
+                  <div className={`px-2 py-1 text-xs font-medium ${colors.text} truncate flex items-center gap-1`}>
+                    <span>{sleepEmoji}</span>
+                    <span>{block.childName}</span>
+                    {block.isActive && <span className="text-bark/50">sleeping</span>}
+                  </div>
+                  {height > 40 && (
+                    <div className={`px-2 text-xs ${colors.text} opacity-70`}>
+                      {format(parseISO(block.startedAt), 'h:mm a')}
+                      {!block.isActive && block.endedAt && (
+                        <> - {format(parseISO(block.endedAt), 'h:mm a')}</>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Away blocks - in columns by child */}
+            {awayBlocks.map((block) => {
+              const top = (block.startMinutes / 60) * HOUR_HEIGHT;
+              const height = Math.max(24, ((block.endMinutes - block.startMinutes) / 60) * HOUR_HEIGHT);
+
+              // Column positioning
+              const colIndex = childColumnIndex.get(block.childId) || 0;
+
+              return (
+                <div
+                  key={block.id}
+                  className={`absolute rounded-lg border-2 bg-sage/30 border-sage overflow-hidden z-5 ${
+                    block.isActive ? 'animate-pulse' : ''
+                  }`}
+                  style={{
+                    top,
+                    height,
+                    left: `calc(3.5rem + (100% - 4.5rem) * ${colIndex} / ${numColumns})`,
+                    width: `calc((100% - 4.5rem) / ${numColumns} - 4px)`,
+                  }}
+                >
+                  <div className="px-2 py-1 text-xs font-medium text-sage truncate flex items-center gap-1">
+                    <span>🚗</span>
+                    <span>{block.childName}</span>
+                    {block.scheduleName && <span className="text-bark/50">at {block.scheduleName}</span>}
+                    {block.isActive && <span className="text-bark/50">away</span>}
+                  </div>
+                  {height > 40 && (
+                    <div className="px-2 text-xs text-sage opacity-70">
+                      {format(parseISO(block.startedAt), 'h:mm a')}
+                      {!block.isActive && block.endedAt && (
+                        <> - {format(parseISO(block.endedAt), 'h:mm a')}</>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Current time indicator */}
+            {showCurrentTime && (
+              <div
+                className="absolute left-14 right-0 flex items-center z-20"
+                style={{ top: (currentMinutes / 60) * HOUR_HEIGHT }}
+              >
+                <div className="w-2 h-2 rounded-full bg-terracotta" />
+                <div className="flex-1 border-t-2 border-terracotta" />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Sleep log popup */}
-        {selectedSleepLogId && (() => {
-          const log = sleepLogs.find(l => l.id === selectedSleepLogId);
-          if (!log) return null;
-          return (
-            <SleepLogPopup
-              log={log}
-              onClose={() => setSelectedSleepLogId(null)}
-              onUpdate={(logId, updates) => updateNapLog(logId, updates)}
-              onDelete={(logId) => deleteNapLog(logId)}
-            />
-          );
-        })()}
+        {/* Empty state */}
+        {sleepBlocks.length === 0 && awayBlocks.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-bark/50 text-sm">No sleep or away logs recorded today yet.</p>
+            <p className="text-bark/40 text-xs mt-1">Start a nap or mark away from the Today screen.</p>
+          </div>
+        )}
       </div>
+
+      {/* Sleep log popup */}
+      {selectedSleepBlock && (
+        <SleepLogPopup
+          block={selectedSleepBlock}
+          onClose={() => setSelectedSleepLogId(null)}
+          onUpdate={(logId, updates) => updateNapLog(logId, updates)}
+          onDelete={(logId) => deleteNapLog(logId)}
+        />
+      )}
     </div>
   );
 }

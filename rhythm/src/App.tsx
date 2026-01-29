@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Today } from './screens/Today';
-import { DailyRhythm } from './screens/DailyRhythm';
+import { Timeline } from './screens/Timeline';
 import { RhythmDayDetail } from './screens/RhythmDayDetail';
 import { EditWeeklyRhythm } from './screens/EditWeeklyRhythm';
 import { Seeds } from './screens/Seeds';
@@ -23,8 +23,8 @@ function AppContent() {
     <div className="pb-16">
       <Routes>
         <Route path="/" element={<Today />} />
-        <Route path="/timeline" element={<Navigate to="/rhythm" replace />} />
-        <Route path="/rhythm" element={<DailyRhythm />} />
+        <Route path="/timeline" element={<Timeline />} />
+        <Route path="/rhythm" element={<Navigate to="/timeline" replace />} />
         <Route path="/rhythm/day/:date" element={<RhythmDayDetail />} />
         <Route path="/rhythm/edit" element={<EditWeeklyRhythm />} />
         <Route path="/seeds" element={<Seeds />} />
