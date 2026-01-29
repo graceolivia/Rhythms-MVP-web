@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, addDays, subDays } from 'date-fns';
 import { useCareBlockStore } from '../stores/useCareBlockStore';
-import { useTaskStore, shouldTaskOccurOnDate } from '../stores/useTaskStore';
+import { useTaskStore, shouldTaskOccurOnDate, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useNapStore } from '../stores/useNapStore';
 import { useChildStore } from '../stores/useChildStore';
-import type { CareBlock, Task, AvailabilityState } from '../types';
+import type { CareBlock, Task, TaskInstance, AvailabilityState } from '../types';
 
 // Timeline configuration
 const TIMELINE_START_HOUR = 6; // 6 AM
@@ -169,29 +169,112 @@ function TimelineBlock({ block, children }: TimelineBlockProps) {
   );
 }
 
-interface TimelineTaskProps {
+interface TaskDotProps {
   task: Task;
+  instance: TaskInstance | undefined;
+  index: number;
+  isSelected: boolean;
+  onSelect: () => void;
+  getChild: (id: string) => { name: string } | undefined;
 }
 
-function TimelineTask({ task }: TimelineTaskProps) {
+function TaskDot({ task, instance, index, isSelected, onSelect, getChild }: TaskDotProps) {
   if (!task.scheduledTime) return null;
 
   const top = timeToPixels(task.scheduledTime);
+  const isCompleted = instance?.status === 'completed';
+
+  // Dot colors by tier
+  const dotColors = {
+    anchor: isCompleted ? 'bg-bark/40' : 'bg-bark',
+    rhythm: isCompleted ? 'bg-sage/40' : 'bg-sage',
+    tending: isCompleted ? 'bg-terracotta/40' : 'bg-terracotta',
+  };
+
+  // Offset for stacking multiple dots at same time
+  const leftOffset = 64 + (index * 20); // 64px base + 20px per dot
+
+  return (
+    <button
+      onClick={onSelect}
+      className={`absolute w-4 h-4 rounded-full transition-all ${dotColors[task.tier]} ${
+        isSelected ? 'ring-2 ring-offset-2 ring-bark/50 scale-125' : 'hover:scale-110'
+      } ${isCompleted ? 'opacity-60' : 'shadow-sm'}`}
+      style={{
+        top: top - 8,
+        left: leftOffset,
+      }}
+      title={getTaskDisplayTitle(task, getChild)}
+    >
+      {isCompleted && (
+        <svg className="w-full h-full text-white p-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+interface TaskPopupProps {
+  task: Task;
+  instance: TaskInstance | undefined;
+  onClose: () => void;
+  getChild: (id: string) => { name: string } | undefined;
+}
+
+function TaskPopup({ task, instance, onClose, getChild }: TaskPopupProps) {
+  const isCompleted = instance?.status === 'completed';
+  const displayTitle = getTaskDisplayTitle(task, getChild);
+
+  const tierLabels = {
+    anchor: 'Anchor',
+    rhythm: 'Rhythm',
+    tending: 'Tending',
+  };
+
   const tierColors = {
-    anchor: 'bg-bark text-cream',
-    rhythm: 'bg-sage/80 text-cream',
-    tending: 'bg-linen text-bark',
+    anchor: 'bg-bark/10 text-bark',
+    rhythm: 'bg-sage/10 text-sage',
+    tending: 'bg-terracotta/10 text-terracotta',
   };
 
   return (
-    <div
-      className="absolute left-16 right-4 flex items-center gap-2"
-      style={{ top: top - 10 }}
-    >
-      <div className={`px-3 py-1 rounded-full text-sm font-medium shadow-sm ${tierColors[task.tier]}`}>
-        {task.title}
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-cream rounded-xl shadow-xl p-4 w-full max-w-sm border border-bark/10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-xs px-2 py-0.5 rounded-full ${tierColors[task.tier]}`}>
+                {tierLabels[task.tier]}
+              </span>
+              {isCompleted && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-sage/20 text-sage">
+                  Done
+                </span>
+              )}
+            </div>
+            <h3 className={`font-medium text-bark ${isCompleted ? 'line-through opacity-60' : ''}`}>
+              {displayTitle}
+            </h3>
+            {task.scheduledTime && (
+              <p className="text-sm text-bark/50 mt-1">
+                Scheduled: {formatTime(task.scheduledTime)}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-bark/10 text-bark/40"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <span className="text-xs text-bark/40">{formatTime(task.scheduledTime)}</span>
     </div>
   );
 }
@@ -248,26 +331,42 @@ function CurrentTimeLine() {
 
 export function Timeline() {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const getActiveBlocksForDate = useCareBlockStore((state) => state.getActiveBlocksForDate);
   const tasks = useTaskStore((state) => state.tasks);
+  const taskInstances = useTaskStore((state) => state.taskInstances);
   const napSchedules = useNapStore((state) => state.napSchedules);
   const children = useChildStore((state) => state.children);
+  const getChild = useChildStore((state) => state.getChild);
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
 
   // Get data for selected date
-  const { blocks, scheduledTasks, naps } = useMemo(() => {
+  const { blocks, scheduledTasks, naps, taskInstanceMap } = useMemo(() => {
     const activeBlocks = getActiveBlocksForDate(selectedDate);
 
     // Get tasks with scheduled times that occur on this date
     const tasksForDate = tasks.filter(task =>
       task.scheduledTime &&
       task.isActive &&
-      task.tier === 'anchor' &&
       shouldTaskOccurOnDate(task, selectedDate)
     );
+
+    // Sort by time, then by tier priority
+    const tierOrder = { anchor: 0, rhythm: 1, tending: 2 };
+    tasksForDate.sort((a, b) => {
+      const timeCompare = (a.scheduledTime || '').localeCompare(b.scheduledTime || '');
+      if (timeCompare !== 0) return timeCompare;
+      return tierOrder[a.tier] - tierOrder[b.tier];
+    });
+
+    // Create a map of taskId -> instance for this date
+    const instanceMap = new Map<string, TaskInstance>();
+    taskInstances
+      .filter(inst => inst.date === dateStr)
+      .forEach(inst => instanceMap.set(inst.taskId, inst));
 
     // Get nap schedules
     const scheduledNaps = napSchedules.map(nap => {
@@ -282,8 +381,38 @@ export function Timeline() {
       blocks: activeBlocks,
       scheduledTasks: tasksForDate,
       naps: scheduledNaps,
+      taskInstanceMap: instanceMap,
     };
-  }, [selectedDate, getActiveBlocksForDate, tasks, napSchedules, children]);
+  }, [selectedDate, getActiveBlocksForDate, tasks, taskInstances, dateStr, napSchedules, children]);
+
+  // Group tasks by time slot for stacking (within 15 min = same slot)
+  const groupedTasks = useMemo(() => {
+    const groups: { time: string; tasks: Task[] }[] = [];
+
+    scheduledTasks.forEach(task => {
+      if (!task.scheduledTime) return;
+
+      // Find existing group within 15 minutes
+      const taskMinutes = parseInt(task.scheduledTime.split(':')[0]) * 60 +
+                          parseInt(task.scheduledTime.split(':')[1]);
+
+      const existingGroup = groups.find(g => {
+        const groupMinutes = parseInt(g.time.split(':')[0]) * 60 +
+                            parseInt(g.time.split(':')[1]);
+        return Math.abs(taskMinutes - groupMinutes) < 15;
+      });
+
+      if (existingGroup) {
+        existingGroup.tasks.push(task);
+      } else {
+        groups.push({ time: task.scheduledTime, tasks: [task] });
+      }
+    });
+
+    return groups;
+  }, [scheduledTasks]);
+
+  const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;
 
   // Generate hour markers
   const hourMarkers = useMemo(() => {
@@ -347,22 +476,28 @@ export function Timeline() {
         </header>
 
         {/* Legend */}
-        <div className="px-4 py-3 flex flex-wrap gap-3 text-xs border-b border-bark/10">
+        <div className="px-4 py-3 flex flex-wrap gap-x-4 gap-y-2 text-xs border-b border-bark/10">
+          {/* Block legend */}
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-spring-light border border-sage" />
-            <span className="text-bark/60">Free time</span>
+            <span className="text-bark/60">Free</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-lavender/30 border border-lavender" />
-            <span className="text-bark/60">Quiet time</span>
+            <span className="text-bark/60">Quiet</span>
+          </div>
+          {/* Task dot legend */}
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-full bg-bark" />
+            <span className="text-bark/60">Anchor</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-bark/10 border border-bark/40" />
-            <span className="text-bark/60">Unavailable</span>
+            <div className="w-3 h-3 rounded-full bg-sage" />
+            <span className="text-bark/60">Rhythm</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded border-2 border-dashed border-bark/30" />
-            <span className="text-bark/60">Travel</span>
+            <div className="w-3 h-3 rounded-full bg-terracotta" />
+            <span className="text-bark/60">Tending</span>
           </div>
         </div>
 
@@ -391,10 +526,20 @@ export function Timeline() {
             />
           ))}
 
-          {/* Anchor tasks */}
-          {scheduledTasks.map(task => (
-            <TimelineTask key={task.id} task={task} />
-          ))}
+          {/* Task dots */}
+          {groupedTasks.map(group =>
+            group.tasks.map((task, index) => (
+              <TaskDot
+                key={task.id}
+                task={task}
+                instance={taskInstanceMap.get(task.id)}
+                index={index}
+                isSelected={selectedTaskId === task.id}
+                onSelect={() => setSelectedTaskId(selectedTaskId === task.id ? null : task.id)}
+                getChild={getChild}
+              />
+            ))
+          )}
 
           {/* Current time indicator (only on today) */}
           {isToday && <CurrentTimeLine />}
@@ -412,6 +557,16 @@ export function Timeline() {
             </div>
           )}
         </div>
+
+        {/* Task popup */}
+        {selectedTask && (
+          <TaskPopup
+            task={selectedTask}
+            instance={taskInstanceMap.get(selectedTask.id)}
+            onClose={() => setSelectedTaskId(null)}
+            getChild={getChild}
+          />
+        )}
       </div>
     </div>
   );
