@@ -22,6 +22,7 @@ interface NapState {
   endNap: (childId: string) => void;
   endSleep: (childId: string) => void;
   updateNapLog: (logId: string, updates: Partial<Pick<NapLog, 'startedAt' | 'endedAt'>>) => void;
+  deleteNapLog: (logId: string) => void;
   clearNapLogs: () => void;
   getNapsForDate: (date: string) => NapLog[];
   getActiveNaps: () => NapLog[];
@@ -159,6 +160,12 @@ export const useNapStore = create<NapState>()(
         }));
       },
 
+      deleteNapLog: (logId) => {
+        set((state) => ({
+          napLogs: state.napLogs.filter((log) => log.id !== logId),
+        }));
+      },
+
       clearNapLogs: () => {
         set({ napLogs: [] });
       },
@@ -212,7 +219,6 @@ export const useNapStore = create<NapState>()(
         // Handles overnight sleep (started previous day, ended today or ongoing)
         const logs = get().napLogs;
         const dateStart = new Date(`${date}T00:00:00`);
-        const dateEnd = new Date(`${date}T23:59:59`);
 
         return logs.filter((log) => {
           const startedAt = new Date(log.startedAt);
