@@ -12,7 +12,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Today', icon: '○', activeIcon: '●' },
   { to: '/timeline', label: 'Timeline', icon: '◇', activeIcon: '◆' },
-  { to: '/seeds', label: 'Seeds', icon: '◠', activeIcon: '☽' },
+  { to: '/tasks', label: 'Tasks', icon: '◠', activeIcon: '☽' },
   { to: '/garden', label: 'Garden', icon: '❀', activeIcon: '✿' },
   { to: '/challenges', label: 'Challenges', icon: '★', activeIcon: '★' },
   { to: '/settings', label: 'Settings', icon: '⚙', activeIcon: '⚙' },
@@ -34,11 +34,11 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
         </svg>
       );
-    case 'Seeds':
+    case 'Tasks':
       return (
         <svg className="w-6 h-6" fill={isActive ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path d="M12 22c4-4 8-7.5 8-12a8 8 0 10-16 0c0 4.5 4 8 8 12z" />
-          {!isActive && <path d="M12 12v6M9 15h6" strokeLinecap="round" />}
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          {isActive && <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />}
         </svg>
       );
     case 'Garden':
@@ -102,7 +102,7 @@ export function BottomNav() {
               <>
                 <div className="relative">
                   <NavIcon item={item} isActive={isActive} />
-                  {item.label === 'Seeds' && <SeedsBadge />}
+                  {item.label === 'Tasks' && <SeedsBadge />}
                 </div>
                 <span className={`text-xs mt-1 ${isActive ? 'font-medium' : ''}`}>
                   {item.label}
