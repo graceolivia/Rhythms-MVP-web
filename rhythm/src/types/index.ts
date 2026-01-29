@@ -45,6 +45,15 @@ export interface ChildcareSchedule {
   isActive: boolean;
 }
 
+export interface AwayLog {
+  id: string;
+  childId: string;
+  date: string;           // YYYY-MM-DD
+  startedAt: string;      // ISO datetime
+  endedAt: string | null; // null if still away
+  scheduleName?: string;  // e.g., "Daycare"
+}
+
 // Availability States - the core states that determine what tasks to suggest
 export type AvailabilityState =
   | 'unavailable'  // I'm busy (driving, at appointment with kid)
@@ -154,6 +163,9 @@ interface BaseTask {
   // NEW: Routine grouping (simple phase)
   routineGroup?: string | null;     // e.g., "bedtime", "morning-routine"
   routineOrder?: number | null;     // Sort order within routine (1, 2, 3...)
+
+  // Informational tasks are shown as time markers, not completable
+  isInformational?: boolean;
 }
 
 export interface StandardTask extends BaseTask {

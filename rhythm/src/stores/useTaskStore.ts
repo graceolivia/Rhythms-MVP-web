@@ -206,6 +206,11 @@ export const useTaskStore = create<TaskState>()(
         const instance = get().taskInstances.find((i) => i.id === instanceId);
         const task = instance ? get().tasks.find((t) => t.id === instance.taskId) : null;
 
+        // No-op for informational tasks
+        if (task?.isInformational) {
+          return;
+        }
+
         set((state) => ({
           taskInstances: state.taskInstances.map((i) =>
             i.id === instanceId
@@ -218,8 +223,8 @@ export const useTaskStore = create<TaskState>()(
           ),
         }));
 
-        // Update care status for child tasks
-        if (task?.childTaskType && task?.childId) {
+        // Update care status for child tasks (but not for bedtime - that's now handled by sleep timer)
+        if (task?.childTaskType && task?.childId && task.childTaskType !== 'bedtime') {
           const newStatus = getStatusFromTaskType(task.childTaskType);
           if (newStatus) {
             useChildStore.getState().updateCareStatus(task.childId, newStatus);
@@ -545,12 +550,13 @@ export const useTaskStore = create<TaskState>()(
     }),
     {
       name: 'rhythm_tasks',
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown, version: number) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const state = persisted as any;
+        let state = persisted as any;
+
         if (version < 2) {
-          return {
+          state = {
             ...state,
             tasks: (state.tasks as any[]).map((task: any) => {
               if (task.type === 'meal') return task;
@@ -569,6 +575,20 @@ export const useTaskStore = create<TaskState>()(
             }),
           };
         }
+
+        if (version < 3) {
+          // Mark bedtime tasks as informational
+          state = {
+            ...state,
+            tasks: (state.tasks as any[]).map((task: any) => {
+              if (task.childTaskType === 'bedtime') {
+                return { ...task, isInformational: true };
+              }
+              return task;
+            }),
+          };
+        }
+
         return state as TaskState;
       },
     }

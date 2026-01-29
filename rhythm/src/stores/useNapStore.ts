@@ -30,6 +30,7 @@ interface NapState {
   isChildSleeping: (childId: string) => boolean;
   getActiveSleepForChild: (childId: string) => NapLog | undefined;
   getLastWakeTime: (childId: string) => string | null;
+  getLogsForTimelineDate: (date: string) => NapLog[];
 }
 
 /**
@@ -204,6 +205,29 @@ export const useNapStore = create<NapState>()(
           .sort((a, b) => new Date(b.endedAt!).getTime() - new Date(a.endedAt!).getTime());
 
         return endedSleeps[0]?.endedAt || null;
+      },
+
+      getLogsForTimelineDate: (date) => {
+        // Returns NapLogs that overlap with the given date
+        // Handles overnight sleep (started previous day, ended today or ongoing)
+        const logs = get().napLogs;
+        const dateStart = new Date(`${date}T00:00:00`);
+        const dateEnd = new Date(`${date}T23:59:59`);
+
+        return logs.filter((log) => {
+          const startedAt = new Date(log.startedAt);
+          const endedAt = log.endedAt ? new Date(log.endedAt) : new Date(); // Treat ongoing as "now"
+
+          // Log overlaps with date if:
+          // 1. Started on this date, OR
+          // 2. Ended on this date, OR
+          // 3. Spans across this date (started before, ended after or ongoing)
+          const startsOnDate = log.date === date;
+          const endsOnDate = log.endedAt && format(new Date(log.endedAt), 'yyyy-MM-dd') === date;
+          const spansDate = startedAt < dateStart && endedAt > dateStart;
+
+          return startsOnDate || endsOnDate || spansDate;
+        });
       },
     }),
     {

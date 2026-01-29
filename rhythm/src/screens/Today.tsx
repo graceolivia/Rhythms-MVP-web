@@ -8,6 +8,7 @@ import { useNapState } from '../hooks/useNapState';
 import { useSunTimes } from '../hooks/useSunTimes';
 import { useAvailability } from '../hooks/useAvailability';
 import { NapControls } from '../components/naps/NapControls';
+import { AwayControls } from '../components/care/AwayControls';
 import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
 import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
 import { TaskEditor } from '../components/tasks/TaskEditor';
@@ -405,7 +406,9 @@ export function Today() {
       const task = tasks.find((t) => t.id === instance.taskId);
       return task ? { task, instance } : null;
     })
-    .filter((item): item is TaskWithInstance => item !== null);
+    .filter((item): item is TaskWithInstance => item !== null)
+    // Filter out informational tasks (like bedtime) and pickup/dropoff tasks
+    .filter((item) => !item.task.isInformational && item.task.childTaskType !== 'pickup' && item.task.childTaskType !== 'dropoff');
 
   // Group by tier
   const groupedByTier = TIER_ORDER.map((tier) => ({
@@ -486,8 +489,9 @@ export function Today() {
         <TimeBlockBanner />
         <GoodEnoughProgress />
 
-        <div className="mb-4">
+        <div className="mb-4 space-y-3">
           <NapControls />
+          <AwayControls />
         </div>
 
         {groupedByTier.length === 0 ? (

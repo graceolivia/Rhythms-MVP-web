@@ -4,6 +4,7 @@ import { format, addDays, subDays } from 'date-fns';
 import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useTaskStore, shouldTaskOccurOnDate, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useNapStore } from '../stores/useNapStore';
+import { useAwayStore } from '../stores/useAwayStore';
 import { useChildStore } from '../stores/useChildStore';
 import type { CareBlock, Task, TaskInstance, AvailabilityState } from '../types';
 
@@ -291,19 +292,238 @@ function NapBlock({ childName, startTime, endTime }: NapBlockProps) {
 
   return (
     <div
-      className="absolute left-16 right-4 rounded-lg border-2 border-lavender bg-lavender/20 overflow-hidden"
+      className="absolute left-16 right-4 rounded-lg border-2 border-lavender/50 border-dashed bg-lavender/10 overflow-hidden"
       style={{ top, height: Math.max(height, 24) }}
     >
       <div className="px-3 py-1 h-full flex flex-col justify-center">
         <div className="flex items-center gap-2">
-          <span>😴</span>
-          <span className="font-medium text-sm text-lavender">{childName}'s nap</span>
+          <span className="opacity-50">😴</span>
+          <span className="font-medium text-sm text-lavender/60">{childName}'s typical nap</span>
         </div>
         {height > 40 && (
-          <div className="text-xs text-bark/50 mt-1">
+          <div className="text-xs text-bark/30 mt-1">
             {formatTime(startTime)} - {formatTime(endTime)}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Calculate duration string from start and end times
+ */
+function formatDuration(startedAt: string, endedAt: string | null): string {
+  const start = new Date(startedAt);
+  const end = endedAt ? new Date(endedAt) : new Date();
+  const minutes = Math.floor((end.getTime() - start.getTime()) / 60000);
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours > 0) {
+    return `${hours}h ${mins}m`;
+  }
+  return `${mins}m`;
+}
+
+/**
+ * Convert ISO timestamp to HH:mm, clipped to timeline bounds
+ */
+function isoToTimeString(isoString: string, clipStart: number, clipEnd: number): string {
+  const date = new Date(isoString);
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+
+  // Clip to timeline bounds
+  if (hours < clipStart) {
+    return `${String(clipStart).padStart(2, '0')}:00`;
+  }
+  if (hours >= clipEnd) {
+    return `${String(clipEnd).padStart(2, '0')}:00`;
+  }
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+interface ActualSleepBlockProps {
+  childName: string;
+  startedAt: string;
+  endedAt: string | null;
+  sleepType?: 'nap' | 'night';
+}
+
+function ActualSleepBlock({ childName, startedAt, endedAt, sleepType }: ActualSleepBlockProps) {
+  const isOngoing = endedAt === null;
+  const sleepEmoji = sleepType === 'night' ? '🌙' : '💤';
+
+  // Convert ISO timestamps to timeline times, clipped to bounds
+  const startTime = isoToTimeString(startedAt, TIMELINE_START_HOUR, TIMELINE_END_HOUR);
+  const endTime = endedAt
+    ? isoToTimeString(endedAt, TIMELINE_START_HOUR, TIMELINE_END_HOUR)
+    : isoToTimeString(new Date().toISOString(), TIMELINE_START_HOUR, TIMELINE_END_HOUR);
+
+  const top = timeToPixels(startTime);
+  const height = getHeightForTimeRange(startTime, endTime);
+  const duration = formatDuration(startedAt, endedAt);
+
+  // Don't render if completely outside timeline bounds
+  if (height <= 0) return null;
+
+  return (
+    <div
+      className={`absolute left-16 right-4 rounded-lg border-2 border-lavender bg-lavender/40 overflow-hidden ${
+        isOngoing ? 'animate-pulse' : ''
+      }`}
+      style={{ top, height: Math.max(height, 24) }}
+    >
+      <div className="px-3 py-1 h-full flex flex-col justify-center">
+        <div className="flex items-center gap-2">
+          <span>{sleepEmoji}</span>
+          <span className="font-medium text-sm text-lavender">{childName}</span>
+          <span className="text-xs text-lavender/80">{duration}</span>
+          {isOngoing && (
+            <span className="text-xs bg-lavender/30 px-1.5 py-0.5 rounded-full text-lavender">
+              sleeping
+            </span>
+          )}
+        </div>
+        {height > 40 && (
+          <div className="text-xs text-bark/50 mt-1">
+            {formatTime(startTime)} - {isOngoing ? 'now' : formatTime(endTime)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface AwayBlockProps {
+  childName: string;
+  startedAt: string;
+  endedAt: string | null;
+  scheduleName?: string;
+}
+
+function AwayBlock({ childName, startedAt, endedAt, scheduleName }: AwayBlockProps) {
+  const isOngoing = endedAt === null;
+
+  // Convert ISO timestamps to timeline times, clipped to bounds
+  const startTime = isoToTimeString(startedAt, TIMELINE_START_HOUR, TIMELINE_END_HOUR);
+  const endTime = endedAt
+    ? isoToTimeString(endedAt, TIMELINE_START_HOUR, TIMELINE_END_HOUR)
+    : isoToTimeString(new Date().toISOString(), TIMELINE_START_HOUR, TIMELINE_END_HOUR);
+
+  const top = timeToPixels(startTime);
+  const height = getHeightForTimeRange(startTime, endTime);
+  const duration = formatDuration(startedAt, endedAt);
+
+  // Don't render if completely outside timeline bounds
+  if (height <= 0) return null;
+
+  return (
+    <div
+      className={`absolute left-16 right-4 rounded-lg border-2 border-sage bg-sage/30 overflow-hidden ${
+        isOngoing ? 'animate-pulse' : ''
+      }`}
+      style={{ top, height: Math.max(height, 24) }}
+    >
+      <div className="px-3 py-1 h-full flex flex-col justify-center">
+        <div className="flex items-center gap-2">
+          <span>🚗</span>
+          <span className="font-medium text-sm text-sage">{childName}</span>
+          {scheduleName && (
+            <span className="text-xs text-sage/70">at {scheduleName}</span>
+          )}
+          <span className="text-xs text-sage/80">{duration}</span>
+          {isOngoing && (
+            <span className="text-xs bg-sage/30 px-1.5 py-0.5 rounded-full text-sage">
+              away
+            </span>
+          )}
+        </div>
+        {height > 40 && (
+          <div className="text-xs text-bark/50 mt-1">
+            {formatTime(startTime)} - {isOngoing ? 'now' : formatTime(endTime)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface ChildcareMarkerProps {
+  blockName: string;
+  startTime: string;
+  endTime: string;
+  childNames: string;
+}
+
+function ChildcareMarker({ blockName, startTime, endTime, childNames }: ChildcareMarkerProps) {
+  const top = timeToPixels(startTime);
+
+  return (
+    <div
+      className="absolute left-12 flex items-center gap-1 z-5"
+      style={{ top: top - 8 }}
+    >
+      <div className="flex items-center gap-1 text-xs text-bark/40">
+        <span>🏫</span>
+        <span>{blockName}</span>
+        <span>({formatTime(startTime)} - {formatTime(endTime)})</span>
+        {childNames && <span className="text-bark/30">- {childNames}</span>}
+      </div>
+    </div>
+  );
+}
+
+interface InformationalTaskMarkerProps {
+  time: string;
+  title: string;
+  childName?: string;
+}
+
+function InformationalTaskMarker({ time, title, childName }: InformationalTaskMarkerProps) {
+  const top = timeToPixels(time);
+
+  // Don't render if outside timeline bounds
+  if (top <= 0 || top >= TOTAL_HOURS * HOUR_HEIGHT_PX) return null;
+
+  return (
+    <div
+      className="absolute left-12 flex items-center gap-1 z-5"
+      style={{ top: top - 8 }}
+    >
+      <div className="flex items-center gap-1.5 bg-bark/5 border border-bark/10 rounded-full px-2 py-0.5">
+        <span className="text-bark/40">🕐</span>
+        <span className="text-xs text-bark/50">
+          {formatTime(time)} - {childName ? `${childName} ` : ''}{title}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+interface LeaveByMarkerProps {
+  leaveByTime: string;
+  blockName: string;
+}
+
+function LeaveByMarker({ leaveByTime, blockName }: LeaveByMarkerProps) {
+  const top = timeToPixels(leaveByTime);
+
+  // Don't render if outside timeline bounds
+  if (top <= 0 || top >= TOTAL_HOURS * HOUR_HEIGHT_PX) return null;
+
+  return (
+    <div
+      className="absolute left-12 right-4 flex items-center gap-2 z-10 pointer-events-none"
+      style={{ top: top - 10 }}
+    >
+      <div className="flex items-center gap-1.5 bg-amber-100 border border-amber-300 rounded-full px-2.5 py-1 shadow-sm">
+        <span className="text-amber-600">🔔</span>
+        <span className="text-xs font-medium text-amber-700">
+          Leave by {formatTime(leaveByTime)}
+        </span>
+        <span className="text-xs text-amber-600/70">for {blockName}</span>
       </div>
     </div>
   );
@@ -334,9 +554,12 @@ export function Timeline() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const getActiveBlocksForDate = useCareBlockStore((state) => state.getActiveBlocksForDate);
+  const getLeaveByTime = useCareBlockStore((state) => state.getLeaveByTime);
   const tasks = useTaskStore((state) => state.tasks);
   const taskInstances = useTaskStore((state) => state.taskInstances);
   const napSchedules = useNapStore((state) => state.napSchedules);
+  const getLogsForTimelineDate = useNapStore((state) => state.getLogsForTimelineDate);
+  const getAwayLogsForTimelineDate = useAwayStore((state) => state.getLogsForTimelineDate);
   const children = useChildStore((state) => state.children);
   const getChild = useChildStore((state) => state.getChild);
 
@@ -344,15 +567,28 @@ export function Timeline() {
   const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
 
   // Get data for selected date
-  const { blocks, scheduledTasks, naps, taskInstanceMap } = useMemo(() => {
+  const { blocks, childcareBlocks, scheduledTasks, informationalTasks, naps, sleepLogs, awayLogs, taskInstanceMap } = useMemo(() => {
     const activeBlocks = getActiveBlocksForDate(selectedDate);
 
-    // Get tasks with scheduled times that occur on this date
-    const tasksForDate = tasks.filter(task =>
+    // Separate childcare blocks for informational markers (we show away logs as primary)
+    const childcareBlocksForDate = activeBlocks.filter(
+      block => block.blockType === 'childcare' || block.blockType === 'babysitter'
+    );
+
+    // Get only ANCHOR tasks with scheduled times that occur on this date
+    // Filter out pickup/dropoff tasks - these are now handled by away state transitions
+    // Also separate informational tasks (like bedtime) - they show as markers, not dots
+    const allTasksForDate = tasks.filter(task =>
       task.scheduledTime &&
       task.isActive &&
-      shouldTaskOccurOnDate(task, selectedDate)
+      task.tier === 'anchor' &&
+      shouldTaskOccurOnDate(task, selectedDate) &&
+      task.childTaskType !== 'pickup' &&
+      task.childTaskType !== 'dropoff'
     );
+
+    const informationalTasksForDate = allTasksForDate.filter(task => task.isInformational);
+    const tasksForDate = allTasksForDate.filter(task => !task.isInformational);
 
     // Sort by time, then by tier priority
     const tierOrder = { anchor: 0, rhythm: 1, tending: 2 };
@@ -368,7 +604,7 @@ export function Timeline() {
       .filter(inst => inst.date === dateStr)
       .forEach(inst => instanceMap.set(inst.taskId, inst));
 
-    // Get nap schedules
+    // Get nap schedules (shown as faint background reference)
     const scheduledNaps = napSchedules.map(nap => {
       const child = children.find(c => c.id === nap.childId);
       return {
@@ -377,13 +613,37 @@ export function Timeline() {
       };
     });
 
+    // Get actual sleep logs for this date
+    const logsForDate = getLogsForTimelineDate(dateStr);
+    const sleepLogsWithNames = logsForDate.map(log => {
+      const child = children.find(c => c.id === log.childId);
+      return {
+        ...log,
+        childName: child?.name || 'Child',
+      };
+    });
+
+    // Get away logs for this date
+    const awayLogsForDate = getAwayLogsForTimelineDate(dateStr);
+    const awayLogsWithNames = awayLogsForDate.map(log => {
+      const child = children.find(c => c.id === log.childId);
+      return {
+        ...log,
+        childName: child?.name || 'Child',
+      };
+    });
+
     return {
       blocks: activeBlocks,
+      childcareBlocks: childcareBlocksForDate,
       scheduledTasks: tasksForDate,
+      informationalTasks: informationalTasksForDate,
       naps: scheduledNaps,
+      sleepLogs: sleepLogsWithNames,
+      awayLogs: awayLogsWithNames,
       taskInstanceMap: instanceMap,
     };
-  }, [selectedDate, getActiveBlocksForDate, tasks, taskInstances, dateStr, napSchedules, children]);
+  }, [selectedDate, getActiveBlocksForDate, tasks, taskInstances, dateStr, napSchedules, children, getLogsForTimelineDate, getAwayLogsForTimelineDate]);
 
   // Group tasks by time slot for stacking (within 15 min = same slot)
   const groupedTasks = useMemo(() => {
@@ -477,7 +737,6 @@ export function Timeline() {
 
         {/* Legend */}
         <div className="px-4 py-3 flex flex-wrap gap-x-4 gap-y-2 text-xs border-b border-bark/10">
-          {/* Block legend */}
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-spring-light border border-sage" />
             <span className="text-bark/60">Free</span>
@@ -486,18 +745,17 @@ export function Timeline() {
             <div className="w-3 h-3 rounded bg-lavender/30 border border-lavender" />
             <span className="text-bark/60">Quiet</span>
           </div>
-          {/* Task dot legend */}
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded-full bg-bark" />
             <span className="text-bark/60">Anchor</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-sage" />
-            <span className="text-bark/60">Rhythm</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-terracotta" />
-            <span className="text-bark/60">Tending</span>
+            <div className="w-3 h-3 rounded-full bg-bark/40 flex items-center justify-center">
+              <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <span className="text-bark/60">Done</span>
           </div>
         </div>
 
@@ -511,18 +769,81 @@ export function Timeline() {
             </div>
           ))}
 
+          {/* Leave-by markers */}
+          {blocks.map(block => {
+            const leaveByTime = getLeaveByTime(block);
+            if (!leaveByTime) return null;
+            return (
+              <LeaveByMarker
+                key={`leave-${block.id}`}
+                leaveByTime={leaveByTime}
+                blockName={block.name}
+              />
+            );
+          })}
+
           {/* Care blocks */}
           {blocks.map(block => (
             <TimelineBlock key={block.id} block={block} children={childList} />
           ))}
 
-          {/* Nap schedules */}
+          {/* Scheduled naps (faint background reference) */}
           {naps.map(nap => (
             <NapBlock
               key={nap.id}
               childName={nap.childName}
               startTime={nap.typicalStart}
               endTime={nap.typicalEnd}
+            />
+          ))}
+
+          {/* Actual sleep logs (primary) */}
+          {sleepLogs.map(log => (
+            <ActualSleepBlock
+              key={log.id}
+              childName={log.childName}
+              startedAt={log.startedAt}
+              endedAt={log.endedAt}
+              sleepType={log.sleepType}
+            />
+          ))}
+
+          {/* Childcare schedule markers (informational) */}
+          {childcareBlocks.map(block => {
+            const affectedChildren = children.filter(c => block.childIds.includes(c.id));
+            const childNames = affectedChildren.map(c => c.name).join(', ');
+            return (
+              <ChildcareMarker
+                key={`childcare-${block.id}`}
+                blockName={block.name}
+                startTime={block.startTime}
+                endTime={block.endTime}
+                childNames={childNames}
+              />
+            );
+          })}
+
+          {/* Informational task markers (like bedtime) */}
+          {informationalTasks.map(task => {
+            const child = task.childId ? getChild(task.childId) : undefined;
+            return (
+              <InformationalTaskMarker
+                key={`info-${task.id}`}
+                time={task.scheduledTime!}
+                title={task.title}
+                childName={child?.name}
+              />
+            );
+          })}
+
+          {/* Away logs (primary - green/sage) */}
+          {awayLogs.map(log => (
+            <AwayBlock
+              key={log.id}
+              childName={log.childName}
+              startedAt={log.startedAt}
+              endedAt={log.endedAt}
+              scheduleName={log.scheduleName}
             />
           ))}
 
@@ -545,7 +866,7 @@ export function Timeline() {
           {isToday && <CurrentTimeLine />}
 
           {/* Empty state */}
-          {blocks.length === 0 && scheduledTasks.length === 0 && naps.length === 0 && (
+          {blocks.length === 0 && scheduledTasks.length === 0 && naps.length === 0 && sleepLogs.length === 0 && awayLogs.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center p-8">
                 <div className="text-4xl mb-4">📅</div>
