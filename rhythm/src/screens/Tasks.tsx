@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { useTaskStore } from '../stores/useTaskStore';
+import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
+import { useChildStore } from '../stores/useChildStore';
 import type { Task, TaskTier, RecurrenceRule } from '../types';
 
 const TIER_CONFIG: Record<TaskTier, { label: string; color: string; bg: string; border: string }> = {
@@ -42,11 +43,13 @@ function formatTime12(time: string): string {
 interface TaskItemProps {
   task: Task;
   onClick: () => void;
+  getChild: (id: string) => { name: string } | undefined;
 }
 
-function TaskItem({ task, onClick }: TaskItemProps) {
+function TaskItem({ task, onClick, getChild }: TaskItemProps) {
   const config = TIER_CONFIG[task.tier];
   const freq = getFrequencyDisplay(task);
+  const displayTitle = getTaskDisplayTitle(task, getChild);
 
   return (
     <button
@@ -55,7 +58,7 @@ function TaskItem({ task, onClick }: TaskItemProps) {
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className={`font-medium ${config.color} truncate`}>{task.title}</h3>
+          <h3 className={`font-medium ${config.color} truncate`}>{displayTitle}</h3>
           <div className="flex items-center gap-2 text-xs text-bark/50 mt-0.5">
             {task.scheduledTime && (
               <span>{formatTime12(task.scheduledTime)}</span>
@@ -460,10 +463,14 @@ export function Tasks() {
   const updateTask = useTaskStore((state) => state.updateTask);
   const deleteTask = useTaskStore((state) => state.deleteTask);
   const addTask = useTaskStore((state) => state.addTask);
+  const children = useChildStore((state) => state.children);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTaskTier, setNewTaskTier] = useState<TaskTier>('rhythm');
+
+  // Helper to get child by ID
+  const getChild = (id: string) => children.find(c => c.id === id);
 
   // Group active tasks by tier
   const { anchors, rhythms, tending } = useMemo(() => {
@@ -516,7 +523,7 @@ export function Tasks() {
           ) : (
             <div className="space-y-2">
               {anchors.map(task => (
-                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} />
+                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
               ))}
             </div>
           )}
@@ -541,7 +548,7 @@ export function Tasks() {
           ) : (
             <div className="space-y-2">
               {rhythms.map(task => (
-                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} />
+                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
               ))}
             </div>
           )}
@@ -566,7 +573,7 @@ export function Tasks() {
           ) : (
             <div className="space-y-2">
               {tending.map(task => (
-                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} />
+                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
               ))}
             </div>
           )}
