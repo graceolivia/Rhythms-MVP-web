@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
@@ -144,9 +145,24 @@ function SkyHeader() {
             {format(now, 'MMMM d')}
           </h1>
         </div>
-        <div className={`text-right text-sm ${isNight ? 'text-white/60' : 'text-bark/50'}`}>
-          <p>☀️ {format(sunrise, 'h:mm a')}</p>
-          <p>🌙 {format(sunset, 'h:mm a')}</p>
+        <div className="flex items-start gap-3">
+          <Link
+            to="/timeline"
+            className={`p-2 rounded-lg transition-colors ${
+              isNight
+                ? 'bg-white/10 hover:bg-white/20 text-white/80'
+                : 'bg-bark/5 hover:bg-bark/10 text-bark/60'
+            }`}
+            title="View Timeline"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </Link>
+          <div className={`text-right text-sm ${isNight ? 'text-white/60' : 'text-bark/50'}`}>
+            <p>☀️ {format(sunrise, 'h:mm a')}</p>
+            <p>🌙 {format(sunset, 'h:mm a')}</p>
+          </div>
         </div>
       </div>
     </header>

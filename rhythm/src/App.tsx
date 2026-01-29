@@ -8,6 +8,7 @@ import { Seeds } from './screens/Seeds';
 import { Garden } from './screens/Garden';
 import { Challenges } from './screens/Challenges';
 import { Settings } from './screens/Settings';
+import { Timeline } from './screens/Timeline';
 import { Onboarding } from './screens/Onboarding';
 import { BottomNav } from './components/common/BottomNav';
 import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
@@ -23,6 +24,7 @@ function AppContent() {
     <div className="pb-16">
       <Routes>
         <Route path="/" element={<Today />} />
+        <Route path="/timeline" element={<Timeline />} />
         <Route path="/rhythm" element={<DailyRhythm />} />
         <Route path="/rhythm/day/:date" element={<RhythmDayDetail />} />
         <Route path="/rhythm/edit" element={<EditWeeklyRhythm />} />
