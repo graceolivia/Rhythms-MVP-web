@@ -82,14 +82,16 @@ interface TaskEditModalProps {
   onClose: () => void;
   onSave: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
+  children: { id: string; name: string }[];
 }
 
-function TaskEditModal({ task, onClose, onSave, onDelete }: TaskEditModalProps) {
+function TaskEditModal({ task, onClose, onSave, onDelete, children }: TaskEditModalProps) {
   const [title, setTitle] = useState(task.title);
   const [scheduledTime, setScheduledTime] = useState(task.scheduledTime || '');
   const [duration, setDuration] = useState(task.duration || 30);
   const [recurrence, setRecurrence] = useState<RecurrenceRule>(task.recurrence || 'daily');
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>(task.daysOfWeek || []);
+  const [childId, setChildId] = useState<string | null>(task.childId || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const config = TIER_CONFIG[task.tier];
@@ -101,6 +103,7 @@ function TaskEditModal({ task, onClose, onSave, onDelete }: TaskEditModalProps) 
       duration,
       recurrence,
       daysOfWeek: recurrence === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
+      childId: childId || null,
     });
     onClose();
   };
@@ -169,6 +172,38 @@ function TaskEditModal({ task, onClose, onSave, onDelete }: TaskEditModalProps) 
                 className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
               />
             </div>
+
+            {/* Child link */}
+            {children.length > 0 && (
+              <div className="mb-4">
+                <label className="text-xs text-bark/60 block mb-2">For child (optional)</label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setChildId(null)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      childId === null
+                        ? 'bg-bark/20 text-bark'
+                        : 'bg-bark/5 text-bark/50 hover:bg-bark/10'
+                    }`}
+                  >
+                    Everyone
+                  </button>
+                  {children.map((child) => (
+                    <button
+                      key={child.id}
+                      onClick={() => setChildId(child.id)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        childId === child.id
+                          ? 'bg-lavender/30 text-lavender border border-lavender'
+                          : 'bg-bark/5 text-bark/50 hover:bg-bark/10'
+                      }`}
+                    >
+                      {child.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Time (for anchors and rhythms) */}
             {task.tier !== 'tending' && (
@@ -275,15 +310,17 @@ interface NewTaskModalProps {
   onClose: () => void;
   onAdd: (task: Omit<Task, 'id'>) => void;
   defaultTier?: TaskTier;
+  children: { id: string; name: string }[];
 }
 
-function NewTaskModal({ onClose, onAdd, defaultTier = 'rhythm' }: NewTaskModalProps) {
+function NewTaskModal({ onClose, onAdd, defaultTier = 'rhythm', children }: NewTaskModalProps) {
   const [title, setTitle] = useState('');
   const [tier, setTier] = useState<TaskTier>(defaultTier);
   const [scheduledTime, setScheduledTime] = useState('09:00');
   const [duration, setDuration] = useState(30);
   const [recurrence, setRecurrence] = useState<RecurrenceRule>('daily');
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([]);
+  const [childId, setChildId] = useState<string | null>(null);
 
   const handleAdd = () => {
     if (!title.trim()) return;
@@ -299,6 +336,7 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'rhythm' }: NewTaskModalPr
       napContext: null,
       isActive: true,
       category: 'other',
+      childId: childId || null,
     });
     onClose();
   };
@@ -362,6 +400,38 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'rhythm' }: NewTaskModalPr
             })}
           </div>
         </div>
+
+        {/* Child link */}
+        {children.length > 0 && (
+          <div className="mb-4">
+            <label className="text-xs text-bark/60 block mb-2">For child (optional)</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setChildId(null)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  childId === null
+                    ? 'bg-bark/20 text-bark'
+                    : 'bg-bark/5 text-bark/50 hover:bg-bark/10'
+                }`}
+              >
+                Everyone
+              </button>
+              {children.map((child) => (
+                <button
+                  key={child.id}
+                  onClick={() => setChildId(child.id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    childId === child.id
+                      ? 'bg-lavender/30 text-lavender border border-lavender'
+                      : 'bg-bark/5 text-bark/50 hover:bg-bark/10'
+                  }`}
+                >
+                  {child.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Time (for anchors and rhythms) */}
         {tier !== 'tending' && (
@@ -596,6 +666,7 @@ export function Tasks() {
           onClose={() => setEditingTask(null)}
           onSave={(id, updates) => updateTask(id, updates)}
           onDelete={(id) => deleteTask(id)}
+          children={children}
         />
       )}
 
@@ -605,6 +676,7 @@ export function Tasks() {
           onClose={() => setShowNewTask(false)}
           onAdd={handleAddTask}
           defaultTier={newTaskTier}
+          children={children}
         />
       )}
     </div>
