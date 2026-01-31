@@ -14,7 +14,6 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/timeline', label: 'Timeline', icon: '◇', activeIcon: '◆' },
   { to: '/tasks', label: 'Tasks', icon: '◠', activeIcon: '☽' },
   { to: '/garden', label: 'Garden', icon: '❀', activeIcon: '✿' },
-  { to: '/challenges', label: 'Challenges', icon: '★', activeIcon: '★' },
   { to: '/settings', label: 'Settings', icon: '⚙', activeIcon: '⚙' },
 ];
 
@@ -46,12 +45,6 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
         <svg className="w-6 h-6" fill={isActive ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path d="M12 22V12M12 12C12 9 9 6 6 6c0 3 3 6 6 6zM12 12c0-3 3-6 6-6 0 3-3 6-6 6z" />
           <circle cx="12" cy="5" r="3" />
-        </svg>
-      );
-    case 'Challenges':
-      return (
-        <svg className="w-6 h-6" fill={isActive ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7L12 16.4 5.7 21l2.3-7L2 9.4h7.6L12 2z" />
         </svg>
       );
     case 'Settings':

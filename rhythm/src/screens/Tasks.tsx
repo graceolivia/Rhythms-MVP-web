@@ -538,9 +538,22 @@ export function Tasks() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTaskTier, setNewTaskTier] = useState<TaskTier>('rhythm');
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['anchors', 'rhythms']));
 
   // Helper to get child by ID
   const getChild = (id: string) => children.find(c => c.id === id);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(section)) {
+        next.delete(section);
+      } else {
+        next.add(section);
+      }
+      return next;
+    });
+  };
 
   // Group active tasks by tier
   const { anchors, rhythms, tending } = useMemo(() => {
@@ -575,88 +588,155 @@ export function Tasks() {
         </header>
 
         {/* Anchors */}
-        <section className="mb-6">
-          <div className="flex items-center justify-between mb-3">
+        <section className="mb-3">
+          <button
+            onClick={() => toggleSection('anchors')}
+            className="w-full flex items-center justify-between p-3 rounded-lg bg-terracotta/5 hover:bg-terracotta/10 transition-colors"
+          >
             <h2 className="font-medium text-terracotta flex items-center gap-2">
               <span>⚓</span> Anchors
-              <span className="text-xs text-bark/40 font-normal">Fixed time events</span>
+              <span className="text-xs text-bark/40 font-normal">({anchors.length})</span>
             </h2>
-            <button
-              onClick={() => openNewTaskModal('anchor')}
-              className="text-xs px-2 py-1 rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20"
-            >
-              + Add
-            </button>
-          </div>
-          {anchors.length === 0 ? (
-            <p className="text-sm text-bark/40 italic py-2">No anchors yet</p>
-          ) : (
-            <div className="space-y-2">
-              {anchors.map(task => (
-                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
-              ))}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => { e.stopPropagation(); openNewTaskModal('anchor'); }}
+                className="text-xs px-2 py-1 rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20"
+              >
+                + Add
+              </button>
+              <svg
+                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('anchors') ? 'rotate-180' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
+          {expandedSections.has('anchors') && (
+            <div className="mt-2 space-y-2">
+              {anchors.length === 0 ? (
+                <p className="text-sm text-bark/40 italic py-2 px-3">No anchors yet</p>
+              ) : (
+                anchors.map(task => (
+                  <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
+                ))
+              )}
             </div>
           )}
         </section>
 
         {/* Rhythms */}
-        <section className="mb-6">
-          <div className="flex items-center justify-between mb-3">
+        <section className="mb-3">
+          <button
+            onClick={() => toggleSection('rhythms')}
+            className="w-full flex items-center justify-between p-3 rounded-lg bg-sage/5 hover:bg-sage/10 transition-colors"
+          >
             <h2 className="font-medium text-sage flex items-center gap-2">
               <span>🌿</span> Rhythms
-              <span className="text-xs text-bark/40 font-normal">Daily routines</span>
+              <span className="text-xs text-bark/40 font-normal">({rhythms.length})</span>
             </h2>
-            <button
-              onClick={() => openNewTaskModal('rhythm')}
-              className="text-xs px-2 py-1 rounded-lg bg-sage/10 text-sage hover:bg-sage/20"
-            >
-              + Add
-            </button>
-          </div>
-          {rhythms.length === 0 ? (
-            <p className="text-sm text-bark/40 italic py-2">No rhythms yet</p>
-          ) : (
-            <div className="space-y-2">
-              {rhythms.map(task => (
-                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
-              ))}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => { e.stopPropagation(); openNewTaskModal('rhythm'); }}
+                className="text-xs px-2 py-1 rounded-lg bg-sage/10 text-sage hover:bg-sage/20"
+              >
+                + Add
+              </button>
+              <svg
+                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('rhythms') ? 'rotate-180' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
+          {expandedSections.has('rhythms') && (
+            <div className="mt-2 space-y-2">
+              {rhythms.length === 0 ? (
+                <p className="text-sm text-bark/40 italic py-2 px-3">No rhythms yet</p>
+              ) : (
+                rhythms.map(task => (
+                  <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
+                ))
+              )}
             </div>
           )}
         </section>
 
         {/* Tending */}
-        <section className="mb-6">
-          <div className="flex items-center justify-between mb-3">
+        <section className="mb-3">
+          <button
+            onClick={() => toggleSection('tending')}
+            className="w-full flex items-center justify-between p-3 rounded-lg bg-skyblue/5 hover:bg-skyblue/10 transition-colors"
+          >
             <h2 className="font-medium text-skyblue flex items-center gap-2">
               <span>🌱</span> Tending
-              <span className="text-xs text-bark/40 font-normal">Flexible tasks</span>
+              <span className="text-xs text-bark/40 font-normal">({tending.length})</span>
             </h2>
-            <button
-              onClick={() => openNewTaskModal('tending')}
-              className="text-xs px-2 py-1 rounded-lg bg-skyblue/10 text-skyblue hover:bg-skyblue/20"
-            >
-              + Add
-            </button>
-          </div>
-          {tending.length === 0 ? (
-            <p className="text-sm text-bark/40 italic py-2">No tending tasks yet</p>
-          ) : (
-            <div className="space-y-2">
-              {tending.map(task => (
-                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
-              ))}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => { e.stopPropagation(); openNewTaskModal('tending'); }}
+                className="text-xs px-2 py-1 rounded-lg bg-skyblue/10 text-skyblue hover:bg-skyblue/20"
+              >
+                + Add
+              </button>
+              <svg
+                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('tending') ? 'rotate-180' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
+          {expandedSections.has('tending') && (
+            <div className="mt-2 space-y-2">
+              {tending.length === 0 ? (
+                <p className="text-sm text-bark/40 italic py-2 px-3">No tending tasks yet</p>
+              ) : (
+                tending.map(task => (
+                  <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
+                ))
+              )}
+              {seedCount > 0 && (
+                <div className="p-3 rounded-lg bg-linen/50 border border-bark/10 mt-2">
+                  <p className="text-sm text-bark/60">
+                    <span className="font-medium">{seedCount} deferred</span> waiting to be replanted
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </section>
 
-        {/* Deferred seeds note */}
-        {seedCount > 0 && (
-          <div className="p-3 rounded-lg bg-linen/50 border border-bark/10">
-            <p className="text-sm text-bark/60">
-              <span className="font-medium">{seedCount} deferred task{seedCount !== 1 ? 's' : ''}</span> waiting to be replanted.
-            </p>
-          </div>
-        )}
+        {/* Challenges */}
+        <section className="mb-3">
+          <button
+            onClick={() => toggleSection('challenges')}
+            className="w-full flex items-center justify-between p-3 rounded-lg bg-dustyrose/5 hover:bg-dustyrose/10 transition-colors"
+          >
+            <h2 className="font-medium text-dustyrose flex items-center gap-2">
+              <span>⭐</span> Challenges
+              <span className="text-xs text-bark/40 font-normal">Coming soon</span>
+            </h2>
+            <svg
+              className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('challenges') ? 'rotate-180' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {expandedSections.has('challenges') && (
+            <div className="mt-2 p-4 rounded-lg bg-parchment/50">
+              <p className="text-sm text-bark/70 leading-relaxed mb-2">
+                Challenges are curated habit stacks that teach rhythms that actually work for SAHM life.
+              </p>
+              <p className="text-sm text-bark/70 leading-relaxed">
+                Completing a Challenge earns a special flower for your garden.
+              </p>
+              <p className="text-xs text-bark/40 italic mt-3">Coming soon...</p>
+            </div>
+          )}
+        </section>
       </div>
 
       {/* Edit modal */}
