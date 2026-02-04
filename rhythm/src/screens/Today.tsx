@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import sunPng from '../assets/sky/sun001.png';
+import moonPng from '../assets/sky/moon001.png';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
 import { useGoodEnoughDay } from '../hooks/useGoodEnoughDay';
@@ -120,24 +122,176 @@ const TIER_CONFIG: Record<TaskTier, { label: string; subtitle: string; color: st
   tending: { label: 'Tending', subtitle: 'Nice-to-haves that maintain your life', color: 'text-lavender', bg: 'bg-lavender/10' },
 };
 
+function getSkyGradient(dayProgress: number): string {
+  // dayProgress: 0 = sunrise, 1 = sunset
+  if (dayProgress < -0.15) {
+    // Deep night
+    return 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)';
+  }
+  if (dayProgress < -0.02) {
+    // Pre-dawn twilight
+    return 'linear-gradient(180deg, #1e1b4b 0%, #581c87 40%, #831843 70%, #1e1b4b 100%)';
+  }
+  if (dayProgress < 0.08) {
+    // Sunrise / dawn
+    return 'linear-gradient(180deg, #fecdd3 0%, #fed7aa 40%, #bae6fd 80%, #FAF6F1 100%)';
+  }
+  if (dayProgress < 0.2) {
+    // Morning
+    return 'linear-gradient(180deg, #7dd3fc 0%, #bae6fd 50%, #fef3c7 80%, #FAF6F1 100%)';
+  }
+  if (dayProgress < 0.8) {
+    // Full day
+    return 'linear-gradient(180deg, #38bdf8 0%, #7dd3fc 40%, #e0f2fe 75%, #FAF6F1 100%)';
+  }
+  if (dayProgress < 0.92) {
+    // Late afternoon / pre-sunset
+    return 'linear-gradient(180deg, #7dd3fc 0%, #fdba74 45%, #fecdd3 75%, #FAF6F1 100%)';
+  }
+  if (dayProgress < 1.02) {
+    // Sunset
+    return 'linear-gradient(180deg, #f97316 0%, #ec4899 35%, #7c3aed 70%, #2e1065 100%)';
+  }
+  if (dayProgress < 1.15) {
+    // Dusk
+    return 'linear-gradient(180deg, #4c1d95 0%, #1e1b4b 60%, #0f172a 100%)';
+  }
+  // Night
+  return 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)';
+}
+
 function SkyHeader() {
   const { sunrise, sunset } = useSunTimes();
-  const now = new Date();
-  const hours = now.getHours();
+  const [now, setNow] = useState(() => new Date());
 
-  // Determine time of day for gradient
-  const getGradient = () => {
-    if (hours >= 5 && hours < 8) return 'from-rose-200 via-amber-100 to-sky-200'; // sunrise
-    if (hours >= 8 && hours < 17) return 'from-sky-300 via-sky-200 to-cream'; // day
-    if (hours >= 17 && hours < 20) return 'from-amber-200 via-rose-200 to-purple-200'; // sunset
-    return 'from-indigo-900 via-purple-900 to-slate-900'; // night
-  };
+  // Update every minute so the sun moves
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const isNight = hours < 5 || hours >= 20;
+  const sunriseMs = sunrise.getTime();
+  const sunsetMs = sunset.getTime();
+  const nowMs = now.getTime();
+  const dayLength = sunsetMs - sunriseMs;
+
+  // Progress: 0 at sunrise, 1 at sunset
+  const dayProgress = (nowMs - sunriseMs) / dayLength;
+
+  const sunPosition = useMemo(() => {
+    // Sun visible from just before sunrise to just after sunset
+    const visible = dayProgress > -0.05 && dayProgress < 1.05;
+    const clamped = Math.max(0, Math.min(1, dayProgress));
+
+    // Horizontal: 8% to 92% of container width
+    const x = 8 + clamped * 84;
+
+    // Parabolic arc: peaks at 1 when progress = 0.5
+    const arc = 4 * clamped * (1 - clamped);
+
+    // Map arc to bottom offset in pixels
+    // arc=0 → 8px from bottom (horizon), arc=1 → 88px from bottom (zenith)
+    const bottomPx = 8 + arc * 80;
+
+    // Fade in/out near horizon
+    const opacity = dayProgress < 0
+      ? Math.max(0, 1 + dayProgress * 20)
+      : dayProgress > 1
+        ? Math.max(0, 1 - (dayProgress - 1) * 20)
+        : 1;
+
+    return { visible, x, bottomPx, opacity };
+  }, [dayProgress]);
+
+  const moonPosition = useMemo(() => {
+    // Moon arcs across the sky at night: sunset → sunrise
+    // nightProgress: 0 at sunset, 1 at next sunrise
+    const nightLength = 24 * 60 * 60 * 1000 - dayLength;
+    let nightProgress: number;
+
+    if (dayProgress > 1) {
+      // After sunset tonight
+      nightProgress = (nowMs - sunsetMs) / nightLength;
+    } else if (dayProgress < 0) {
+      // Before sunrise this morning
+      nightProgress = 1 - (sunriseMs - nowMs) / nightLength;
+    } else {
+      nightProgress = -1; // Daytime
+    }
+
+    const visible = nightProgress > -0.05 && nightProgress < 1.05;
+    const clamped = Math.max(0, Math.min(1, nightProgress));
+
+    // Same arc math as the sun
+    const x = 8 + clamped * 84;
+    const arc = 4 * clamped * (1 - clamped);
+    const bottomPx = 8 + arc * 80;
+
+    const opacity = nightProgress < 0
+      ? Math.max(0, 1 + nightProgress * 20)
+      : nightProgress > 1
+        ? Math.max(0, 1 - (nightProgress - 1) * 20)
+        : 1;
+
+    return { visible, x, bottomPx, opacity };
+  }, [dayProgress, nowMs, sunriseMs, sunsetMs, dayLength]);
+
+  const skyGradient = getSkyGradient(dayProgress);
+  const isNight = dayProgress < -0.1 || dayProgress > 1.1;
+  const isDawnOrDusk = (dayProgress > -0.05 && dayProgress < 0.08) || (dayProgress > 0.92 && dayProgress < 1.05);
 
   return (
-    <header className={`bg-gradient-to-b ${getGradient()} -mx-4 -mt-4 px-4 pt-6 pb-8 mb-4`}>
-      <div className="flex justify-between items-start">
+    <header
+      className="-mx-4 -mt-4 px-4 pt-6 pb-4 mb-4 relative overflow-hidden"
+      style={{ background: skyGradient, minHeight: '148px' }}
+    >
+      {/* Sun traveling on its arc */}
+      {sunPosition.visible && (
+        <img
+          src={sunPng}
+          alt=""
+          className="absolute w-10 h-10 pointer-events-none select-none"
+          style={{
+            left: `${sunPosition.x}%`,
+            bottom: `${sunPosition.bottomPx}px`,
+            transform: 'translateX(-50%)',
+            opacity: sunPosition.opacity,
+            filter: isDawnOrDusk ? 'brightness(1.3) saturate(0.7)' : 'none',
+            transition: 'bottom 60s linear, left 60s linear',
+          }}
+        />
+      )}
+
+      {/* Moon traveling on its arc at night */}
+      {moonPosition.visible && (
+        <img
+          src={moonPng}
+          alt=""
+          className="absolute w-9 h-9 pointer-events-none select-none"
+          style={{
+            left: `${moonPosition.x}%`,
+            bottom: `${moonPosition.bottomPx}px`,
+            transform: 'translateX(-50%)',
+            opacity: moonPosition.opacity,
+            transition: 'bottom 60s linear, left 60s linear',
+          }}
+        />
+      )}
+
+      {/* Stars at night */}
+      {isNight && (
+        <>
+          <div className="absolute w-1 h-1 bg-white/60 rounded-full" style={{ left: '15%', top: '20px' }} />
+          <div className="absolute w-1 h-1 bg-white/40 rounded-full" style={{ left: '35%', top: '45px' }} />
+          <div className="absolute w-1.5 h-1.5 bg-white/50 rounded-full" style={{ left: '55%', top: '15px' }} />
+          <div className="absolute w-1 h-1 bg-white/30 rounded-full" style={{ left: '75%', top: '55px' }} />
+          <div className="absolute w-1 h-1 bg-white/50 rounded-full" style={{ left: '85%', top: '30px' }} />
+          <div className="absolute w-1 h-1 bg-white/40 rounded-full" style={{ left: '25%', top: '65px' }} />
+        </>
+      )}
+
+      {/* Content */}
+      <div className="relative z-10 flex justify-between items-start">
         <div>
           <p className={`text-sm ${isNight ? 'text-white/70' : 'text-bark/60'}`}>
             {format(now, 'EEEE')}
