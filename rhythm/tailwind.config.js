@@ -43,9 +43,9 @@ export default {
         },
       },
       fontFamily: {
-        display: ['Playfair Display', 'Georgia', 'serif'],
-        body: ['Lora', 'Georgia', 'serif'],
-        sans: ['Source Sans Pro', 'system-ui', 'sans-serif'],
+        display: ['Silkscreen', 'monospace'],
+        body: ['Pixelify Sans', 'system-ui', 'sans-serif'],
+        sans: ['Pixelify Sans', 'system-ui', 'sans-serif'],
       },
       animation: {
         'slide-up': 'slide-up 0.3s ease-out',
