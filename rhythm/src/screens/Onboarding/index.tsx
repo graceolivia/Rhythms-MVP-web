@@ -5,6 +5,8 @@ import { useChildStore } from '../../stores/useChildStore';
 import { useNapStore } from '../../stores/useNapStore';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { useCareBlockStore } from '../../stores/useCareBlockStore';
+import { useGardenStore } from '../../stores/useGardenStore';
+import { useAwayStore } from '../../stores/useAwayStore';
 import { markAsInstalled } from '../../utils/storageHelpers';
 import type { SeasonOfLife, TaskTier, TaskCategory, RecurrenceRule, AvailabilityState } from '../../types';
 
@@ -814,6 +816,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const clearTasks = useTaskStore((state) => state.clearTasks);
   const addCareBlock = useCareBlockStore((state) => state.addBlock);
   const clearCareBlocks = useCareBlockStore((state) => state.clearBlocks);
+  const clearGardenState = useGardenStore((state) => state.clearGardenState);
+  const clearAwayLogs = useAwayStore((state) => state.clearAwayLogs);
 
   const [step, setStep] = useState<Step>('welcome');
   const [data, setData] = useState<OnboardingData>({
@@ -846,6 +850,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     clearNapSchedules();
     clearTasks();
     clearCareBlocks();
+    clearGardenState();
+    clearAwayLogs();
 
     // Save children and create ID mapping
     const childIdMap = new Map<string, string>();
