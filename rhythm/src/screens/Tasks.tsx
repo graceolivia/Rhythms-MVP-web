@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
-import type { Task, TaskTier, RecurrenceRule } from '../types';
+import type { Task, TaskTier, RecurrenceRule, TaskInput } from '../types';
 
 const TIER_CONFIG: Record<TaskTier, { label: string; color: string; bg: string; border: string }> = {
   anchor: { label: 'Anchors', color: 'text-terracotta', bg: 'bg-terracotta/10', border: 'border-terracotta/30' },
@@ -236,7 +236,7 @@ function TaskEditModal({ task, onClose, onSave, onDelete, children }: TaskEditMo
             <div className="mb-4">
               <label className="text-xs text-bark/60 block mb-2">Frequency</label>
               <div className="grid grid-cols-2 gap-2">
-                {(['daily', 'weekdays', 'weekends', 'weekly'] as RecurrenceRule[]).map((r) => (
+                {(['daily', 'weekdays', 'weekends', 'weekly'] as const).map((r) => (
                   <button
                     key={r}
                     onClick={() => setRecurrence(r)}
@@ -308,7 +308,7 @@ function TaskEditModal({ task, onClose, onSave, onDelete, children }: TaskEditMo
 
 interface NewTaskModalProps {
   onClose: () => void;
-  onAdd: (task: Omit<Task, 'id'>) => void;
+  onAdd: (task: TaskInput) => void;
   defaultTier?: TaskTier;
   children: { id: string; name: string }[];
 }
@@ -464,7 +464,7 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'rhythm', children }: NewT
         <div className="mb-4">
           <label className="text-xs text-bark/60 block mb-2">Frequency</label>
           <div className="grid grid-cols-2 gap-2">
-            {(['daily', 'weekdays', 'weekends', 'weekly'] as RecurrenceRule[]).map((r) => (
+            {(['daily', 'weekdays', 'weekends', 'weekly'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => setRecurrence(r)}
@@ -570,7 +570,7 @@ export function Tasks() {
     return taskInstances.filter(i => i.status === 'deferred').length;
   }, [taskInstances]);
 
-  const handleAddTask = (taskData: Omit<Task, 'id'>) => {
+  const handleAddTask = (taskData: TaskInput) => {
     addTask(taskData);
   };
 

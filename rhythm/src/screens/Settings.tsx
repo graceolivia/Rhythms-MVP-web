@@ -71,7 +71,7 @@ export function Settings() {
 
   // Auth and sync
   const { user, isLoading: authLoading, isConfigured, signInWithEmail, signOut } = useAuth();
-  const { pushToCloud, pullFromCloud, isSyncing, lastSyncTime, syncError, canSync } = useSync();
+  const { pushToCloud, pullFromCloud, isSyncing, lastSyncTime, syncError } = useSync();
   const [loginEmail, setLoginEmail] = useState('');
   const [loginStatus, setLoginStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
