@@ -14,6 +14,7 @@ interface NapState {
   updateNapSchedule: (id: string, updates: Partial<Omit<NapSchedule, 'id'>>) => void;
   removeNapSchedule: (id: string) => void;
   clearNapSchedules: () => void;
+  replaceNapData: (napSchedules: NapSchedule[], napLogs: NapLog[]) => void;
   getSchedulesForChild: (childId: string) => NapSchedule[];
 
   // Sleep log actions (supports both naps and night sleep)
@@ -90,6 +91,10 @@ export const useNapStore = create<NapState>()(
 
       clearNapSchedules: () => {
         set({ napSchedules: [] });
+      },
+
+      replaceNapData: (napSchedules, napLogs) => {
+        set({ napSchedules, napLogs });
       },
 
       getSchedulesForChild: (childId) => {

@@ -85,6 +85,7 @@ interface GardenState extends Garden {
   cancelMoving: () => void;
   clearGarden: () => void;
   clearGardenState: () => void;
+  replaceGardenData: (flowers: Flower[], placedFlowers: PlacedFlower[]) => void;
 
   // Helpers
   getFlowerAt: (col: number, row: number) => PlacedFlower | undefined;
@@ -269,6 +270,14 @@ export const useGardenStore = create<GardenState>()(
           currentSeason: getCurrentSeason(),
           mode: 'place',
           movingFlowerId: null,
+        });
+      },
+
+      replaceGardenData: (flowers, placedFlowers) => {
+        set({
+          flowers,
+          placedFlowers,
+          currentSeason: getCurrentSeason(),
         });
       },
 

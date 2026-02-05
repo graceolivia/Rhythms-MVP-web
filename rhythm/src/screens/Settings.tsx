@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { format, addDays } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
@@ -6,6 +7,8 @@ import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useResetSeedData } from '../hooks/useResetSeedData';
 import { useResetAppData } from '../hooks/useResetAppData';
+import { useAuth } from '../contexts/AuthContext';
+import { useSync } from '../hooks/useSync';
 import { DEV_MODE } from '../config/devMode';
 import type { ChildColor, CareStatus, CareBlockType, RecurrenceRule } from '../types';
 
@@ -65,6 +68,19 @@ export function Settings() {
   const ensureChildcareTasksExist = useTaskStore((state) => state.ensureChildcareTasksExist);
   const resetSeedData = useResetSeedData();
   const resetAppData = useResetAppData();
+
+  // Auth and sync
+  const { user, isLoading: authLoading, isConfigured, signInWithEmail, signOut } = useAuth();
+  const { pushToCloud, pullFromCloud, isSyncing, lastSyncTime, syncError, canSync } = useSync();
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginStatus, setLoginStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  const handleLogin = async () => {
+    if (!loginEmail.trim()) return;
+    setLoginStatus('sending');
+    const { error } = await signInWithEmail(loginEmail.trim());
+    setLoginStatus(error ? 'error' : 'sent');
+  };
 
   // Get linked tasks for a child
   const getLinkedTasks = (childId: string) => {
@@ -638,6 +654,99 @@ export function Settings() {
         )}
       </section>
 
+      {/* Cloud Sync Section */}
+      <section className="mb-8">
+        <h2 className="font-display text-lg text-bark mb-4">Cloud Sync</h2>
+
+        {!isConfigured ? (
+          <div className="bg-parchment rounded-xl p-4">
+            <p className="text-sm text-bark/70 mb-2">
+              Cloud sync is not configured. Add Supabase credentials to your .env file to enable.
+            </p>
+            <code className="text-xs text-bark/50 block bg-cream p-2 rounded">
+              VITE_SUPABASE_URL=...<br />
+              VITE_SUPABASE_ANON_KEY=...
+            </code>
+          </div>
+        ) : authLoading ? (
+          <div className="bg-parchment rounded-xl p-4 text-center">
+            <p className="text-bark/60">Loading...</p>
+          </div>
+        ) : !user ? (
+          <div className="bg-parchment rounded-xl p-4">
+            <p className="text-sm text-bark/70 mb-3">
+              Sign in to sync your data across devices.
+            </p>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                className="flex-1 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+                disabled={loginStatus === 'sending'}
+              />
+              <button
+                onClick={handleLogin}
+                disabled={loginStatus === 'sending' || !loginEmail.trim()}
+                className="px-4 py-2 rounded-lg bg-sage text-cream hover:bg-sage/90 transition-colors text-sm disabled:opacity-50"
+              >
+                {loginStatus === 'sending' ? '...' : 'Sign In'}
+              </button>
+            </div>
+            {loginStatus === 'sent' && (
+              <p className="text-sm text-sage">Check your email for a magic link!</p>
+            )}
+            {loginStatus === 'error' && (
+              <p className="text-sm text-terracotta">Something went wrong. Try again?</p>
+            )}
+          </div>
+        ) : (
+          <div className="bg-parchment rounded-xl p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm text-bark font-medium">{user.email}</p>
+                <p className="text-xs text-bark/50">Signed in</p>
+              </div>
+              <button
+                onClick={signOut}
+                className="text-xs text-bark/50 hover:text-bark underline"
+              >
+                Sign out
+              </button>
+            </div>
+
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={pushToCloud}
+                disabled={isSyncing}
+                className="flex-1 py-2 rounded-lg bg-sage text-cream hover:bg-sage/90 transition-colors text-sm disabled:opacity-50"
+              >
+                {isSyncing ? 'Syncing...' : 'Push to Cloud'}
+              </button>
+              <button
+                onClick={pullFromCloud}
+                disabled={isSyncing}
+                className="flex-1 py-2 rounded-lg bg-skyblue text-cream hover:bg-skyblue/90 transition-colors text-sm disabled:opacity-50"
+              >
+                {isSyncing ? 'Syncing...' : 'Pull from Cloud'}
+              </button>
+            </div>
+
+            {syncError && (
+              <p className="text-sm text-terracotta mb-2">{syncError}</p>
+            )}
+
+            {lastSyncTime && (
+              <p className="text-xs text-bark/50">
+                Last synced: {format(lastSyncTime, 'h:mm a')}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
       {DEV_MODE && (
         <section className="mb-8">
           <h2 className="font-display text-lg text-bark mb-4">Dev Tools</h2>
@@ -652,7 +761,7 @@ export function Settings() {
           </p>
         </section>
       )}
-      
+
       <section className="mb-8">
         <h2 className="font-display text-lg text-bark mb-4">Reset App</h2>
         <button

@@ -9,6 +9,7 @@ interface ChildState {
   updateChild: (id: string, updates: Partial<Omit<Child, 'id'>>) => void;
   removeChild: (id: string) => void;
   clearChildren: () => void;
+  replaceChildren: (children: Child[]) => void;
   getChild: (id: string) => Child | undefined;
   getNappingChildren: () => Child[];
   updateCareStatus: (childId: string, status: CareStatus) => void;
@@ -46,6 +47,10 @@ export const useChildStore = create<ChildState>()(
 
       clearChildren: () => {
         set({ children: [] });
+      },
+
+      replaceChildren: (children) => {
+        set({ children });
       },
 
       getChild: (id) => {

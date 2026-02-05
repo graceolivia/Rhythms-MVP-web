@@ -14,6 +14,7 @@ interface AwayState {
   updateAwayLog: (logId: string, updates: Partial<Pick<AwayLog, 'startedAt' | 'endedAt'>>) => void;
   deleteAwayLog: (logId: string) => void;
   clearAwayLogs: () => void;
+  replaceAwayLogs: (awayLogs: AwayLog[]) => void;
 
   // Query methods
   getAwayLogsForDate: (date: string) => AwayLog[];
@@ -78,6 +79,10 @@ export const useAwayStore = create<AwayState>()(
 
       clearAwayLogs: () => {
         set({ awayLogs: [] });
+      },
+
+      replaceAwayLogs: (awayLogs) => {
+        set({ awayLogs });
       },
 
       getAwayLogsForDate: (date) => {

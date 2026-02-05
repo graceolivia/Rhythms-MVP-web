@@ -89,6 +89,7 @@ interface TaskState {
   updateTask: (id: string, updates: Partial<TaskInput>) => void;
   deleteTask: (id: string) => void;
   clearTasks: () => void;
+  replaceTasks: (tasks: Task[], taskInstances: TaskInstance[]) => void;
   getTask: (id: string) => Task | undefined;
 
   // Task instance actions
@@ -195,6 +196,10 @@ export const useTaskStore = create<TaskState>()(
 
       clearTasks: () => {
         set({ tasks: [], taskInstances: [] });
+      },
+
+      replaceTasks: (tasks, taskInstances) => {
+        set({ tasks, taskInstances });
       },
 
       getTask: (id) => {

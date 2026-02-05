@@ -106,6 +106,7 @@ interface CareBlockState {
   updateBlock: (id: string, updates: Partial<Omit<CareBlock, 'id'>>) => void;
   removeBlock: (id: string) => void;
   clearBlocks: () => void;
+  replaceBlocks: (blocks: CareBlock[]) => void;
   getBlock: (id: string) => CareBlock | undefined;
 
   // Query methods
@@ -163,6 +164,10 @@ export const useCareBlockStore = create<CareBlockState>()(
 
       clearBlocks: () => {
         set({ blocks: [] });
+      },
+
+      replaceBlocks: (blocks) => {
+        set({ blocks });
       },
 
       getBlock: (id) => {

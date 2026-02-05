@@ -10,6 +10,7 @@ import { Challenges } from './screens/Challenges';
 import { Settings } from './screens/Settings';
 import { Onboarding } from './screens/Onboarding';
 import { BottomNav } from './components/common/BottomNav';
+import { AuthProvider } from './contexts/AuthContext';
 import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
 import { isFreshInstall, consumeSkipSeedDataOnce } from './utils/storageHelpers';
 import { useChildStore } from './stores/useChildStore';
@@ -82,15 +83,17 @@ function App() {
   };
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/onboarding" element={<Onboarding onComplete={handleOnboardingComplete} />} />
-        <Route
-          path="/*"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <AppContent />}
-        />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/onboarding" element={<Onboarding onComplete={handleOnboardingComplete} />} />
+          <Route
+            path="/*"
+            element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <AppContent />}
+          />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
