@@ -93,7 +93,7 @@ function DailyFlowerDots({ isNight }: { isNight: boolean }) {
   const mealLabels = ['breakfast', 'lunch', 'dinner'];
 
   return (
-    <div className="flex justify-center gap-1">
+    <div className="flex justify-center gap-1 w-16">
       {mealLabels.map((meal, i) => (
         <div
           key={meal}
