@@ -190,6 +190,48 @@ function EditableTask({
             </p>
           </div>
 
+          {/* Appears after (event trigger) */}
+          <div>
+            <label className="text-xs text-bark/50 block mb-1">Appears after</label>
+            <select
+              value={task.triggeredBy || 'null'}
+              onChange={(e) => {
+                const val = e.target.value === 'null' ? null : e.target.value;
+                onUpdate(task.id, { triggeredBy: val });
+              }}
+              className="bg-parchment rounded px-2 py-1 text-sm text-bark border border-bark/10 w-full"
+            >
+              <option value="null">Always visible</option>
+              <option value="nap-end">After any nap ends</option>
+              {children.map((child) => (
+                <option key={`nap-end-${child.id}`} value={`nap-end:${child.id}`}>
+                  After {child.name}'s nap ends
+                </option>
+              ))}
+              <option value="care-block-end">After pickup</option>
+              {children.map((child) => (
+                <option key={`care-end-${child.id}`} value={`care-block-end:${child.id}`}>
+                  After {child.name}'s pickup
+                </option>
+              ))}
+            </select>
+            {task.triggeredBy && (
+              <div className="mt-2">
+                <label className="text-xs text-bark/50 block mb-1">Delay (minutes after trigger)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={task.triggerDelayMinutes ?? ''}
+                  onChange={(e) => onUpdate(task.id, {
+                    triggerDelayMinutes: e.target.value ? parseInt(e.target.value, 10) : null
+                  })}
+                  placeholder="0"
+                  className="bg-parchment rounded px-2 py-1 text-sm text-bark border border-bark/10 w-20"
+                />
+              </div>
+            )}
+          </div>
+
           {/* Child linking */}
           {children.length > 0 && (
             <>

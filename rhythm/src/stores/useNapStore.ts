@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import type { NapSchedule, NapLog, SleepType, ChildTaskType } from '../types';
 import { useTaskStore } from './useTaskStore';
+import { useEventStore } from './useEventStore';
 
 interface NapState {
   napSchedules: NapSchedule[];
@@ -128,6 +129,10 @@ export const useNapStore = create<NapState>()(
           autoCompleteChildTask(childId, 'bedtime');
         }
 
+        // Emit events
+        useEventStore.getState().emitEvent('nap-start');
+        useEventStore.getState().emitEvent(`nap-start:${childId}`);
+
         return id;
       },
 
@@ -155,6 +160,10 @@ export const useNapStore = create<NapState>()(
         if (wasNightSleep) {
           autoCompleteChildTask(childId, 'wake-up');
         }
+
+        // Emit events
+        useEventStore.getState().emitEvent('nap-end');
+        useEventStore.getState().emitEvent(`nap-end:${childId}`);
       },
 
       updateNapLog: (logId, updates) => {

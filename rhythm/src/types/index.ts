@@ -92,6 +92,24 @@ export interface CareBlock {
   isActive: boolean;
 }
 
+// Transitions
+
+export type TransitionType = 'care-block-start' | 'care-block-end' | 'nap-start' | 'nap-end';
+
+export interface PendingTransition {
+  id: string;
+  type: TransitionType;
+  childId: string;
+  scheduledTime: string;        // HH:mm
+  scheduledDate: string;        // YYYY-MM-DD
+  blockId?: string;             // CareBlock ID
+  napScheduleId?: string;       // NapSchedule ID
+  description: string;          // "Julian home from daycare?"
+  autoConfirmAfterMs: number;   // Default 30 min (1800000)
+  createdAt: string;
+  status: 'pending' | 'confirmed' | 'dismissed' | 'auto-confirmed';
+}
+
 // Tasks
 
 export type TaskTier = 'anchor' | 'rhythm' | 'tending';
@@ -166,6 +184,10 @@ interface BaseTask {
 
   // Informational tasks are shown as time markers, not completable
   isInformational?: boolean;
+
+  // Event-triggered sequencing: task only appears when trigger fires
+  triggeredBy?: string | null;          // 'nap-end', 'nap-end:CHILD_ID', 'task-complete:TASK_ID'
+  triggerDelayMinutes?: number | null;  // Optional delay after trigger
 }
 
 export interface StandardTask extends BaseTask {

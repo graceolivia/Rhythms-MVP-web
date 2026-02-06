@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { format, getDay, subDays, differenceInDays, parseISO } from 'date-fns';
 import type { Task, TaskInput, TaskInstance, TaskStatus, CareStatus, ChildTaskType, ChildcareSchedule, AvailabilityState } from '../types';
 import { useChildStore } from './useChildStore';
+import { useEventStore } from './useEventStore';
 
 /**
  * Check if a task is suggested for the current availability state.
@@ -234,6 +235,11 @@ export const useTaskStore = create<TaskState>()(
           if (newStatus) {
             useChildStore.getState().updateCareStatus(task.childId, newStatus);
           }
+        }
+
+        // Emit task-complete event
+        if (task) {
+          useEventStore.getState().emitEvent(`task-complete:${task.id}`);
         }
       },
 
@@ -555,7 +561,7 @@ export const useTaskStore = create<TaskState>()(
     }),
     {
       name: 'rhythm_tasks',
-      version: 3,
+      version: 4,
       migrate: (persisted: unknown, version: number) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let state = persisted as any;
@@ -591,6 +597,18 @@ export const useTaskStore = create<TaskState>()(
               }
               return task;
             }),
+          };
+        }
+
+        if (version < 4) {
+          // Add triggeredBy and triggerDelayMinutes to existing tasks
+          state = {
+            ...state,
+            tasks: (state.tasks as any[]).map((task: any) => ({
+              ...task,
+              triggeredBy: task.triggeredBy ?? null,
+              triggerDelayMinutes: task.triggerDelayMinutes ?? null,
+            })),
           };
         }
 

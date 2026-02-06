@@ -20,6 +20,7 @@ interface AwayState {
   getAwayLogsForDate: (date: string) => AwayLog[];
   getActiveAwayForChild: (childId: string) => AwayLog | undefined;
   isChildAway: (childId: string) => boolean;
+  isChildAwayForSchedule: (childId: string, scheduleName: string) => boolean;
   getLogsForTimelineDate: (date: string) => AwayLog[];
 }
 
@@ -98,6 +99,12 @@ export const useAwayStore = create<AwayState>()(
       isChildAway: (childId) => {
         return get().awayLogs.some(
           (log) => log.childId === childId && log.endedAt === null
+        );
+      },
+
+      isChildAwayForSchedule: (childId, scheduleName) => {
+        return get().awayLogs.some(
+          (log) => log.childId === childId && log.endedAt === null && log.scheduleName === scheduleName
         );
       },
 
