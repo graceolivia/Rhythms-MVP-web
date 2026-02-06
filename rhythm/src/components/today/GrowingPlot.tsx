@@ -29,7 +29,6 @@ function DailyFlowerSlot({ isNight }: { isNight: boolean }) {
   const [justBloomed, setJustBloomed] = useState(false);
   const prevStageRef = useRef(stage);
 
-  // Detect stage change for grow animation
   const [animating, setAnimating] = useState(false);
   useEffect(() => {
     if (stage > prevStageRef.current) {
@@ -41,7 +40,6 @@ function DailyFlowerSlot({ isNight }: { isNight: boolean }) {
     prevStageRef.current = stage;
   }, [stage]);
 
-  // Auto-earn flower when all 3 meals done
   useEffect(() => {
     if (isBloomed && !alreadyEarned) {
       earnFlower('daily-daisy');
@@ -52,44 +50,25 @@ function DailyFlowerSlot({ isNight }: { isNight: boolean }) {
   }, [isBloomed, alreadyEarned, earnFlower]);
 
   const sprite = DAILY_FLOWER_SPRITES[stage];
-  const mealLabels = ['breakfast', 'lunch', 'dinner'];
 
   return (
     <div className="relative flex flex-col items-center">
       <button
         onClick={() => setShowTooltip(!showTooltip)}
-        className={`flex flex-col items-center justify-end w-20 h-14 rounded-lg transition-colors ${
-          isNight ? 'hover:bg-white/10' : 'hover:bg-bark/5'
-        }`}
+        className="flex items-end justify-center w-16"
       >
         <img
           src={sprite}
           alt="Daily flower"
-          className={`w-8 h-8 image-rendering-pixelated ${
+          className={`w-8 h-8 block ${
             justBloomed ? 'animate-bloom-burst' :
             animating ? 'animate-sprout-grow' :
             stage > 0 ? 'animate-gentle-sway' : ''
           }`}
           style={{ imageRendering: 'pixelated' }}
         />
-        <div className="w-12 mt-0.5">
-          {/* 3 dots for 3 meals */}
-          <div className="flex justify-center gap-1">
-            {mealLabels.map((meal, i) => (
-              <div
-                key={meal}
-                className={`w-1.5 h-1.5 rounded-full ${
-                  i < mealsCompleted
-                    ? 'bg-sage'
-                    : isNight ? 'bg-white/20' : 'bg-bark/15'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
       </button>
 
-      {/* Tooltip */}
       {showTooltip && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowTooltip(false)} />
@@ -104,6 +83,27 @@ function DailyFlowerSlot({ isNight }: { isNight: boolean }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** Progress dots rendered inside the dirt for the daily flower */
+function DailyFlowerDots({ isNight }: { isNight: boolean }) {
+  const { mealsCompleted } = useDailyFlower();
+  const mealLabels = ['breakfast', 'lunch', 'dinner'];
+
+  return (
+    <div className="flex justify-center gap-1">
+      {mealLabels.map((meal, i) => (
+        <div
+          key={meal}
+          className={`w-1.5 h-1.5 rounded-full ${
+            i < mealsCompleted
+              ? 'bg-sage'
+              : isNight ? 'bg-cream/20' : 'bg-cream/30'
+          }`}
+        />
+      ))}
     </div>
   );
 }
@@ -128,13 +128,10 @@ function PlotSlot({
     return (
       <button
         onClick={() => navigate('/challenges')}
-        className={`flex flex-col items-center justify-end w-20 h-14 rounded-lg transition-colors ${
-          isNight ? 'hover:bg-white/10' : 'hover:bg-bark/5'
-        }`}
+        className="flex items-end justify-center w-16"
         aria-label="Plant a challenge seed"
       >
-        <span className={`text-xl mb-1 ${isNight ? 'opacity-40' : 'opacity-30'}`}>+</span>
-        <div className={`w-12 h-1.5 rounded-full ${isNight ? 'bg-bark/30' : 'bg-bark/15'}`} />
+        <span className={`text-sm ${isNight ? 'text-white/25' : 'text-bark/20'}`}>+</span>
       </button>
     );
   }
@@ -147,9 +144,7 @@ function PlotSlot({
     <div className="relative flex flex-col items-center">
       <button
         onClick={() => setShowTooltip(!showTooltip)}
-        className={`flex flex-col items-center justify-end w-20 h-14 rounded-lg transition-colors ${
-          isNight ? 'hover:bg-white/10' : 'hover:bg-bark/5'
-        }`}
+        className="flex items-end justify-center w-16"
       >
         <GrowthSprite
           stage={challenge.growthStage}
@@ -157,24 +152,8 @@ function PlotSlot({
           size="md"
           animate={animate}
         />
-        <div className="w-12 mt-0.5">
-          {/* Mini progress dots */}
-          <div className="flex justify-center gap-0.5">
-            {Array.from({ length: Math.min(template?.targetCount ?? 7, 10) }).map((_, i) => (
-              <div
-                key={i}
-                className={`w-1 h-1 rounded-full ${
-                  i < challenge.totalProgress
-                    ? 'bg-sage'
-                    : isNight ? 'bg-white/20' : 'bg-bark/15'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
       </button>
 
-      {/* Tooltip */}
       {showTooltip && template && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowTooltip(false)} />
@@ -193,6 +172,35 @@ function PlotSlot({
   );
 }
 
+/** Progress dots rendered inside the dirt for a challenge */
+function ChallengeDots({
+  challenge,
+  isNight,
+}: {
+  challenge: ActiveChallenge | undefined;
+  isNight: boolean;
+}) {
+  if (!challenge) return <div className="w-16" />;
+
+  const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
+  if (!template) return <div className="w-16" />;
+
+  return (
+    <div className="flex justify-center gap-0.5 w-16">
+      {Array.from({ length: Math.min(template.targetCount, 10) }).map((_, i) => (
+        <div
+          key={i}
+          className={`w-1 h-1 rounded-full ${
+            i < challenge.totalProgress
+              ? 'bg-sage'
+              : isNight ? 'bg-cream/20' : 'bg-cream/30'
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ===========================================
 // Main Growing Plot (4 slots)
 // ===========================================
@@ -204,18 +212,10 @@ export function GrowingPlot({ isNight, justBloomedId }: GrowingPlotProps) {
   const getByPlot = (index: number) => growing.find(c => c.plotIndex === index);
 
   return (
-    <div className="relative mt-auto pt-2">
-      {/* Grass border */}
-      <div className={`h-1 rounded-full mx-2 ${isNight ? 'bg-fern/40' : 'bg-sage/40'}`} />
-
-      {/* Planting spots: daily flower + 3 challenge slots */}
-      <div className={`flex justify-around items-end px-2 py-1 ${
-        isNight ? 'bg-fern/10' : 'bg-sage/10'
-      } rounded-b-lg`}>
-        {/* Slot 0: Daily flower (auto-planted) */}
+    <div className="relative mt-auto">
+      {/* Plants — flush against the dirt below */}
+      <div className="flex justify-around items-end px-4">
         <DailyFlowerSlot isNight={isNight} />
-
-        {/* Slots 1-3: Challenge plots */}
         {[0, 1, 2].map((plotIndex) => (
           <PlotSlot
             key={plotIndex}
@@ -226,8 +226,35 @@ export function GrowingPlot({ isNight, justBloomedId }: GrowingPlotProps) {
         ))}
       </div>
 
-      {/* Soil strip */}
-      <div className={`h-1.5 rounded-full mx-2 ${isNight ? 'bg-bark/40' : 'bg-bark/20'}`} />
+      {/* Dirt strip — plants grow right out of this */}
+      <div
+        className="-mx-4 relative"
+        style={{
+          height: '14px',
+          background: isNight
+            ? 'linear-gradient(180deg, #3d2e1a 0%, #2a1f10 100%)'
+            : 'linear-gradient(180deg, #8B6914 0%, #6B4F12 40%, #5D4E37 100%)',
+        }}
+      >
+        {/* Progress dots — centered under each plant */}
+        <div className="flex justify-around items-center px-8 pt-1">
+          <DailyFlowerDots isNight={isNight} />
+          {[0, 1, 2].map((plotIndex) => (
+            <ChallengeDots
+              key={plotIndex}
+              challenge={getByPlot(plotIndex)}
+              isNight={isNight}
+            />
+          ))}
+        </div>
+
+        {/* Texture specks */}
+        <div className={`absolute w-1 h-1 rounded-full ${isNight ? 'bg-white/5' : 'bg-cream/8'}`} style={{ left: '8%', top: '8px' }} />
+        <div className={`absolute w-1.5 h-1 rounded-full ${isNight ? 'bg-white/5' : 'bg-cream/8'}`} style={{ left: '22%', top: '10px' }} />
+        <div className={`absolute w-1 h-1 rounded-full ${isNight ? 'bg-white/5' : 'bg-cream/8'}`} style={{ left: '50%', top: '9px' }} />
+        <div className={`absolute w-1 h-1 rounded-full ${isNight ? 'bg-white/5' : 'bg-cream/8'}`} style={{ left: '72%', top: '11px' }} />
+        <div className={`absolute w-1.5 h-1 rounded-full ${isNight ? 'bg-white/5' : 'bg-cream/8'}`} style={{ left: '88%', top: '8px' }} />
+      </div>
     </div>
   );
 }
