@@ -45,7 +45,7 @@ export function YourWindow({
 }: YourWindowProps) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const { isTaskSuggested } = useAvailability();
-  const { rhythmsCompleted, rhythmsTotal, completionPercentage, isGoodEnough } = useGoodEnoughDay();
+  const { isGoodEnough } = useGoodEnoughDay();
 
   // Split into suggested (matching current availability) and other
   const { suggestedItems, otherItems } = useMemo(() => {
@@ -83,29 +83,10 @@ export function YourWindow({
         </div>
         <p className="text-xs text-bark/50">{availabilityDescription}</p>
 
-        {/* Progress bar */}
-        {rhythmsTotal > 0 && (
-          <div className="mt-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-bark/50">Good Enough Day</span>
-              <span className="text-xs text-bark/40">
-                {rhythmsCompleted}/{rhythmsTotal}
-              </span>
-            </div>
-            <div className="h-1.5 bg-parchment rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  isGoodEnough ? 'bg-sage' : 'bg-terracotta/60'
-                }`}
-                style={{ width: `${completionPercentage}%` }}
-              />
-            </div>
-            {isGoodEnough && (
-              <p className="text-xs text-sage mt-1 flex items-center gap-1">
-                <span>✓</span> You've done enough today
-              </p>
-            )}
-          </div>
+        {isGoodEnough && (
+          <p className="text-xs text-sage mt-2 flex items-center gap-1">
+            <span>✓</span> You've done enough today
+          </p>
         )}
       </div>
 

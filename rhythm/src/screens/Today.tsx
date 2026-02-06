@@ -20,6 +20,8 @@ import { DayTimeline } from '../components/today/DayTimeline';
 import { YourWindow } from '../components/today/YourWindow';
 import { ComingUp } from '../components/today/ComingUp';
 import { TaskCard } from '../components/today/TaskCard';
+import { GrowingPlot } from '../components/today/GrowingPlot';
+import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import type { Task, TaskInstance, TaskTier, NapContext, CareContext } from '../types';
 
 // ────────────────────────────────────────────────
@@ -85,7 +87,7 @@ function getSkyGradient(dayProgress: number): string {
   return 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)';
 }
 
-function SkyHeader() {
+function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
   const { sunrise, sunset } = useSunTimes();
   const [now, setNow] = useState(() => new Date());
 
@@ -143,8 +145,8 @@ function SkyHeader() {
 
   return (
     <header
-      className="-mx-4 -mt-4 px-4 pt-6 pb-4 mb-4 relative overflow-hidden flex flex-col"
-      style={{ background: skyGradient, minHeight: '148px' }}
+      className="-mx-4 -mt-4 px-4 pt-6 pb-0 mb-4 relative overflow-hidden flex flex-col"
+      style={{ background: skyGradient, minHeight: '200px' }}
     >
       {sunPosition.visible && (
         <img src={sunPng} alt="" className="absolute w-10 h-10 pointer-events-none select-none"
@@ -176,10 +178,15 @@ function SkyHeader() {
           </svg>
         </Link>
       </div>
-      {/* Date at bottom of header, below the sun/moon arc */}
+      {/* Date below the sun/moon arc */}
       <div className="relative z-10 mt-auto">
         <p className={`text-sm ${isNight ? 'text-white/70' : 'text-bark/60'}`}>{format(now, 'EEEE')}</p>
         <h1 className={`font-display text-3xl ${isNight ? 'text-white' : 'text-bark'}`}>{format(now, 'MMMM d')}</h1>
+      </div>
+
+      {/* Growing plot at bottom of header */}
+      <div className="relative z-10">
+        <GrowingPlot isNight={isNight} justBloomedId={justBloomedId} />
       </div>
     </header>
   );
@@ -342,6 +349,7 @@ export function Today() {
   const hasEventFired = useEventStore((state) => state.hasEventFired);
   const getEventTimestamp = useEventStore((state) => state.getEventTimestamp);
   const napPredictions = useNapPrediction();
+  const { justBloomedId, bloomToast } = useChallengeProgress();
 
   // Check for transitions on mount + every 5 min
   useTransitionCheck();
@@ -428,7 +436,7 @@ export function Today() {
   return (
     <div className="min-h-screen bg-parchment/30">
       <div className="max-w-lg mx-auto p-4">
-        <SkyHeader />
+        <SkyHeader justBloomedId={justBloomedId} />
 
         {/* Transition prompts (Phase 2) */}
         <TransitionPrompts napContext={Object.fromEntries(
@@ -508,6 +516,18 @@ export function Today() {
       </div>
 
       <GoodEnoughModal />
+
+      {/* Bloom toast */}
+      {bloomToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
+          <div className="bg-cream border border-sage/30 rounded-xl px-4 py-3 shadow-lg text-center">
+            <p className="text-sm font-medium text-bark">
+              Your {bloomToast} bloomed! 🌺
+            </p>
+            <p className="text-xs text-bark/50 mt-0.5">Check your garden</p>
+          </div>
+        </div>
+      )}
 
       {/* Floating Add Button */}
       <div className="fixed bottom-20 left-0 right-0 flex justify-center z-40 pointer-events-none">

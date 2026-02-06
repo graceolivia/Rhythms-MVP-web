@@ -214,6 +214,35 @@ export interface TaskInstance {
   deferredTo: string | null; // for Seeds queue
 }
 
+// Challenges
+
+export type ChallengeType = 'streak' | 'cumulative';
+export type GrowthStage = 'seed' | 'sprout' | 'budding' | 'bloom';
+
+export interface ChallengeTemplate {
+  id: string;
+  title: string;
+  description: string;
+  type: ChallengeType;
+  targetCount: number;
+  flowerReward: FlowerType;
+  category: TaskCategory;
+  difficulty: 'gentle' | 'steady' | 'ambitious';
+}
+
+export interface ActiveChallenge {
+  id: string;
+  templateId: string;
+  startedDate: string;
+  currentStreak: number;
+  totalProgress: number;
+  lastProgressDate: string | null;
+  growthStage: GrowthStage;
+  plotIndex: number;
+  status: 'growing' | 'bloomed' | 'wilted' | 'abandoned';
+  bloomedDate: string | null;
+}
+
 // Garden
 
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
