@@ -143,7 +143,7 @@ function SkyHeader() {
 
   return (
     <header
-      className="-mx-4 -mt-4 px-4 pt-6 pb-4 mb-4 relative overflow-hidden"
+      className="-mx-4 -mt-4 px-4 pt-6 pb-4 mb-4 relative overflow-hidden flex flex-col"
       style={{ background: skyGradient, minHeight: '148px' }}
     >
       {sunPosition.visible && (
@@ -164,22 +164,22 @@ function SkyHeader() {
           <div className="absolute w-1 h-1 bg-white/40 rounded-full" style={{ left: '25%', top: '65px' }} />
         </>
       )}
+      {/* Top bar: icons only */}
       <div className="relative z-10 flex justify-between items-start">
-        <div>
-          <p className={`text-sm ${isNight ? 'text-white/70' : 'text-bark/60'}`}>{format(now, 'EEEE')}</p>
-          <h1 className={`font-display text-3xl ${isNight ? 'text-white' : 'text-bark'}`}>{format(now, 'MMMM d')}</h1>
+        <div className={`text-right text-sm ${isNight ? 'text-white/60' : 'text-bark/50'}`}>
+          <p>☀️ {format(sunrise, 'h:mm a')}</p>
+          <p>🌙 {format(sunset, 'h:mm a')}</p>
         </div>
-        <div className="flex items-start gap-3">
-          <Link to="/timeline" className={`p-2 rounded-lg transition-colors ${isNight ? 'bg-white/10 hover:bg-white/20 text-white/80' : 'bg-bark/5 hover:bg-bark/10 text-bark/60'}`} title="View Timeline">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </Link>
-          <div className={`text-right text-sm ${isNight ? 'text-white/60' : 'text-bark/50'}`}>
-            <p>☀️ {format(sunrise, 'h:mm a')}</p>
-            <p>🌙 {format(sunset, 'h:mm a')}</p>
-          </div>
-        </div>
+        <Link to="/timeline" className={`p-2 rounded-lg transition-colors ${isNight ? 'bg-white/10 hover:bg-white/20 text-white/80' : 'bg-bark/5 hover:bg-bark/10 text-bark/60'}`} title="View Timeline">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </Link>
+      </div>
+      {/* Date at bottom of header, below the sun/moon arc */}
+      <div className="relative z-10 mt-auto">
+        <p className={`text-sm ${isNight ? 'text-white/70' : 'text-bark/60'}`}>{format(now, 'EEEE')}</p>
+        <h1 className={`font-display text-3xl ${isNight ? 'text-white' : 'text-bark'}`}>{format(now, 'MMMM d')}</h1>
       </div>
     </header>
   );
