@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTaskStore, getTaskDisplayTitle } from '../../stores/useTaskStore';
 import { useChildStore } from '../../stores/useChildStore';
+import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
+import { GrowthSprite } from '../garden/GrowthSprite';
 import type { Task, TaskInstance, TaskTier } from '../../types';
 
 const TIER_CONFIG: Record<TaskTier, { label: string; color: string; bg: string }> = {
@@ -26,12 +28,24 @@ export function TaskCard({
 }) {
   const updateMealPlan = useTaskStore((state) => state.updateMealPlan);
   const getChild = useChildStore((state) => state.getChild);
+  const activeChallenges = useChallengeStore((s) => s.activeChallenges);
   const config = TIER_CONFIG[task.tier];
   const isCompleted = instance.status === 'completed';
   const isMeal = task.type === 'meal';
   const savedMeal = isMeal ? (task.plannedMeals?.[today] ?? '') : '';
   const [mealInput, setMealInput] = useState(savedMeal);
   const displayTitle = getTaskDisplayTitle(task, getChild);
+
+  // Check if this task was seeded by an active challenge
+  const challengeInfo = useMemo(() => {
+    const challenge = activeChallenges.find(
+      (c) => c.seededTaskIds?.includes(task.id) && (c.status === 'growing' || c.status === 'bloomed')
+    );
+    if (!challenge) return null;
+    const template = CHALLENGE_TEMPLATES.find((t) => t.id === challenge.templateId);
+    if (!template) return null;
+    return { challenge, template };
+  }, [activeChallenges, task.id]);
 
   const handleMealBlur = () => {
     if (isMeal && mealInput !== savedMeal) {
@@ -72,6 +86,18 @@ export function TaskCard({
             <span className={`text-xs px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
               {config.label}
             </span>
+            {challengeInfo && (
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-terracotta/10 text-terracotta/80">
+                <GrowthSprite
+                  stage={challengeInfo.challenge.growthStage}
+                  flowerType={challengeInfo.template.flowerReward}
+                  sprites={challengeInfo.template.sprites}
+                  size="sm"
+                  animate="none"
+                />
+                <span className="truncate max-w-[80px]">{challengeInfo.template.title}</span>
+              </span>
+            )}
             {suggested && !isCompleted && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-sage/15 text-sage font-medium">
                 Suggested Now

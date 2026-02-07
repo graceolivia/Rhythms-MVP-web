@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
 import { useGardenStore } from '../../stores/useGardenStore';
@@ -22,10 +22,10 @@ interface GrowingPlotProps {
 // Daily Flower Slot (leftmost, auto-planted)
 // ===========================================
 
-function DailyFlowerSlot({ isNight }: { isNight: boolean }) {
-  const { stage, mealsCompleted, isBloomed, alreadyEarned } = useDailyFlower();
+function DailyFlowerSlot() {
+  const { stage, isBloomed, alreadyEarned } = useDailyFlower();
   const earnFlower = useGardenStore(s => s.earnFlower);
-  const [showTooltip, setShowTooltip] = useState(false);
+  const navigate = useNavigate();
   const [justBloomed, setJustBloomed] = useState(false);
   const prevStageRef = useRef(stage);
 
@@ -54,7 +54,7 @@ function DailyFlowerSlot({ isNight }: { isNight: boolean }) {
   return (
     <div className="relative flex flex-col items-center">
       <button
-        onClick={() => setShowTooltip(!showTooltip)}
+        onClick={() => navigate('/challenges')}
         className="flex items-end justify-center w-16"
       >
         <img
@@ -68,21 +68,6 @@ function DailyFlowerSlot({ isNight }: { isNight: boolean }) {
           style={{ imageRendering: 'pixelated' }}
         />
       </button>
-
-      {showTooltip && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setShowTooltip(false)} />
-          <div className={`absolute bottom-full mb-2 z-50 px-3 py-2 rounded-lg shadow-lg whitespace-nowrap text-xs ${
-            isNight ? 'bg-bark text-cream' : 'bg-cream text-bark border border-bark/10'
-          }`}>
-            <p className="font-medium">Daily Flower</p>
-            <p className={isNight ? 'text-cream/60' : 'text-bark/50'}>
-              {mealsCompleted}/3 meals
-              {isBloomed && ' — bloomed!'}
-            </p>
-          </div>
-        </>
-      )}
     </div>
   );
 }
@@ -121,7 +106,6 @@ function PlotSlot({
   isNight: boolean;
   justBloomedId?: string | null;
 }) {
-  const [showTooltip, setShowTooltip] = useState(false);
   const navigate = useNavigate();
 
   if (!challenge) {
@@ -143,31 +127,17 @@ function PlotSlot({
   return (
     <div className="relative flex flex-col items-center">
       <button
-        onClick={() => setShowTooltip(!showTooltip)}
+        onClick={() => navigate('/challenges')}
         className="flex items-end justify-center w-16"
       >
         <GrowthSprite
           stage={challenge.growthStage}
           flowerType={template?.flowerReward}
+          sprites={template?.sprites}
           size="md"
           animate={animate}
         />
       </button>
-
-      {showTooltip && template && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setShowTooltip(false)} />
-          <div className={`absolute bottom-full mb-2 z-50 px-3 py-2 rounded-lg shadow-lg whitespace-nowrap text-xs ${
-            isNight ? 'bg-bark text-cream' : 'bg-cream text-bark border border-bark/10'
-          }`}>
-            <p className="font-medium">{template.title}</p>
-            <p className={isNight ? 'text-cream/60' : 'text-bark/50'}>
-              {challenge.totalProgress}/{template.targetCount}
-              {template.type === 'streak' ? ' days' : ' done'}
-            </p>
-          </div>
-        </>
-      )}
     </div>
   );
 }
@@ -209,14 +179,17 @@ export function GrowingPlot({ isNight, justBloomedId }: GrowingPlotProps) {
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const growing = activeChallenges.filter(c => c.status === 'growing' || c.status === 'bloomed');
 
-  const getByPlot = (index: number) => growing.find(c => c.plotIndex === index);
+  // Prefer 'growing' over 'bloomed' when both share the same plot index
+  const getByPlot = (index: number) =>
+    growing.find(c => c.plotIndex === index && c.status === 'growing')
+    ?? growing.find(c => c.plotIndex === index);
 
   return (
     <div className="relative mt-auto">
       {/* Plants — flush against the dirt below */}
       <div className="flex justify-around items-end px-4">
-        <DailyFlowerSlot isNight={isNight} />
-        {[0, 1, 2].map((plotIndex) => (
+        <DailyFlowerSlot />
+        {[0, 1, 2, 3].map((plotIndex) => (
           <PlotSlot
             key={plotIndex}
             challenge={getByPlot(plotIndex)}
@@ -239,7 +212,7 @@ export function GrowingPlot({ isNight, justBloomedId }: GrowingPlotProps) {
         {/* Progress dots — centered under each plant */}
         <div className="flex justify-around items-center px-8 pt-1">
           <DailyFlowerDots isNight={isNight} />
-          {[0, 1, 2].map((plotIndex) => (
+          {[0, 1, 2, 3].map((plotIndex) => (
             <ChallengeDots
               key={plotIndex}
               challenge={getByPlot(plotIndex)}

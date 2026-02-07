@@ -3,7 +3,15 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { useGardenStore } from './useGardenStore';
+import { useTaskStore } from './useTaskStore';
 import type { ChallengeTemplate, ActiveChallenge, GrowthStage } from '../types';
+
+// Laundry challenge pixel art
+import laundry084 from '../assets/flowers/084.png';
+import laundry081 from '../assets/flowers/081.png';
+import laundry083 from '../assets/flowers/083.png';
+import laundry082 from '../assets/flowers/082.png';
+
 
 // ===========================================
 // CURATED CHALLENGE TEMPLATES
@@ -19,6 +27,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'self-care-sunflower',
     category: 'self-care',
     difficulty: 'gentle',
+    seedTasks: [{ title: 'Drink water before coffee' }],
   },
   {
     id: 'morning-stretch',
@@ -29,6 +38,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'self-care-sunflower',
     category: 'self-care',
     difficulty: 'gentle',
+    seedTasks: [{ title: '5-min morning stretch' }],
   },
   {
     id: 'phone-free-hour',
@@ -39,6 +49,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'golden-hour-lily',
     category: 'self-care',
     difficulty: 'steady',
+    seedTasks: [{ title: 'Phone-free first hour' }],
   },
   {
     id: 'clear-sink',
@@ -49,6 +60,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'daily-daisy',
     category: 'kitchen',
     difficulty: 'gentle',
+    seedTasks: [{ title: 'Clear sink before bed' }],
   },
   {
     id: 'meal-prep',
@@ -59,6 +71,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'rhythm-rose',
     category: 'kitchen',
     difficulty: 'steady',
+    seedTasks: [{ title: 'Meal prep one thing' }],
   },
   {
     id: 'tidy-one-room',
@@ -69,6 +82,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'rhythm-rose',
     category: 'tidying',
     difficulty: 'steady',
+    seedTasks: [{ title: 'Tidy one room (10 min)' }],
   },
   {
     id: 'ten-self-care',
@@ -79,16 +93,24 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'challenge-bloom',
     category: 'self-care',
     difficulty: 'ambitious',
+    seedTasks: [{ title: 'Self-care moment' }],
   },
   {
     id: 'laundry-cycle',
     title: 'Laundry Complete Cycle',
-    description: 'Wash, dry, fold, AND put away. Five complete cycles earns your bloom.',
+    description: 'One full cycle from start to finish: put a load in, dry it, take it out, fold and put away. Watch your flower grow with each step.',
     type: 'cumulative',
-    targetCount: 5,
+    targetCount: 4,
     flowerReward: 'daily-daisy',
     category: 'laundry',
     difficulty: 'gentle',
+    sprites: [laundry084, laundry081, laundry083, laundry082],
+    seedTasks: [
+      { title: 'Put laundry in' },
+      { title: 'Move to dryer', sequential: true },
+      { title: 'Take laundry out', sequential: true },
+      { title: 'Fold and put away', sequential: true },
+    ],
   },
   {
     id: 'screen-free-bedtime',
@@ -99,6 +121,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'golden-hour-lily',
     category: 'self-care',
     difficulty: 'steady',
+    seedTasks: [{ title: 'Screen-free 30 min before bed' }],
   },
   {
     id: 'daily-outside',
@@ -109,6 +132,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'self-care-sunflower',
     category: 'kids',
     difficulty: 'gentle',
+    seedTasks: [{ title: 'Outside time with kids' }],
   },
 ];
 
@@ -151,8 +175,8 @@ export const useChallengeStore = create<ChallengeState>()(
         const template = CHALLENGE_TEMPLATES.find(t => t.id === templateId);
         if (!template) return null;
 
-        // Check plot isn't already taken
-        if (state.activeChallenges.some(c => c.plotIndex === plotIndex && c.status === 'growing')) {
+        // Check plot isn't already taken (growing or bloomed)
+        if (state.activeChallenges.some(c => c.plotIndex === plotIndex && (c.status === 'growing' || c.status === 'bloomed'))) {
           return null;
         }
 
@@ -163,6 +187,36 @@ export const useChallengeStore = create<ChallengeState>()(
 
         const id = uuidv4();
         const today = format(new Date(), 'yyyy-MM-dd');
+
+        // Seed tasks if the template defines them
+        const seededTaskIds: string[] = [];
+        if (template.seedTasks && template.seedTasks.length > 0) {
+          const taskStore = useTaskStore.getState();
+          let prevTaskId: string | null = null;
+
+          for (const seedTask of template.seedTasks) {
+            const isRecurring = template.type === 'streak';
+            const taskId = taskStore.addTask({
+              type: 'standard',
+              title: seedTask.title,
+              tier: 'tending',
+              scheduledTime: null,
+              recurrence: isRecurring ? 'daily' : 'daily',
+              napContext: null,
+              isActive: true,
+              category: template.category,
+              // Sequential tasks chain off the previous task
+              triggeredBy: seedTask.sequential && prevTaskId
+                ? `task-complete:${prevTaskId}`
+                : null,
+            });
+            seededTaskIds.push(taskId);
+            prevTaskId = taskId;
+          }
+
+          // Generate instances for the new tasks
+          taskStore.generateDailyInstances(new Date());
+        }
 
         const challenge: ActiveChallenge = {
           id,
@@ -175,6 +229,7 @@ export const useChallengeStore = create<ChallengeState>()(
           plotIndex,
           status: 'growing',
           bloomedDate: null,
+          seededTaskIds,
         };
 
         set((s) => ({
@@ -207,6 +262,14 @@ export const useChallengeStore = create<ChallengeState>()(
         if (isBlooming) {
           // Earn the flower
           useGardenStore.getState().earnFlower(template.flowerReward, challengeId);
+
+          // Deactivate seeded tasks
+          if (challenge.seededTaskIds?.length) {
+            const taskStore = useTaskStore.getState();
+            for (const taskId of challenge.seededTaskIds) {
+              taskStore.updateTask(taskId, { isActive: false });
+            }
+          }
         }
 
         set((s) => ({
@@ -232,6 +295,16 @@ export const useChallengeStore = create<ChallengeState>()(
       },
 
       abandonChallenge: (challengeId) => {
+        const challenge = get().activeChallenges.find(c => c.id === challengeId);
+
+        // Deactivate seeded tasks
+        if (challenge?.seededTaskIds?.length) {
+          const taskStore = useTaskStore.getState();
+          for (const taskId of challenge.seededTaskIds) {
+            taskStore.updateTask(taskId, { isActive: false });
+          }
+        }
+
         set((s) => ({
           activeChallenges: s.activeChallenges.map(c =>
             c.id === challengeId ? { ...c, status: 'abandoned' } : c

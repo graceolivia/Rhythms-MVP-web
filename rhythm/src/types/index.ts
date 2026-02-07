@@ -219,6 +219,12 @@ export interface TaskInstance {
 export type ChallengeType = 'streak' | 'cumulative';
 export type GrowthStage = 'seed' | 'sprout' | 'budding' | 'bloom';
 
+export interface ChallengeSeedTask {
+  title: string;
+  /** If true, this task chains off the previous one via triggeredBy */
+  sequential?: boolean;
+}
+
 export interface ChallengeTemplate {
   id: string;
   title: string;
@@ -228,6 +234,10 @@ export interface ChallengeTemplate {
   flowerReward: FlowerType;
   category: TaskCategory;
   difficulty: 'gentle' | 'steady' | 'ambitious';
+  /** Optional pixel art sprites per growth stage (seed, sprout, budding, bloom) */
+  sprites?: [string, string, string, string];
+  /** Tasks seeded when the challenge is planted */
+  seedTasks?: ChallengeSeedTask[];
 }
 
 export interface ActiveChallenge {
@@ -241,6 +251,8 @@ export interface ActiveChallenge {
   plotIndex: number;
   status: 'growing' | 'bloomed' | 'wilted' | 'abandoned';
   bloomedDate: string | null;
+  /** IDs of tasks seeded when this challenge was planted */
+  seededTaskIds?: string[];
 }
 
 // Garden

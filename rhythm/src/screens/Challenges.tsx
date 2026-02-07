@@ -84,7 +84,7 @@ function ChallengeDetailModal({
         {alreadyActive ? (
           <p className="text-center text-sm text-bark/50">This challenge is already growing</p>
         ) : noSlotsAvailable ? (
-          <p className="text-center text-sm text-bark/50">All 3 plots are full — complete or abandon a challenge first</p>
+          <p className="text-center text-sm text-bark/50">All 4 plots are full — complete or abandon a challenge first</p>
         ) : (
           <button
             onClick={onPlant}
@@ -117,6 +117,7 @@ function ActiveChallengeCard({ challenge }: { challenge: ActiveChallenge }) {
         <GrowthSprite
           stage={challenge.growthStage}
           flowerType={template.flowerReward}
+          sprites={template.sprites}
           size="lg"
           animate={challenge.status === 'bloomed' ? 'none' : 'idle'}
         />
@@ -226,7 +227,7 @@ export function Challenges() {
   const growing = activeChallenges.filter(c => c.status === 'growing');
   const bloomed = activeChallenges.filter(c => c.status === 'bloomed');
   const active = [...growing, ...bloomed];
-  const usedPlots = growing.map(c => c.plotIndex);
+  const usedPlots = [...new Set(active.map(c => c.plotIndex))];
   const activeTemplateIds = new Set(growing.map(c => c.templateId));
 
   // Available = not currently active and not completed
@@ -249,7 +250,7 @@ export function Challenges() {
 
   const handlePlant = (template: ChallengeTemplate) => {
     // Find first available plot
-    const nextPlot = [0, 1, 2].find(i => !usedPlots.includes(i));
+    const nextPlot = [0, 1, 2, 3].find(i => !usedPlots.includes(i));
     if (nextPlot === undefined) return;
 
     plantChallenge(template.id, nextPlot);
@@ -257,7 +258,7 @@ export function Challenges() {
     navigate('/');
   };
 
-  const noSlotsAvailable = usedPlots.length >= 3;
+  const noSlotsAvailable = usedPlots.length >= 4;
 
   return (
     <div className="min-h-screen bg-parchment/30">
@@ -271,7 +272,7 @@ export function Challenges() {
         {active.length > 0 && (
           <section className="mb-6">
             <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-3">
-              Growing ({active.length}/3)
+              Growing ({active.length}/4)
             </h2>
             <div className="space-y-3">
               {active.map(c => (
