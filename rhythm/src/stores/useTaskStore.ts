@@ -111,7 +111,7 @@ interface TaskState {
 
   // Seeds queue management
   getSeeds: () => TaskInstance[];
-  addSeed: (title: string, napContext: Task['napContext'], category?: Task['category']) => void;
+  addSeed: (title: string, napContext: Task['napContext'], category?: Task['category'], bestWhen?: AvailabilityState[] | null) => void;
   promoteToToday: (instanceId: string) => void;
   dismissSeed: (instanceId: string) => void;
   archiveOldSeeds: () => void;
@@ -382,7 +382,7 @@ export const useTaskStore = create<TaskState>()(
         );
       },
 
-      addSeed: (title, napContext, category = 'other') => {
+      addSeed: (title, napContext, category = 'other', bestWhen) => {
         // Create task template
         const taskId = uuidv4();
         const newTask: Task = {
@@ -395,6 +395,7 @@ export const useTaskStore = create<TaskState>()(
           napContext,
           isActive: true,
           category,
+          ...(bestWhen ? { bestWhen } : {}),
         };
 
         // Create deferred instance (yesterday's date so it shows in seeds)

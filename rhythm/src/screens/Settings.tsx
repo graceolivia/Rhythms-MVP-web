@@ -47,6 +47,9 @@ const RECURRENCE_OPTIONS: { value: 'one-off' | RecurrenceRule; label: string }[]
 
 export function Settings() {
   const children = useChildStore((state) => state.children);
+  const userWakeTime = useChildStore((state) => state.userWakeTime);
+  const userBedtime = useChildStore((state) => state.userBedtime);
+  const setUserSleepTimes = useChildStore((state) => state.setUserSleepTimes);
   const addChild = useChildStore((state) => state.addChild);
   const updateChild = useChildStore((state) => state.updateChild);
   const removeChild = useChildStore((state) => state.removeChild);
@@ -197,6 +200,33 @@ export function Settings() {
         <h1 className="font-display text-2xl text-bark">Settings</h1>
         <p className="text-bark/60 text-sm">Customize your rhythm</p>
       </header>
+
+      {/* Your Schedule Section */}
+      <section className="mb-8">
+        <h2 className="font-display text-lg text-bark mb-4">Your Schedule</h2>
+        <div className="bg-parchment rounded-xl p-4">
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-xs text-bark/50 block mb-1">Wake time</label>
+              <input
+                type="time"
+                value={userWakeTime}
+                onChange={(e) => setUserSleepTimes(e.target.value, userBedtime)}
+                className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-bark/50 block mb-1">Bedtime</label>
+              <input
+                type="time"
+                value={userBedtime}
+                onChange={(e) => setUserSleepTimes(userWakeTime, e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Children Section */}
       <section className="mb-8">

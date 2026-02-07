@@ -206,7 +206,7 @@ function AvailableChallengeCard({
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${diff.bg} ${diff.text}`}>
             {template.difficulty}
           </span>
-          <span className="text-lg" title={flowerInfo.label}>{flowerInfo.emoji}</span>
+          <img src={flowerInfo.sprite} alt={flowerInfo.label} className="w-6 h-6" style={{ imageRendering: 'pixelated' }} />
         </div>
       </div>
     </button>
@@ -325,7 +325,7 @@ export function Challenges() {
                   key={challenge.id}
                   className="bg-cream/60 rounded-xl p-3 flex items-center gap-3 border border-bark/5"
                 >
-                  <span className="text-xl">{FLOWER_CATALOG[template.flowerReward].emoji}</span>
+                  <img src={FLOWER_CATALOG[template.flowerReward].sprite} alt={FLOWER_CATALOG[template.flowerReward].label} className="w-7 h-7" style={{ imageRendering: 'pixelated' }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-bark truncate">{template.title}</p>
                     <p className="text-xs text-bark/40">

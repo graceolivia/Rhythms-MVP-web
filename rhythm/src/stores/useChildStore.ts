@@ -5,6 +5,8 @@ import type { Child, CareStatus, CareContext } from '../types';
 
 interface ChildState {
   children: Child[];
+  userWakeTime: string;
+  userBedtime: string;
   addChild: (child: Omit<Child, 'id'>) => string;
   updateChild: (id: string, updates: Partial<Omit<Child, 'id'>>) => void;
   removeChild: (id: string) => void;
@@ -15,12 +17,15 @@ interface ChildState {
   updateCareStatus: (childId: string, status: CareStatus) => void;
   getCareStatus: (childId: string) => CareStatus;
   getCurrentCareContext: () => CareContext;
+  setUserSleepTimes: (wake: string, bed: string) => void;
 }
 
 export const useChildStore = create<ChildState>()(
   persist(
     (set, get) => ({
       children: [],
+      userWakeTime: '06:00',
+      userBedtime: '22:00',
 
       addChild: (childData) => {
         const id = uuidv4();
@@ -92,6 +97,10 @@ export const useChildStore = create<ChildState>()(
         if (anyAway) return 'any-away';
         if (allHome) return 'all-home';
         return 'any';
+      },
+
+      setUserSleepTimes: (wake, bed) => {
+        set({ userWakeTime: wake, userBedtime: bed });
       },
     }),
     {

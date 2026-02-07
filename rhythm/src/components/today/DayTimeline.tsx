@@ -10,7 +10,7 @@ interface TimelineEntry {
   time: string;       // HH:mm
   timeMinutes: number; // for sorting
   label: string;
-  type: 'anchor' | 'care-block' | 'nap-schedule';
+  type: 'anchor' | 'care-block' | 'nap-schedule' | 'user-sleep';
   isCurrentSegment: boolean;
 }
 
@@ -18,6 +18,8 @@ export function DayTimeline() {
   const [collapsed, setCollapsed] = useState(false);
   const tasks = useTaskStore((state) => state.tasks);
   const children = useChildStore((state) => state.children);
+  const userWakeTime = useChildStore((state) => state.userWakeTime);
+  const userBedtime = useChildStore((state) => state.userBedtime);
   const napSchedules = useNapStore((state) => state.napSchedules);
   const blocks = useCareBlockStore((state) => state.blocks);
   const getChild = useChildStore((state) => state.getChild);
@@ -90,6 +92,28 @@ export function DayTimeline() {
       });
     });
 
+    // Add user sleep bookends
+    if (userWakeTime) {
+      const [wh, wm] = userWakeTime.split(':').map(Number);
+      items.push({
+        time: userWakeTime,
+        timeMinutes: wh * 60 + wm,
+        label: 'Your wake up',
+        type: 'user-sleep',
+        isCurrentSegment: false,
+      });
+    }
+    if (userBedtime) {
+      const [bh, bm] = userBedtime.split(':').map(Number);
+      items.push({
+        time: userBedtime,
+        timeMinutes: bh * 60 + bm,
+        label: 'Your bedtime',
+        type: 'user-sleep',
+        isCurrentSegment: false,
+      });
+    }
+
     // Sort by time
     items.sort((a, b) => a.timeMinutes - b.timeMinutes);
 
@@ -103,7 +127,7 @@ export function DayTimeline() {
     }
 
     return items;
-  }, [tasks, blocks, napSchedules, children, getChild]);
+  }, [tasks, blocks, napSchedules, children, getChild, userWakeTime, userBedtime]);
 
   if (entries.length === 0) return null;
 
@@ -151,6 +175,7 @@ export function DayTimeline() {
                 <span className={`text-sm ${
                   entry.type === 'care-block' ? 'text-sage' :
                   entry.type === 'nap-schedule' ? 'text-lavender italic' :
+                  entry.type === 'user-sleep' ? 'text-dustyrose italic' :
                   ''
                 }`}>
                   {entry.label}

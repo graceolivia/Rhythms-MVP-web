@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTaskStore } from '../../stores/useTaskStore';
-import type { NapContext } from '../../types';
+import type { AvailabilityState, NapContext } from '../../types';
 
-type FocusLevel = 'flexible' | 'can-with-awake' | 'must-with-awake';
+type FocusLevel = 'flexible' | 'can-with-awake' | 'must-with-awake' | 'needs-focus';
 
 const FOCUS_OPTIONS: { value: FocusLevel; label: string; description: string }[] = [
   {
@@ -20,12 +20,19 @@ const FOCUS_OPTIONS: { value: FocusLevel; label: string; description: string }[]
     label: 'Must Be Done With Children Awake',
     description: 'Needs the kids involved or awake',
   },
+  {
+    value: 'needs-focus',
+    label: 'Needs Focus Time',
+    description: 'Must be done with children occupied or asleep',
+  },
 ];
 
 function focusLevelToNapContext(level: FocusLevel): NapContext {
   switch (level) {
     case 'must-with-awake':
       return 'both-awake';
+    case 'needs-focus':
+      return 'both-asleep';
     case 'can-with-awake':
       return 'any';
     case 'flexible':
@@ -49,7 +56,9 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
     if (!title.trim()) return;
 
     const napContext = focusLevelToNapContext(focusLevel);
-    addSeed(title.trim(), napContext);
+    const bestWhen: AvailabilityState[] | undefined =
+      focusLevel === 'needs-focus' ? ['free', 'quiet'] : undefined;
+    addSeed(title.trim(), napContext, undefined, bestWhen);
 
     // Reset form
     setTitle('');
