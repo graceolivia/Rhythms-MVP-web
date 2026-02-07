@@ -42,7 +42,7 @@ function DailyFlowerSlot() {
 
   useEffect(() => {
     if (isBloomed && !alreadyEarned) {
-      earnFlower('daily-daisy');
+      earnFlower('daily-daisy', undefined, bloom042);
       setJustBloomed(true);
       const timer = setTimeout(() => setJustBloomed(false), 3000);
       return () => clearTimeout(timer);

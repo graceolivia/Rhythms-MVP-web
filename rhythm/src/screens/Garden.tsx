@@ -71,6 +71,19 @@ function Cottage() {
 // FLOWER PALETTE COMPONENT
 // ===========================================
 
+/** Render a flower sprite by type (uses catalog default) */
+function FlowerSpriteByType({ type }: { type: FlowerType }) {
+  const src = FLOWER_CATALOG[type].sprite;
+  return (
+    <img
+      src={src}
+      alt={FLOWER_CATALOG[type].label}
+      className="w-8 h-8 block select-none"
+      style={{ imageRendering: 'pixelated' }}
+    />
+  );
+}
+
 function FlowerPalette() {
   const flowers = useGardenStore((s) => s.flowers);
   const placedFlowers = useGardenStore((s) => s.placedFlowers);
@@ -114,7 +127,7 @@ function FlowerPalette() {
         </div>
         {selectedFlowerType && availableByType[selectedFlowerType] && (
           <div className="flex items-center gap-1 text-sm">
-            <span className="text-2xl">{FLOWER_CATALOG[selectedFlowerType].emoji}</span>
+            <FlowerSpriteByType type={selectedFlowerType} />
             <span className="text-sage font-semibold">×{availableByType[selectedFlowerType]}</span>
           </div>
         )}
@@ -124,7 +137,7 @@ function FlowerPalette() {
       <div className="px-4 py-4 max-h-[200px] overflow-y-auto pb-20">
         {totalAvailable === 0 ? (
           <p className="text-center text-bark/50 text-sm py-4">
-            Complete rhythms to earn flowers!
+            Complete challenges to earn flowers!
           </p>
         ) : (
           <div className="grid grid-cols-5 gap-2">
@@ -144,7 +157,7 @@ function FlowerPalette() {
                       : 'border-transparent bg-parchment hover:bg-linen hover:scale-105'
                   }`}
                 >
-                  <span className="text-2xl leading-none">{FLOWER_CATALOG[type].emoji}</span>
+                  <FlowerSpriteByType type={type} />
                   <span className="text-[10px] text-bark/60 font-semibold mt-1">×{count}</span>
                   <span className="text-[9px] text-bark/40 mt-0.5 leading-tight text-center">{FLOWER_CATALOG[type].label}</span>
                 </button>
@@ -275,8 +288,7 @@ export function Garden() {
             return;
           }
           if (placeFlower(col, row)) {
-            const emoji = FLOWER_CATALOG[selectedFlowerType].emoji;
-            showToast(`Planted ${emoji}!`);
+            showToast(`Planted ${FLOWER_CATALOG[selectedFlowerType].label}!`);
           }
           break;
 
@@ -285,9 +297,8 @@ export function Garden() {
             showToast('No flower there!');
             return;
           }
-          const emoji = FLOWER_CATALOG[existingFlower.flowerType].emoji;
           removeFlowerFromGrid(existingFlower.id);
-          showToast(`${emoji} removed`);
+          showToast(`${FLOWER_CATALOG[existingFlower.flowerType].label} removed`);
           break;
 
         default:
@@ -295,8 +306,7 @@ export function Garden() {
           if (!existingFlower && selectedFlowerType) {
             if (getUnplacedByType(selectedFlowerType).length > 0) {
               if (placeFlower(col, row)) {
-                const emoji = FLOWER_CATALOG[selectedFlowerType].emoji;
-                showToast(`Planted ${emoji}!`);
+                showToast(`Planted ${FLOWER_CATALOG[selectedFlowerType].label}!`);
               }
             }
           }
@@ -359,13 +369,24 @@ export function Garden() {
               onDragEnd={handleDragEnd}
               className={`
                 w-full h-full flex items-center justify-center
-                text-[26px] drop-shadow-md transition-transform duration-200
+                drop-shadow-md transition-transform duration-200
                 cursor-grab active:cursor-grabbing select-none
                 ${isDragging ? 'opacity-50 animate-wiggle' : 'hover:scale-110'}
                 ${!isDragging ? 'animate-plant-grow' : ''}
               `}
             >
-              {FLOWER_CATALOG[placedFlower.flowerType].emoji}
+              {(() => {
+                const flower = flowers.find(f => f.id === placedFlower.flowerId);
+                const spriteSrc = flower?.sprite ?? FLOWER_CATALOG[placedFlower.flowerType].sprite;
+                return (
+                  <img
+                    src={spriteSrc}
+                    alt={FLOWER_CATALOG[placedFlower.flowerType].label}
+                    className="w-8 h-8 block select-none"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                );
+              })()}
             </span>
           )}
         </div>

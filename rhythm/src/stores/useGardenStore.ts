@@ -4,6 +4,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { format, getMonth } from 'date-fns';
 import type { Flower, FlowerType, Season, Garden } from '../types';
 
+// Default flower sprites (bloom stage) per type
+import dailyDaisySprite from '../assets/flowers/042.png';
+import rhythmRoseSprite from '../assets/flowers/064.png';
+import goldenHourLilySprite from '../assets/flowers/046.png';
+import selfCareSunflowerSprite from '../assets/flowers/064.png';
+import challengeBloomSprite from '../assets/flowers/046.png';
+
 // ===========================================
 // GRID CONFIGURATION
 // ===========================================
@@ -22,12 +29,12 @@ export const BLOCKED_CELLS = new Set([
 // FLOWER CATALOG - maps earned flower types to display
 // ===========================================
 
-export const FLOWER_CATALOG: Record<FlowerType, { emoji: string; label: string }> = {
-  'daily-daisy': { emoji: '🌼', label: 'Daily Daisy' },
-  'rhythm-rose': { emoji: '🌹', label: 'Rhythm Rose' },
-  'golden-hour-lily': { emoji: '🌷', label: 'Golden Hour Lily' },
-  'self-care-sunflower': { emoji: '🌻', label: 'Self-Care Sunflower' },
-  'challenge-bloom': { emoji: '🌺', label: 'Challenge Bloom' },
+export const FLOWER_CATALOG: Record<FlowerType, { emoji: string; label: string; sprite: string }> = {
+  'daily-daisy': { emoji: '🌼', label: 'Daily Daisy', sprite: dailyDaisySprite },
+  'rhythm-rose': { emoji: '🌹', label: 'Rhythm Rose', sprite: rhythmRoseSprite },
+  'golden-hour-lily': { emoji: '🌷', label: 'Golden Hour Lily', sprite: goldenHourLilySprite },
+  'self-care-sunflower': { emoji: '🌻', label: 'Self-Care Sunflower', sprite: selfCareSunflowerSprite },
+  'challenge-bloom': { emoji: '🌺', label: 'Challenge Bloom', sprite: challengeBloomSprite },
 };
 
 // ===========================================
@@ -67,7 +74,7 @@ interface GardenState extends Garden {
   movingFlowerId: string | null;
 
   // Earning flowers
-  earnFlower: (type: FlowerType, challengeId?: string) => string;
+  earnFlower: (type: FlowerType, challengeId?: string, sprite?: string) => string;
   getFlowersForDate: (date: string) => Flower[];
   getTotalFlowers: () => number;
   getFlowersByType: (type: FlowerType) => Flower[];
@@ -108,7 +115,7 @@ export const useGardenStore = create<GardenState>()(
       // EARNING FLOWERS (existing functionality)
       // ===========================================
 
-      earnFlower: (type, challengeId) => {
+      earnFlower: (type, challengeId, sprite) => {
         const id = uuidv4();
         const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -117,6 +124,7 @@ export const useGardenStore = create<GardenState>()(
           type,
           earnedDate: today,
           challengeId: challengeId ?? null,
+          sprite: sprite ?? FLOWER_CATALOG[type].sprite,
         };
 
         set((state) => ({

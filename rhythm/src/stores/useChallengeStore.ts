@@ -182,6 +182,7 @@ interface ChallengeState {
   abandonChallenge: (challengeId: string) => void;
   getActiveByPlot: (plotIndex: number) => ActiveChallenge | undefined;
   getTemplate: (templateId: string) => ChallengeTemplate | undefined;
+  clearBloomedChallenges: () => void;
   clearChallengeState: () => void;
 }
 
@@ -281,8 +282,9 @@ export const useChallengeStore = create<ChallengeState>()(
         const isBlooming = newProgress >= template.targetCount;
 
         if (isBlooming) {
-          // Earn the flower
-          useGardenStore.getState().earnFlower(template.flowerReward, challengeId);
+          // Earn the flower with its bloom sprite
+          const bloomSprite = template.sprites?.[3];
+          useGardenStore.getState().earnFlower(template.flowerReward, challengeId, bloomSprite);
 
           // Deactivate seeded tasks
           if (challenge.seededTaskIds?.length) {
@@ -341,6 +343,15 @@ export const useChallengeStore = create<ChallengeState>()(
 
       getTemplate: (templateId) => {
         return CHALLENGE_TEMPLATES.find(t => t.id === templateId);
+      },
+
+      clearBloomedChallenges: () => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        set((s) => ({
+          activeChallenges: s.activeChallenges.filter(
+            c => c.status !== 'bloomed' || c.bloomedDate === today
+          ),
+        }));
       },
 
       clearChallengeState: () => {

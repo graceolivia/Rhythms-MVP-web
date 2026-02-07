@@ -22,6 +22,7 @@ import { ComingUp } from '../components/today/ComingUp';
 import { TaskCard } from '../components/today/TaskCard';
 import { GrowingPlot } from '../components/today/GrowingPlot';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
+import { useChallengeStore } from '../stores/useChallengeStore';
 import type { Task, TaskInstance, TaskTier, NapContext, CareContext } from '../types';
 
 // ────────────────────────────────────────────────
@@ -350,14 +351,16 @@ export function Today() {
   const getEventTimestamp = useEventStore((state) => state.getEventTimestamp);
   const napPredictions = useNapPrediction();
   const { justBloomedId, bloomToast } = useChallengeProgress();
+  const clearBloomedChallenges = useChallengeStore((s) => s.clearBloomedChallenges);
 
   // Check for transitions on mount + every 5 min
   useTransitionCheck();
 
-  // Generate today's instances on mount
+  // Generate today's instances on mount + clear yesterday's bloomed challenges
   useEffect(() => {
     generateDailyInstances(new Date());
-  }, [generateDailyInstances]);
+    clearBloomedChallenges();
+  }, [generateDailyInstances, clearBloomedChallenges]);
 
   // Cleanup timers on unmount
   useEffect(() => {

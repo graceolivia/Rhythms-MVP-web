@@ -271,6 +271,8 @@ export interface Flower {
   type: FlowerType;
   earnedDate: string;
   challengeId: string | null;
+  /** Pixel art sprite for this specific flower (bloom stage) */
+  sprite?: string;
 }
 
 export interface Garden {
