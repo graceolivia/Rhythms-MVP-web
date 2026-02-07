@@ -13,6 +13,18 @@ import laundry083 from '../assets/flowers/083.png';
 import laundry082 from '../assets/flowers/082.png';
 
 
+// default challenge pixel art
+import default001 from '../assets/flowers/061.png';
+import default002 from '../assets/flowers/062.png';
+import default003 from '../assets/flowers/063.png';
+import default004 from '../assets/flowers/064.png';
+
+// default challenge pixel art (alternate)
+import default101 from '../assets/flowers/044.png';
+import default102 from '../assets/flowers/045.png';
+import default103 from '../assets/flowers/043.png';
+import default104 from '../assets/flowers/046.png';
+
 // ===========================================
 // CURATED CHALLENGE TEMPLATES
 // ===========================================
@@ -27,6 +39,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'self-care-sunflower',
     category: 'self-care',
     difficulty: 'gentle',
+    sprites: [default001, default002, default003, default004],
     seedTasks: [{ title: 'Drink water before coffee' }],
   },
   {
@@ -38,6 +51,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'self-care-sunflower',
     category: 'self-care',
     difficulty: 'gentle',
+    sprites: [default101, default102, default103, default104],
     seedTasks: [{ title: '5-min morning stretch' }],
   },
   {
@@ -49,6 +63,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'golden-hour-lily',
     category: 'self-care',
     difficulty: 'steady',
+    sprites: [default001, default002, default003, default004],
     seedTasks: [{ title: 'Phone-free first hour' }],
   },
   {
@@ -60,6 +75,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'daily-daisy',
     category: 'kitchen',
     difficulty: 'gentle',
+    sprites: [default101, default102, default103, default104],
     seedTasks: [{ title: 'Clear sink before bed' }],
   },
   {
@@ -71,6 +87,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'rhythm-rose',
     category: 'kitchen',
     difficulty: 'steady',
+    sprites: [default001, default002, default003, default004],
     seedTasks: [{ title: 'Meal prep one thing' }],
   },
   {
@@ -82,6 +99,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'rhythm-rose',
     category: 'tidying',
     difficulty: 'steady',
+    sprites: [default101, default102, default103, default104],
     seedTasks: [{ title: 'Tidy one room (10 min)' }],
   },
   {
@@ -93,6 +111,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'challenge-bloom',
     category: 'self-care',
     difficulty: 'ambitious',
+    sprites: [default001, default002, default003, default004],
     seedTasks: [{ title: 'Self-care moment' }],
   },
   {
@@ -121,6 +140,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'golden-hour-lily',
     category: 'self-care',
     difficulty: 'steady',
+    sprites: [default101, default102, default103, default104],
     seedTasks: [{ title: 'Screen-free 30 min before bed' }],
   },
   {
@@ -132,6 +152,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'self-care-sunflower',
     category: 'kids',
     difficulty: 'gentle',
+    sprites: [default001, default002, default003, default004],
     seedTasks: [{ title: 'Outside time with kids' }],
   },
 ];
