@@ -10,6 +10,7 @@ export interface ChoreTemplate {
   bestWhen?: AvailabilityState[];
   recurrence?: RecurrenceRule;
   routineGroup?: string;
+  isChoreQueue?: boolean;
 }
 
 export interface ChoreCategory {
@@ -46,9 +47,9 @@ export const choreLibrary: ChoreCategory[] = [
       { title: 'Hand wash dishes', tier: 'tending', category: 'kitchen', napContext: 'both-asleep', bestWhen: ['quiet'] },
       { title: 'Wipe counters', tier: 'tending', category: 'kitchen', napContext: 'any' },
       { title: 'Clean stovetop', tier: 'tending', category: 'kitchen', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly' },
-      { title: 'Clean out fridge', tier: 'tending', category: 'kitchen', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
+      { title: 'Clean out fridge', tier: 'tending', category: 'kitchen', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly', isChoreQueue: true },
       { title: 'Take out kitchen trash', tier: 'tending', category: 'kitchen', napContext: 'any' },
-      { title: 'Wipe down appliances', tier: 'tending', category: 'kitchen', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly' },
+      { title: 'Wipe down appliances', tier: 'tending', category: 'kitchen', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly', isChoreQueue: true },
     ],
   },
   {
@@ -76,8 +77,8 @@ export const choreLibrary: ChoreCategory[] = [
       { title: 'Pick up toys', tier: 'tending', category: 'tidying', napContext: 'both-awake', bestWhen: ['parenting'] },
       { title: 'Clear clutter hotspots', tier: 'tending', category: 'tidying', napContext: 'any' },
       { title: 'Tidy entryway', tier: 'tending', category: 'tidying', napContext: 'any' },
-      { title: 'Sort mail/papers', tier: 'tending', category: 'tidying', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
-      { title: 'Organize one drawer', tier: 'tending', category: 'tidying', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
+      { title: 'Sort mail/papers', tier: 'tending', category: 'tidying', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly', isChoreQueue: true },
+      { title: 'Organize one drawer', tier: 'tending', category: 'tidying', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly', isChoreQueue: true },
     ],
   },
   {
@@ -89,11 +90,11 @@ export const choreLibrary: ChoreCategory[] = [
       { title: 'Vacuum', tier: 'tending', category: 'cleaning', napContext: 'both-awake', bestWhen: ['parenting'], recurrence: 'weekly' },
       { title: 'Mop floors', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
       { title: 'Clean bathroom sink', tier: 'tending', category: 'cleaning', napContext: 'any', recurrence: 'weekly' },
-      { title: 'Clean toilet', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly' },
+      { title: 'Clean toilet', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly', isChoreQueue: true },
       { title: 'Clean shower/tub', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet', 'free'], recurrence: 'weekly' },
-      { title: 'Dust surfaces', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly' },
-      { title: 'Clean mirrors', tier: 'tending', category: 'cleaning', napContext: 'any', recurrence: 'weekly' },
-      { title: 'Wipe light switches & handles', tier: 'tending', category: 'cleaning', napContext: 'any', recurrence: 'weekly' },
+      { title: 'Dust surfaces', tier: 'tending', category: 'cleaning', napContext: 'both-asleep', bestWhen: ['quiet'], recurrence: 'weekly', isChoreQueue: true },
+      { title: 'Clean mirrors', tier: 'tending', category: 'cleaning', napContext: 'any', recurrence: 'weekly', isChoreQueue: true },
+      { title: 'Wipe light switches & handles', tier: 'tending', category: 'cleaning', napContext: 'any', recurrence: 'weekly', isChoreQueue: true },
     ],
   },
   {

@@ -48,8 +48,12 @@ interface QuickAddSeedProps {
 
 export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
   const addSeed = useTaskStore((state) => state.addSeed);
+  const updateTask = useTaskStore((state) => state.updateTask);
   const [title, setTitle] = useState('');
   const [focusLevel, setFocusLevel] = useState<FocusLevel>('flexible');
+  const [goalTime, setGoalTime] = useState<string>('');
+  const [showTime, setShowTime] = useState(false);
+  const [isChoreQueue, setIsChoreQueue] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,11 +62,26 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
     const napContext = focusLevelToNapContext(focusLevel);
     const bestWhen: AvailabilityState[] | undefined =
       focusLevel === 'needs-focus' ? ['free', 'quiet'] : undefined;
-    addSeed(title.trim(), napContext, undefined, bestWhen);
+    const trimmedTitle = title.trim();
+    addSeed(trimmedTitle, napContext, undefined, bestWhen, goalTime || null);
+
+    // If marked as chore queue, find the just-created task and flag it
+    if (isChoreQueue) {
+      // addSeed creates a task synchronously, find it by title
+      const newTask = useTaskStore.getState().tasks.find(
+        (t) => t.title === trimmedTitle
+      );
+      if (newTask) {
+        updateTask(newTask.id, { isChoreQueue: true });
+      }
+    }
 
     // Reset form
     setTitle('');
     setFocusLevel('flexible');
+    setGoalTime('');
+    setShowTime(false);
+    setIsChoreQueue(false);
     onClose();
   };
 
@@ -104,6 +123,36 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
             />
           </div>
 
+          {/* Goal time (optional) */}
+          <div className="mb-4">
+            {!showTime ? (
+              <button
+                type="button"
+                onClick={() => setShowTime(true)}
+                className="text-sm text-sage hover:text-sage/80 transition-colors"
+              >
+                + Add a goal time
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-bark/70 shrink-0">By</label>
+                <input
+                  type="time"
+                  value={goalTime}
+                  onChange={(e) => setGoalTime(e.target.value)}
+                  className="flex-1 px-4 py-2 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => { setShowTime(false); setGoalTime(''); }}
+                  className="text-bark/40 hover:text-bark text-sm"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Focus level */}
           <div className="mb-6">
             <label className="block text-sm text-bark/70 mb-2">Focus level</label>
@@ -124,6 +173,24 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Chore Queue Toggle */}
+          <div className="mb-6">
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-parchment cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isChoreQueue}
+                onChange={(e) => setIsChoreQueue(e.target.checked)}
+                className="rounded border-bark/20"
+              />
+              <div>
+                <p className="font-medium text-bark text-sm">Add to chore queue</p>
+                <p className="text-xs text-bark/50">
+                  One random chore from the queue is picked daily
+                </p>
+              </div>
+            </label>
           </div>
 
           {/* Submit */}

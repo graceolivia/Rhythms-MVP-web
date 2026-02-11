@@ -9,6 +9,7 @@ import { useResetSeedData } from '../hooks/useResetSeedData';
 import { useResetAppData } from '../hooks/useResetAppData';
 import { useAuth } from '../contexts/AuthContext';
 import { useSync } from '../hooks/useSync';
+import { HabitBlockSection } from '../components/settings/HabitBlockSection';
 import { DEV_MODE } from '../config/devMode';
 import type { ChildColor, CareStatus, CareBlockType, RecurrenceRule } from '../types';
 
@@ -683,6 +684,9 @@ export function Settings() {
           <p className="text-xs text-bark/40 text-center mt-2">Add a child first to create care blocks</p>
         )}
       </section>
+
+      {/* Habit Blocks Section */}
+      <HabitBlockSection />
 
       {/* Cloud Sync Section */}
       <section className="mb-8">

@@ -90,6 +90,7 @@ export async function pushAllDataToSupabase(
     careBlocks: unknown[];
     flowers: unknown[];
     placedFlowers: unknown[];
+    habitBlocks?: unknown[];
   }
 ): Promise<{ error: Error | null }> {
   if (!supabase) {
@@ -275,7 +276,35 @@ export async function pushAllDataToSupabase(
       if (error) throw error;
     }
 
-    // 9. Placed Flowers
+    // 9. Habit Blocks
+    if (stores.habitBlocks && stores.habitBlocks.length > 0) {
+      const { error } = await supabase.from('habit_blocks').upsert(
+        (stores.habitBlocks as Array<{
+          id: string; name: string; emoji?: string; anchor?: unknown;
+          estimatedEndTime?: string; deadline?: string; deadlineLabel?: string;
+          items?: unknown[]; recurrence?: string; daysOfWeek?: number[];
+          isActive?: boolean; color?: string;
+        }>).map((hb) => ({
+          id: hb.id,
+          user_id: userId,
+          name: hb.name,
+          emoji: hb.emoji || null,
+          anchor: hb.anchor,
+          estimated_end_time: hb.estimatedEndTime || null,
+          deadline: hb.deadline || null,
+          deadline_label: hb.deadlineLabel || null,
+          items: hb.items || [],
+          recurrence: typeof hb.recurrence === 'string' ? hb.recurrence : 'daily',
+          days_of_week: hb.daysOfWeek || null,
+          is_active: hb.isActive ?? true,
+          color: hb.color || null,
+        })),
+        { onConflict: 'id' }
+      );
+      if (error) throw error;
+    }
+
+    // 10. Placed Flowers
     if (stores.placedFlowers.length > 0) {
       const { error } = await supabase.from('placed_flowers').upsert(
         (stores.placedFlowers as Array<{
@@ -312,6 +341,7 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
     careBlocks: unknown[];
     flowers: unknown[];
     placedFlowers: unknown[];
+    habitBlocks?: unknown[];
   } | null;
   error: Error | null;
 }> {
@@ -332,6 +362,7 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       careBlocksRes,
       flowersRes,
       placedFlowersRes,
+      habitBlocksRes,
     ] = await Promise.all([
       supabase.from('children').select('*').eq('user_id', userId),
       supabase.from('tasks').select('*').eq('user_id', userId),
@@ -342,6 +373,7 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       supabase.from('care_blocks').select('*').eq('user_id', userId),
       supabase.from('flowers').select('*').eq('user_id', userId),
       supabase.from('placed_flowers').select('*').eq('user_id', userId),
+      supabase.from('habit_blocks').select('*').eq('user_id', userId),
     ]);
 
     // Check for errors
@@ -355,6 +387,7 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       careBlocksRes.error,
       flowersRes.error,
       placedFlowersRes.error,
+      habitBlocksRes.error,
     ].filter(Boolean);
 
     if (errors.length > 0) {
@@ -456,6 +489,21 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       placedAt: pf.placed_at,
     }));
 
+    const habitBlocks = (habitBlocksRes.data || []).map((hb: Record<string, unknown>) => ({
+      id: hb.id,
+      name: hb.name,
+      emoji: hb.emoji,
+      anchor: hb.anchor,
+      estimatedEndTime: hb.estimated_end_time,
+      deadline: hb.deadline,
+      deadlineLabel: hb.deadline_label,
+      items: hb.items,
+      recurrence: hb.recurrence,
+      daysOfWeek: hb.days_of_week,
+      isActive: hb.is_active,
+      color: hb.color,
+    }));
+
     return {
       data: {
         children,
@@ -467,6 +515,7 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
         careBlocks,
         flowers,
         placedFlowers,
+        habitBlocks,
       },
       error: null,
     };

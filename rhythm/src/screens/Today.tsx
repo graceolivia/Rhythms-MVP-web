@@ -21,6 +21,9 @@ import { YourWindow } from '../components/today/YourWindow';
 import { ComingUp } from '../components/today/ComingUp';
 import { TaskCard } from '../components/today/TaskCard';
 import { GrowingPlot } from '../components/today/GrowingPlot';
+import { HabitBlockCard } from '../components/today/HabitBlockCard';
+import { ChoreQueueBanner } from '../components/today/ChoreQueueBanner';
+import { useActiveBlock } from '../hooks/useActiveBlock';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import { useChallengeStore } from '../stores/useChallengeStore';
 import type { Task, TaskInstance, TaskTier, NapContext, CareContext } from '../types';
@@ -350,6 +353,7 @@ export function Today() {
   const hasEventFired = useEventStore((state) => state.hasEventFired);
   const getEventTimestamp = useEventStore((state) => state.getEventTimestamp);
   const napPredictions = useNapPrediction();
+  const { activeBlock } = useActiveBlock();
   const { justBloomedId, bloomToast } = useChallengeProgress();
   const clearBloomedChallenges = useChallengeStore((s) => s.clearBloomedChallenges);
 
@@ -488,16 +492,31 @@ export function Today() {
           </>
         ) : (
           <>
-            {/* Your Window — primary focus (Phase 5) */}
-            <YourWindow
-              availabilityLabel={stateLabel}
-              availabilityDescription={stateDescription}
-              tasksWithInstances={tasksWithInstances}
-              onTaskTap={handleTaskTap}
-              onDefer={handleDefer}
-              recentlyCompleted={recentlyCompleted}
-              fadingOut={fadingOut}
-            />
+            {/* Active block view — shows when a habit block is currently active */}
+            {activeBlock ? (
+              <HabitBlockCard
+                block={activeBlock}
+                onTaskTap={handleTaskTap}
+                fadingOut={fadingOut}
+                recentlyCompleted={recentlyCompleted}
+              />
+            ) : (
+              <>
+                {/* Chore queue banner — shows between blocks if chore not yet done */}
+                <ChoreQueueBanner />
+
+                {/* Your Window — primary focus (Phase 5) */}
+                <YourWindow
+                  availabilityLabel={stateLabel}
+                  availabilityDescription={stateDescription}
+                  tasksWithInstances={tasksWithInstances}
+                  onTaskTap={handleTaskTap}
+                  onDefer={handleDefer}
+                  recentlyCompleted={recentlyCompleted}
+                  fadingOut={fadingOut}
+                />
+              </>
+            )}
 
             {/* Coming Up (Phase 5) */}
             <ComingUp />

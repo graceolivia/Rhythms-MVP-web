@@ -111,7 +111,7 @@ interface TaskState {
 
   // Seeds queue management
   getSeeds: () => TaskInstance[];
-  addSeed: (title: string, napContext: Task['napContext'], category?: Task['category'], bestWhen?: AvailabilityState[] | null) => void;
+  addSeed: (title: string, napContext: Task['napContext'], category?: Task['category'], bestWhen?: AvailabilityState[] | null, scheduledTime?: string | null) => void;
   promoteToToday: (instanceId: string) => void;
   dismissSeed: (instanceId: string) => void;
   archiveOldSeeds: () => void;
@@ -120,6 +120,9 @@ interface TaskState {
   ensureChildcareTasksExist: (schedule: ChildcareSchedule) => void;
   removeChildcareTasksForSchedule: (scheduleId: string) => void;
   getChildcareTasksForSchedule: (scheduleId: string) => Task[];
+
+  // Chore queue
+  getChoreQueueTasks: () => Task[];
 }
 
 /**
@@ -382,7 +385,7 @@ export const useTaskStore = create<TaskState>()(
         );
       },
 
-      addSeed: (title, napContext, category = 'other', bestWhen) => {
+      addSeed: (title, napContext, category = 'other', bestWhen, scheduledTime) => {
         // Create task template
         const taskId = uuidv4();
         const newTask: Task = {
@@ -390,7 +393,7 @@ export const useTaskStore = create<TaskState>()(
           type: 'standard',
           title,
           tier: 'tending',
-          scheduledTime: null,
+          scheduledTime: scheduledTime ?? null,
           recurrence: 'daily',
           napContext,
           isActive: true,
@@ -559,10 +562,14 @@ export const useTaskStore = create<TaskState>()(
         // Similar limitation as above
         return [];
       },
+
+      getChoreQueueTasks: () => {
+        return get().tasks.filter((t) => t.isChoreQueue && t.isActive);
+      },
     }),
     {
       name: 'rhythm_tasks',
-      version: 4,
+      version: 5,
       migrate: (persisted: unknown, version: number) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let state = persisted as any;
@@ -609,6 +616,17 @@ export const useTaskStore = create<TaskState>()(
               ...task,
               triggeredBy: task.triggeredBy ?? null,
               triggerDelayMinutes: task.triggerDelayMinutes ?? null,
+            })),
+          };
+        }
+
+        if (version < 5) {
+          // Add isChoreQueue to existing tasks
+          state = {
+            ...state,
+            tasks: (state.tasks as any[]).map((task: any) => ({
+              ...task,
+              isChoreQueue: task.isChoreQueue ?? false,
             })),
           };
         }

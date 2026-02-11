@@ -110,6 +110,38 @@ export interface PendingTransition {
   status: 'pending' | 'confirmed' | 'dismissed' | 'auto-confirmed';
 }
 
+// Habit Blocks
+
+export type BlockAnchorType = 'time' | 'event' | 'after-previous';
+
+export interface BlockAnchor {
+  type: BlockAnchorType;
+  time?: string;         // HH:mm — when type is 'time'
+  eventKey?: string;     // e.g. 'nap-start:CHILD_ID' — when type is 'event'
+}
+
+export interface HabitBlockItem {
+  taskId: string;        // References Task.id
+  order: number;         // Position in the stack (1, 2, 3...)
+  isTrackable: boolean;  // true = checkbox (aspirational); false = listed only (routine)
+  choreQueueSlot?: boolean; // true = this slot picks a random chore from the queue
+}
+
+export interface HabitBlock {
+  id: string;
+  name: string;              // "Morning Rush", "Evening Close"
+  emoji?: string;            // Optional visual marker
+  anchor: BlockAnchor;
+  estimatedEndTime?: string; // HH:mm soft end
+  deadline?: string;         // HH:mm hard deadline (escalating reminders)
+  deadlineLabel?: string;    // "Leave for pickup by"
+  items: HabitBlockItem[];
+  recurrence: RecurrenceRule;
+  daysOfWeek?: number[];
+  isActive: boolean;
+  color?: string;            // Tailwind color key
+}
+
 // Tasks
 
 export type TaskTier = 'anchor' | 'rhythm' | 'tending';
@@ -188,6 +220,9 @@ interface BaseTask {
   // Event-triggered sequencing: task only appears when trigger fires
   triggeredBy?: string | null;          // 'nap-end', 'nap-end:CHILD_ID', 'task-complete:TASK_ID'
   triggerDelayMinutes?: number | null;  // Optional delay after trigger
+
+  // Chore queue: random daily chore pool
+  isChoreQueue?: boolean;  // true = in the "one random chore a day" pool
 }
 
 export interface StandardTask extends BaseTask {

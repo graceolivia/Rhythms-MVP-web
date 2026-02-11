@@ -4,13 +4,14 @@ import { useTaskStore } from '../../stores/useTaskStore';
 import { useChildStore } from '../../stores/useChildStore';
 import { useNapStore } from '../../stores/useNapStore';
 import { useCareBlockStore } from '../../stores/useCareBlockStore';
+import { useHabitBlockStore } from '../../stores/useHabitBlockStore';
 import { shouldTaskOccurOnDate } from '../../stores/useTaskStore';
 
 interface TimelineEntry {
   time: string;       // HH:mm
   timeMinutes: number; // for sorting
   label: string;
-  type: 'anchor' | 'care-block' | 'nap-schedule' | 'user-sleep';
+  type: 'anchor' | 'care-block' | 'nap-schedule' | 'user-sleep' | 'habit-block';
   isCurrentSegment: boolean;
 }
 
@@ -22,6 +23,8 @@ export function DayTimeline() {
   const userBedtime = useChildStore((state) => state.userBedtime);
   const napSchedules = useNapStore((state) => state.napSchedules);
   const blocks = useCareBlockStore((state) => state.blocks);
+  const habitBlocks = useHabitBlockStore((state) => state.blocks);
+  const getBlocksForDate = useHabitBlockStore((state) => state.getBlocksForDate);
   const getChild = useChildStore((state) => state.getChild);
 
   const entries = useMemo(() => {
@@ -92,6 +95,25 @@ export function DayTimeline() {
       });
     });
 
+    // Add habit blocks
+    const todaysHabitBlocks = getBlocksForDate(today);
+    todaysHabitBlocks.forEach((block) => {
+      if (block.anchor.type === 'time' && block.anchor.time) {
+        const [bh, bm] = block.anchor.time.split(':').map(Number);
+        const startMins = bh * 60 + bm;
+        const endMins = block.estimatedEndTime
+          ? (() => { const [eh, em] = block.estimatedEndTime.split(':').map(Number); return eh * 60 + em; })()
+          : startMins + 90;
+        items.push({
+          time: block.anchor.time,
+          timeMinutes: startMins,
+          label: `${block.emoji || ''} ${block.name}`.trim(),
+          type: 'habit-block',
+          isCurrentSegment: currentMinutes >= startMins && currentMinutes < endMins,
+        });
+      }
+    });
+
     // Add user sleep bookends
     if (userWakeTime) {
       const [wh, wm] = userWakeTime.split(':').map(Number);
@@ -127,7 +149,7 @@ export function DayTimeline() {
     }
 
     return items;
-  }, [tasks, blocks, napSchedules, children, getChild, userWakeTime, userBedtime]);
+  }, [tasks, blocks, habitBlocks, getBlocksForDate, napSchedules, children, getChild, userWakeTime, userBedtime]);
 
   if (entries.length === 0) return null;
 
@@ -176,6 +198,7 @@ export function DayTimeline() {
                   entry.type === 'care-block' ? 'text-sage' :
                   entry.type === 'nap-schedule' ? 'text-lavender italic' :
                   entry.type === 'user-sleep' ? 'text-dustyrose italic' :
+                  entry.type === 'habit-block' ? 'text-terracotta font-medium' :
                   ''
                 }`}>
                   {entry.label}

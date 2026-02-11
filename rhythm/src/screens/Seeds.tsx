@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { parseISO, differenceInDays } from 'date-fns';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useAvailability } from '../hooks/useAvailability';
+import { ChoreQueueSection } from '../components/tasks/ChoreQueueSection';
 import type { TaskInstance, Task } from '../types';
 
 function SeedAge({ date }: { date: string }) {
@@ -138,6 +139,9 @@ export function Seeds() {
           Tasks waiting to be planted
         </p>
       </header>
+
+      {/* Chore Queue */}
+      <ChoreQueueSection />
 
       {uniqueSeeds.length === 0 ? (
         <div className="text-center py-12">

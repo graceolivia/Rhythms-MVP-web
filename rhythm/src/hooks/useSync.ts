@@ -7,6 +7,7 @@ import { useNapStore } from '../stores/useNapStore';
 import { useAwayStore } from '../stores/useAwayStore';
 import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useGardenStore } from '../stores/useGardenStore';
+import { useHabitBlockStore } from '../stores/useHabitBlockStore';
 
 export function useSync() {
   const { user, isConfigured } = useAuth();
@@ -30,6 +31,7 @@ export function useSync() {
       const awayStore = useAwayStore.getState();
       const careBlockStore = useCareBlockStore.getState();
       const gardenStore = useGardenStore.getState();
+      const habitBlockStore = useHabitBlockStore.getState();
 
       const { error } = await pushAllDataToSupabase(user, {
         children: childStore.children,
@@ -41,6 +43,7 @@ export function useSync() {
         careBlocks: careBlockStore.blocks,
         flowers: gardenStore.flowers,
         placedFlowers: gardenStore.placedFlowers,
+        habitBlocks: habitBlockStore.blocks,
       });
 
       if (error) {
@@ -82,6 +85,7 @@ export function useSync() {
       const awayStore = useAwayStore.getState();
       const careBlockStore = useCareBlockStore.getState();
       const gardenStore = useGardenStore.getState();
+      const habitBlockStore = useHabitBlockStore.getState();
 
       // Replace local data with cloud data
       if (data.children.length > 0 || data.tasks.length > 0) {
@@ -101,6 +105,9 @@ export function useSync() {
           data.flowers as Parameters<typeof gardenStore.replaceGardenData>[0],
           data.placedFlowers as Parameters<typeof gardenStore.replaceGardenData>[1]
         );
+        if (data.habitBlocks) {
+          habitBlockStore.replaceBlocks(data.habitBlocks as Parameters<typeof habitBlockStore.replaceBlocks>[0]);
+        }
       }
 
       setLastSyncTime(new Date());
