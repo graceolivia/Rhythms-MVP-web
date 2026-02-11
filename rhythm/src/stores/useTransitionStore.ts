@@ -132,56 +132,88 @@ export const useTransitionStore = create<TransitionState>()(
           }
         }
 
-        // Check nap schedules
-        for (const schedule of napSchedules) {
+        // Check nap schedules (sorted by napNumber so earlier naps resolve first)
+        const sortedSchedules = [...napSchedules].sort((a, b) => a.napNumber - b.napNumber);
+        for (const schedule of sortedSchedules) {
           const child = children.find((c) => c.id === schedule.childId);
           if (!child || !child.isNappingAge) continue;
 
           const shouldAutoTrack = schedule.autoTrack !== false;
+          const startPast = isTimePast(schedule.typicalStart, now);
+          const endPast = isTimePast(schedule.typicalEnd, now);
 
           // Nap START
-          if (isTimePast(schedule.typicalStart, now)) {
+          if (startPast) {
             const alreadyExists = existing.some(
               (t) => t.type === 'nap-start' && t.napScheduleId === schedule.id && t.scheduledDate === today
             );
+            // Use method calls (not snapshot) so we see state changes from earlier iterations
             const isAlreadySleeping = napStore.isChildSleeping(schedule.childId);
-
-            // Check if a nap has already happened around this schedule today
             const todayNaps = napStore.getNapsForDate(today).filter((n) => n.childId === schedule.childId);
             const napAlreadyTaken = todayNaps.length >= schedule.napNumber;
 
             if (!alreadyExists && !isAlreadySleeping && !napAlreadyTaken) {
-              if (shouldAutoTrack) {
-                // Auto-start the nap log at the scheduled time
+              if (shouldAutoTrack && endPast) {
+                // Both start and end are past — backfill a complete nap block silently
                 napStore.startAutoNap(schedule.childId, schedule.typicalStart);
+                napStore.endAutoNap(schedule.childId, schedule.typicalEnd);
+                // Auto-confirmed transition prevents re-processing, no prompt shown
+                newTransitions.push({
+                  id: uuidv4(),
+                  type: 'nap-start',
+                  childId: schedule.childId,
+                  scheduledTime: schedule.typicalStart,
+                  scheduledDate: today,
+                  napScheduleId: schedule.id,
+                  description: `${child.name} napped ~${schedule.typicalStart}\u2013${schedule.typicalEnd} (estimated)`,
+                  autoConfirmAfterMs: AUTO_CONFIRM_MS,
+                  createdAt: now.toISOString(),
+                  status: 'auto-confirmed',
+                  autoTracked: true,
+                });
+              } else if (shouldAutoTrack) {
+                // Only start is past — auto-start, show confirmation prompt
+                napStore.startAutoNap(schedule.childId, schedule.typicalStart);
+                newTransitions.push({
+                  id: uuidv4(),
+                  type: 'nap-start',
+                  childId: schedule.childId,
+                  scheduledTime: schedule.typicalStart,
+                  scheduledDate: today,
+                  napScheduleId: schedule.id,
+                  description: `${child.name} napping? (started ~${schedule.typicalStart})`,
+                  autoConfirmAfterMs: AUTO_CONFIRM_MS,
+                  createdAt: now.toISOString(),
+                  status: 'pending',
+                  autoTracked: true,
+                });
+              } else {
+                // Not auto-tracked — suggestion-only prompt
+                newTransitions.push({
+                  id: uuidv4(),
+                  type: 'nap-start',
+                  childId: schedule.childId,
+                  scheduledTime: schedule.typicalStart,
+                  scheduledDate: today,
+                  napScheduleId: schedule.id,
+                  description: `Time for ${child.name}'s nap? (usually ~${schedule.typicalStart})`,
+                  autoConfirmAfterMs: AUTO_CONFIRM_MS,
+                  createdAt: now.toISOString(),
+                  status: 'pending',
+                });
               }
-
-              newTransitions.push({
-                id: uuidv4(),
-                type: 'nap-start',
-                childId: schedule.childId,
-                scheduledTime: schedule.typicalStart,
-                scheduledDate: today,
-                napScheduleId: schedule.id,
-                description: shouldAutoTrack
-                  ? `${child.name} napping? (started ~${schedule.typicalStart})`
-                  : `Time for ${child.name}'s nap? (usually ~${schedule.typicalStart})`,
-                autoConfirmAfterMs: AUTO_CONFIRM_MS,
-                createdAt: now.toISOString(),
-                status: 'pending',
-                autoTracked: shouldAutoTrack || undefined,
-              });
             }
           }
 
-          // Nap END (only for auto-tracked schedules)
-          if (shouldAutoTrack && isTimePast(schedule.typicalEnd, now)) {
+          // Nap END (only for auto-tracked schedules with an ongoing auto-tracked nap)
+          if (shouldAutoTrack && endPast) {
             const alreadyExists = existing.some(
               (t) => t.type === 'nap-end' && t.napScheduleId === schedule.id && t.scheduledDate === today
             );
 
-            // Check if there's an active auto-tracked nap for this child
-            const activeAutoNap = napStore.napLogs.find(
+            // Use fresh state — earlier iterations may have ended naps
+            const currentLogs = useNapStore.getState().napLogs;
+            const activeAutoNap = currentLogs.find(
               (log) =>
                 log.childId === schedule.childId &&
                 log.endedAt === null &&
@@ -191,7 +223,6 @@ export const useTransitionStore = create<TransitionState>()(
             );
 
             if (!alreadyExists && activeAutoNap) {
-              // Auto-end the nap at the scheduled time
               napStore.endAutoNap(schedule.childId, schedule.typicalEnd);
 
               newTransitions.push({
