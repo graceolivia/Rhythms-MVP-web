@@ -31,8 +31,8 @@ export function TransitionPrompts({ napContext }: TransitionPromptsProps) {
   return (
     <div className="space-y-2 mb-4">
       {pendingTransitions.map((transition) => {
-        const isNapSuggestion = transition.type === 'nap-start';
-        const borderColor = isNapSuggestion ? 'border-l-lavender' : 'border-l-sage';
+        const isNapType = transition.type === 'nap-start' || transition.type === 'nap-end';
+        const borderColor = isNapType ? 'border-l-lavender' : 'border-l-sage';
         const wakeWindowInfo = napContext?.[transition.childId]?.wakeWindowText;
 
         return (
@@ -48,7 +48,24 @@ export function TransitionPrompts({ napContext }: TransitionPromptsProps) {
                 )}
               </p>
               <div className="flex items-center gap-2 flex-shrink-0">
-                {isNapSuggestion ? (
+                {transition.type === 'nap-start' && transition.autoTracked ? (
+                  // Auto-tracked nap start: nap already running
+                  <>
+                    <button
+                      onClick={() => confirmTransition(transition.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-lavender text-cream hover:bg-lavender/90 transition-colors"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() => dismissTransition(transition.id)}
+                      className="text-xs text-bark/40 hover:text-bark/60 transition-colors"
+                    >
+                      Didn't nap
+                    </button>
+                  </>
+                ) : transition.type === 'nap-start' ? (
+                  // Suggestion-only nap start: need to start nap on confirm
                   <>
                     <button
                       onClick={() => {
@@ -67,7 +84,24 @@ export function TransitionPrompts({ napContext }: TransitionPromptsProps) {
                       Not yet
                     </button>
                   </>
+                ) : transition.type === 'nap-end' ? (
+                  // Nap end: nap already ended
+                  <>
+                    <button
+                      onClick={() => confirmTransition(transition.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-lavender text-cream hover:bg-lavender/90 transition-colors"
+                    >
+                      Yep, up
+                    </button>
+                    <button
+                      onClick={() => dismissTransition(transition.id)}
+                      className="text-xs text-bark/40 hover:text-bark/60 transition-colors"
+                    >
+                      Still sleeping
+                    </button>
+                  </>
                 ) : (
+                  // Care block transitions
                   <>
                     <button
                       onClick={() => confirmTransition(transition.id)}

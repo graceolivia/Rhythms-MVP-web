@@ -132,11 +132,14 @@ export const useTransitionStore = create<TransitionState>()(
           }
         }
 
-        // Check nap schedules: suggest naps (don't auto-start)
+        // Check nap schedules
         for (const schedule of napSchedules) {
           const child = children.find((c) => c.id === schedule.childId);
           if (!child || !child.isNappingAge) continue;
 
+          const shouldAutoTrack = schedule.autoTrack !== false;
+
+          // Nap START
           if (isTimePast(schedule.typicalStart, now)) {
             const alreadyExists = existing.some(
               (t) => t.type === 'nap-start' && t.napScheduleId === schedule.id && t.scheduledDate === today
@@ -148,6 +151,11 @@ export const useTransitionStore = create<TransitionState>()(
             const napAlreadyTaken = todayNaps.length >= schedule.napNumber;
 
             if (!alreadyExists && !isAlreadySleeping && !napAlreadyTaken) {
+              if (shouldAutoTrack) {
+                // Auto-start the nap log at the scheduled time
+                napStore.startAutoNap(schedule.childId, schedule.typicalStart);
+              }
+
               newTransitions.push({
                 id: uuidv4(),
                 type: 'nap-start',
@@ -155,10 +163,49 @@ export const useTransitionStore = create<TransitionState>()(
                 scheduledTime: schedule.typicalStart,
                 scheduledDate: today,
                 napScheduleId: schedule.id,
-                description: `Time for ${child.name}'s nap? (usually ~${schedule.typicalStart})`,
+                description: shouldAutoTrack
+                  ? `${child.name} napping? (started ~${schedule.typicalStart})`
+                  : `Time for ${child.name}'s nap? (usually ~${schedule.typicalStart})`,
                 autoConfirmAfterMs: AUTO_CONFIRM_MS,
                 createdAt: now.toISOString(),
                 status: 'pending',
+                autoTracked: shouldAutoTrack || undefined,
+              });
+            }
+          }
+
+          // Nap END (only for auto-tracked schedules)
+          if (shouldAutoTrack && isTimePast(schedule.typicalEnd, now)) {
+            const alreadyExists = existing.some(
+              (t) => t.type === 'nap-end' && t.napScheduleId === schedule.id && t.scheduledDate === today
+            );
+
+            // Check if there's an active auto-tracked nap for this child
+            const activeAutoNap = napStore.napLogs.find(
+              (log) =>
+                log.childId === schedule.childId &&
+                log.endedAt === null &&
+                log.autoTracked &&
+                log.date === today &&
+                (log.sleepType === 'nap' || !log.sleepType)
+            );
+
+            if (!alreadyExists && activeAutoNap) {
+              // Auto-end the nap at the scheduled time
+              napStore.endAutoNap(schedule.childId, schedule.typicalEnd);
+
+              newTransitions.push({
+                id: uuidv4(),
+                type: 'nap-end',
+                childId: schedule.childId,
+                scheduledTime: schedule.typicalEnd,
+                scheduledDate: today,
+                napScheduleId: schedule.id,
+                description: `${child.name} up from nap?`,
+                autoConfirmAfterMs: AUTO_CONFIRM_MS,
+                createdAt: now.toISOString(),
+                status: 'pending',
+                autoTracked: true,
               });
             }
           }
@@ -210,6 +257,25 @@ export const useTransitionStore = create<TransitionState>()(
           // Was auto-ended — re-start away
           const block = useCareBlockStore.getState().getBlock(transition.blockId!);
           useAwayStore.getState().startAway(transition.childId, block?.name);
+        } else if (transition.type === 'nap-start' && transition.autoTracked) {
+          // Was auto-started nap — delete the auto-created log
+          useNapStore.getState().revertAutoNap(transition.childId);
+        } else if (transition.type === 'nap-end' && transition.autoTracked) {
+          // Was auto-ended nap — re-open by clearing endedAt on the most recent auto-tracked nap
+          const today = format(new Date(), 'yyyy-MM-dd');
+          const napStore = useNapStore.getState();
+          const autoNap = [...napStore.napLogs]
+            .reverse()
+            .find(
+              (log) =>
+                log.childId === transition.childId &&
+                log.date === today &&
+                log.autoTracked &&
+                (log.sleepType === 'nap' || !log.sleepType)
+            );
+          if (autoNap) {
+            napStore.updateNapLog(autoNap.id, { endedAt: null });
+          }
         }
 
         set((state) => ({

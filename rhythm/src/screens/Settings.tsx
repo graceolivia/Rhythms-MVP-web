@@ -399,27 +399,38 @@ export function Settings() {
                       .filter((nap) => nap.childId === child.id)
                       .sort((a, b) => a.napNumber - b.napNumber)
                       .map((nap) => (
-                        <div key={nap.id} className="flex items-center gap-2 mb-2">
-                          <span className="text-xs text-bark/40 w-12">Nap {nap.napNumber}</span>
-                          <input
-                            type="time"
-                            value={nap.typicalStart}
-                            onChange={(e) => updateNapSchedule(nap.id, { typicalStart: e.target.value })}
-                            className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                          />
-                          <span className="text-bark/40 text-xs">to</span>
-                          <input
-                            type="time"
-                            value={nap.typicalEnd}
-                            onChange={(e) => updateNapSchedule(nap.id, { typicalEnd: e.target.value })}
-                            className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                          />
-                          <button
-                            onClick={() => removeNapSchedule(nap.id)}
-                            className="text-bark/40 hover:text-bark text-xs px-1"
-                          >
-                            ✕
-                          </button>
+                        <div key={nap.id} className="mb-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs text-bark/40 w-12">Nap {nap.napNumber}</span>
+                            <input
+                              type="time"
+                              value={nap.typicalStart}
+                              onChange={(e) => updateNapSchedule(nap.id, { typicalStart: e.target.value })}
+                              className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                            />
+                            <span className="text-bark/40 text-xs">to</span>
+                            <input
+                              type="time"
+                              value={nap.typicalEnd}
+                              onChange={(e) => updateNapSchedule(nap.id, { typicalEnd: e.target.value })}
+                              className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                            />
+                            <button
+                              onClick={() => removeNapSchedule(nap.id)}
+                              className="text-bark/40 hover:text-bark text-xs px-1"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          <label className="flex items-center gap-1.5 ml-12 text-xs text-bark/60 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={nap.autoTrack !== false}
+                              onChange={(e) => updateNapSchedule(nap.id, { autoTrack: e.target.checked })}
+                              className="rounded border-bark/20"
+                            />
+                            Auto-track this nap
+                          </label>
                         </div>
                       ))}
                     <button

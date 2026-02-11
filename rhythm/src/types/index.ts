@@ -22,6 +22,7 @@ export interface NapSchedule {
   napNumber: number; // 1, 2, or 3
   typicalStart: string; // '09:30'
   typicalEnd: string; // '11:00'
+  autoTrack?: boolean; // auto-start/end nap at schedule times (default: treated as true when undefined)
 }
 
 export type SleepType = 'nap' | 'night';
@@ -33,6 +34,7 @@ export interface NapLog {
   startedAt: string; // ISO datetime
   endedAt: string | null; // null if still sleeping
   sleepType?: SleepType; // 'nap' or 'night', defaults to 'nap' for backwards compatibility
+  autoTracked?: boolean; // true if this log was auto-created by schedule
 }
 
 export interface ChildcareSchedule {
@@ -108,6 +110,7 @@ export interface PendingTransition {
   autoConfirmAfterMs: number;   // Default 30 min (1800000)
   createdAt: string;
   status: 'pending' | 'confirmed' | 'dismissed' | 'auto-confirmed';
+  autoTracked?: boolean;        // true if this transition auto-flipped nap state
 }
 
 // Habit Blocks

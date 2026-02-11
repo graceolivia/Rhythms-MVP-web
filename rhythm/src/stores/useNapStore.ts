@@ -34,6 +34,11 @@ interface NapState {
   getActiveSleepForChild: (childId: string) => NapLog | undefined;
   getLastWakeTime: (childId: string) => string | null;
   getLogsForTimelineDate: (date: string) => NapLog[];
+
+  // Auto-tracking
+  startAutoNap: (childId: string, scheduledStartTime: string) => string;
+  endAutoNap: (childId: string, scheduledEndTime: string) => void;
+  revertAutoNap: (childId: string) => void;
 }
 
 /**
@@ -248,6 +253,75 @@ export const useNapStore = create<NapState>()(
 
           return startsOnDate || endsOnDate || spansDate;
         });
+      },
+
+      // Auto-tracking methods
+      startAutoNap: (childId, scheduledStartTime) => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const id = uuidv4();
+        // Use the scheduled time, not "now", so if checking late the log is accurate
+        const startedAt = new Date(`${today}T${scheduledStartTime}:00`);
+        const newLog: NapLog = {
+          id,
+          childId,
+          date: today,
+          startedAt: startedAt.toISOString(),
+          endedAt: null,
+          sleepType: 'nap',
+          autoTracked: true,
+        };
+        set((state) => ({
+          napLogs: [...state.napLogs, newLog],
+        }));
+
+        useEventStore.getState().emitEvent('nap-start');
+        useEventStore.getState().emitEvent(`nap-start:${childId}`);
+
+        return id;
+      },
+
+      endAutoNap: (childId, scheduledEndTime) => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const endedAt = new Date(`${today}T${scheduledEndTime}:00`).toISOString();
+
+        set((state) => ({
+          napLogs: state.napLogs.map((log) => {
+            if (
+              log.childId === childId &&
+              log.endedAt === null &&
+              log.autoTracked &&
+              log.date === today &&
+              (log.sleepType === 'nap' || !log.sleepType)
+            ) {
+              return { ...log, endedAt };
+            }
+            return log;
+          }),
+        }));
+
+        useEventStore.getState().emitEvent('nap-end');
+        useEventStore.getState().emitEvent(`nap-end:${childId}`);
+      },
+
+      revertAutoNap: (childId) => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const logs = get().napLogs;
+        // Find the most recent auto-tracked nap for this child today
+        const autoNap = [...logs]
+          .reverse()
+          .find(
+            (log) =>
+              log.childId === childId &&
+              log.date === today &&
+              log.autoTracked &&
+              (log.sleepType === 'nap' || !log.sleepType)
+          );
+
+        if (autoNap) {
+          set((state) => ({
+            napLogs: state.napLogs.filter((log) => log.id !== autoNap.id),
+          }));
+        }
       },
     }),
     {
