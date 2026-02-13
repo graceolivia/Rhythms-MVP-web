@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { format, addDays } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
-import { useChildcareStore } from '../stores/useChildcareStore';
 import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useResetSeedData } from '../hooks/useResetSeedData';
@@ -59,10 +58,6 @@ export function Settings() {
   const addNapSchedule = useNapStore((state) => state.addNapSchedule);
   const updateNapSchedule = useNapStore((state) => state.updateNapSchedule);
   const removeNapSchedule = useNapStore((state) => state.removeNapSchedule);
-  const childcareSchedules = useChildcareStore((state) => state.schedules);
-  const addChildcareSchedule = useChildcareStore((state) => state.addSchedule);
-  const updateChildcareSchedule = useChildcareStore((state) => state.updateSchedule);
-  const removeChildcareSchedule = useChildcareStore((state) => state.removeSchedule);
   const careBlocks = useCareBlockStore((state) => state.blocks);
   const addCareBlock = useCareBlockStore((state) => state.addBlock);
   const updateCareBlock = useCareBlockStore((state) => state.updateBlock);
@@ -91,11 +86,6 @@ export function Settings() {
     return tasks.filter((task) => task.childId === childId);
   };
 
-  // Get childcare schedules for a child
-  const getChildcareSchedules = (childId: string) => {
-    return childcareSchedules.filter((s) => s.childId === childId);
-  };
-
   const handleAddChild = () => {
     addChild({
       name: '',
@@ -117,71 +107,70 @@ export function Settings() {
     });
   };
 
-  const handleAddChildcare = (childId: string) => {
-    const scheduleId = addChildcareSchedule({
-      childId,
-      name: 'Daycare',
-      daysOfWeek: [1, 2, 3, 4, 5], // Weekdays
-      dropoffTime: '08:30',
-      pickupTime: '16:00',
-      isActive: true,
-    });
-    // Create the associated tasks
-    const newSchedule = childcareSchedules.find((s) => s.id === scheduleId) ?? {
-      id: scheduleId,
-      childId,
-      name: 'Daycare',
-      daysOfWeek: [1, 2, 3, 4, 5],
-      dropoffTime: '08:30',
-      pickupTime: '16:00',
-      isActive: true,
-    };
-    ensureChildcareTasksExist(newSchedule);
-  };
+  const syncCareBlockTasks = (block: Pick<typeof careBlocks[number], 'childIds' | 'name' | 'blockType' | 'startTime' | 'endTime' | 'daysOfWeek' | 'recurrence' | 'isActive'>) => {
+    if (block.blockType !== 'childcare' && block.blockType !== 'babysitter') return;
 
-  const handleUpdateChildcare = (scheduleId: string, updates: Parameters<typeof updateChildcareSchedule>[1]) => {
-    updateChildcareSchedule(scheduleId, updates);
-    // Update the associated tasks
-    const schedule = childcareSchedules.find((s) => s.id === scheduleId);
-    if (schedule) {
-      ensureChildcareTasksExist({ ...schedule, ...updates });
+    let days = block.daysOfWeek ?? [];
+    if (days.length === 0) {
+      switch (block.recurrence) {
+        case 'daily': days = [0,1,2,3,4,5,6]; break;
+        case 'weekdays': days = [1,2,3,4,5]; break;
+        case 'weekends': days = [0,6]; break;
+        default:
+          if (typeof block.recurrence === 'object' && block.recurrence.type === 'specific-days') {
+            days = block.recurrence.days;
+          }
+      }
+    }
+    if (days.length === 0) return; // one-off blocks don't get recurring tasks
+
+    for (const childId of block.childIds) {
+      ensureChildcareTasksExist({
+        id: `careblock-${childId}`,
+        childId,
+        name: block.name,
+        daysOfWeek: days,
+        dropoffTime: block.startTime,
+        pickupTime: block.endTime,
+        isActive: block.isActive,
+      });
     }
   };
 
-  const toggleChildcareDay = (scheduleId: string, currentDays: number[], day: number) => {
-    const newDays = currentDays.includes(day)
-      ? currentDays.filter((d) => d !== day)
-      : [...currentDays, day].sort();
-    handleUpdateChildcare(scheduleId, { daysOfWeek: newDays });
-  };
-
   const handleAddCareBlock = (childId: string) => {
-    addCareBlock({
+    const blockData = {
       childIds: [childId],
       name: 'New Care Block',
-      blockType: 'childcare',
-      recurrence: 'weekdays',
+      blockType: 'childcare' as CareBlockType,
+      recurrence: 'weekdays' as const,
       daysOfWeek: [1, 2, 3, 4, 5],
       startTime: '08:30',
       endTime: '16:00',
       isActive: true,
-    });
+    };
+    addCareBlock(blockData);
+    syncCareBlockTasks(blockData);
   };
 
-  const toggleCareBlockDay = (blockId: string, currentDays: number[] | undefined, day: number) => {
-    const days = currentDays ?? [];
+  const handleUpdateCareBlock = (block: typeof careBlocks[number], updates: Parameters<typeof updateCareBlock>[1]) => {
+    updateCareBlock(block.id, updates);
+    syncCareBlockTasks({ ...block, ...updates });
+  };
+
+  const toggleCareBlockDay = (block: typeof careBlocks[number], day: number) => {
+    const days = block.daysOfWeek ?? [];
     const newDays = days.includes(day)
       ? days.filter((d) => d !== day)
       : [...days, day].sort();
-    updateCareBlock(blockId, { daysOfWeek: newDays });
+    handleUpdateCareBlock(block, { daysOfWeek: newDays });
   };
 
-  const toggleCareBlockChild = (blockId: string, currentChildIds: string[], childId: string) => {
-    const newChildIds = currentChildIds.includes(childId)
-      ? currentChildIds.filter((id) => id !== childId)
-      : [...currentChildIds, childId];
+  const toggleCareBlockChild = (block: typeof careBlocks[number], childId: string) => {
+    const newChildIds = block.childIds.includes(childId)
+      ? block.childIds.filter((id) => id !== childId)
+      : [...block.childIds, childId];
     if (newChildIds.length > 0) {
-      updateCareBlock(blockId, { childIds: newChildIds });
+      handleUpdateCareBlock(block, { childIds: newChildIds });
     }
   };
 
@@ -330,67 +319,6 @@ export function Settings() {
                   </p>
                 </div>
 
-                {/* Childcare Schedules */}
-                <div className="border-t border-bark/10 pt-3 mt-3">
-                  <label className="text-xs text-bark/50 block mb-2">Childcare Schedules</label>
-                  {getChildcareSchedules(child.id).map((schedule) => (
-                    <div key={schedule.id} className="bg-cream rounded-lg p-3 mb-2 border border-bark/10">
-                      <div className="flex items-center gap-2 mb-2">
-                        <input
-                          type="text"
-                          value={schedule.name}
-                          onChange={(e) => handleUpdateChildcare(schedule.id, { name: e.target.value })}
-                          placeholder="Name (e.g., Daycare)"
-                          className="flex-1 text-sm font-medium bg-transparent border-b border-transparent focus:border-bark/20 focus:outline-none py-1"
-                        />
-                        <button
-                          onClick={() => removeChildcareSchedule(schedule.id)}
-                          className="text-bark/40 hover:text-bark text-xs px-1"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <label className="text-xs text-bark/40 w-14">Drop</label>
-                        <input
-                          type="time"
-                          value={schedule.dropoffTime}
-                          onChange={(e) => handleUpdateChildcare(schedule.id, { dropoffTime: e.target.value })}
-                          className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-parchment focus:outline-none focus:border-sage"
-                        />
-                        <label className="text-xs text-bark/40 w-14 text-right">Pick</label>
-                        <input
-                          type="time"
-                          value={schedule.pickupTime}
-                          onChange={(e) => handleUpdateChildcare(schedule.id, { pickupTime: e.target.value })}
-                          className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-parchment focus:outline-none focus:border-sage"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {DAY_LABELS.map((label, dayIndex) => (
-                          <button
-                            key={dayIndex}
-                            onClick={() => toggleChildcareDay(schedule.id, schedule.daysOfWeek, dayIndex)}
-                            className={`w-7 h-7 rounded-full text-xs font-medium transition-all ${
-                              schedule.daysOfWeek.includes(dayIndex)
-                                ? 'bg-sage text-cream'
-                                : 'bg-parchment text-bark/40 hover:bg-parchment/80'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => handleAddChildcare(child.id)}
-                    className="w-full py-1 border border-dashed border-bark/20 rounded-lg text-bark/50 hover:border-bark/40 text-xs"
-                  >
-                    + Add Childcare
-                  </button>
-                </div>
-
                 {/* Nap Schedules (only for napping-age children) */}
                 {child.isNappingAge && (
                   <div className="border-t border-bark/10 pt-3 mt-3">
@@ -495,7 +423,7 @@ export function Settings() {
                     <input
                       type="text"
                       value={block.name}
-                      onChange={(e) => updateCareBlock(block.id, { name: e.target.value })}
+                      onChange={(e) => handleUpdateCareBlock(block, { name: e.target.value })}
                       className="font-medium text-bark bg-transparent border-b border-transparent focus:border-bark/20 focus:outline-none"
                     />
                   </div>
@@ -512,7 +440,7 @@ export function Settings() {
                   <label className="text-xs text-bark/50 block mb-1">Type</label>
                   <select
                     value={block.blockType}
-                    onChange={(e) => updateCareBlock(block.id, { blockType: e.target.value as CareBlockType })}
+                    onChange={(e) => handleUpdateCareBlock(block, { blockType: e.target.value as CareBlockType })}
                     className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
                   >
                     {BLOCK_TYPE_OPTIONS.map((opt) => (
@@ -533,7 +461,7 @@ export function Settings() {
                         return (
                           <button
                             key={child.id}
-                            onClick={() => toggleCareBlockChild(block.id, block.childIds, child.id)}
+                            onClick={() => toggleCareBlockChild(block, child.id)}
                             className={`px-3 py-1 rounded-full text-sm transition-all ${
                               isSelected
                                 ? 'bg-sage text-cream'
@@ -555,7 +483,7 @@ export function Settings() {
                     value={block.recurrence === 'one-off' ? 'one-off' : (typeof block.recurrence === 'string' ? block.recurrence : 'daily')}
                     onChange={(e) => {
                       const value = e.target.value as 'one-off' | RecurrenceRule;
-                      updateCareBlock(block.id, {
+                      handleUpdateCareBlock(block, {
                         recurrence: value,
                         oneOffDate: value === 'one-off' ? format(addDays(new Date(), 1), 'yyyy-MM-dd') : undefined,
                       });
@@ -577,7 +505,7 @@ export function Settings() {
                     <input
                       type="date"
                       value={block.oneOffDate || ''}
-                      onChange={(e) => updateCareBlock(block.id, { oneOffDate: e.target.value })}
+                      onChange={(e) => handleUpdateCareBlock(block, { oneOffDate: e.target.value })}
                       className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
                     />
                   </div>
@@ -591,7 +519,7 @@ export function Settings() {
                       {DAY_LABELS.map((label, dayIndex) => (
                         <button
                           key={dayIndex}
-                          onClick={() => toggleCareBlockDay(block.id, block.daysOfWeek, dayIndex)}
+                          onClick={() => toggleCareBlockDay(block, dayIndex)}
                           className={`w-7 h-7 rounded-full text-xs font-medium transition-all ${
                             block.daysOfWeek?.includes(dayIndex)
                               ? 'bg-sage text-cream'
@@ -612,7 +540,7 @@ export function Settings() {
                     <input
                       type="time"
                       value={block.startTime}
-                      onChange={(e) => updateCareBlock(block.id, { startTime: e.target.value })}
+                      onChange={(e) => handleUpdateCareBlock(block, { startTime: e.target.value })}
                       className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
                     />
                   </div>
@@ -621,7 +549,7 @@ export function Settings() {
                     <input
                       type="time"
                       value={block.endTime}
-                      onChange={(e) => updateCareBlock(block.id, { endTime: e.target.value })}
+                      onChange={(e) => handleUpdateCareBlock(block, { endTime: e.target.value })}
                       className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
                     />
                   </div>
@@ -638,7 +566,7 @@ export function Settings() {
                         min="0"
                         max="120"
                         value={block.travelTimeBefore || ''}
-                        onChange={(e) => updateCareBlock(block.id, {
+                        onChange={(e) => handleUpdateCareBlock(block, {
                           travelTimeBefore: e.target.value ? parseInt(e.target.value) : undefined
                         })}
                         placeholder="0"
@@ -652,7 +580,7 @@ export function Settings() {
                         min="0"
                         max="120"
                         value={block.travelTimeAfter || ''}
-                        onChange={(e) => updateCareBlock(block.id, {
+                        onChange={(e) => handleUpdateCareBlock(block, {
                           travelTimeAfter: e.target.value ? parseInt(e.target.value) : undefined
                         })}
                         placeholder="0"
@@ -673,7 +601,7 @@ export function Settings() {
                     <input
                       type="checkbox"
                       checked={block.isActive}
-                      onChange={(e) => updateCareBlock(block.id, { isActive: e.target.checked })}
+                      onChange={(e) => handleUpdateCareBlock(block, { isActive: e.target.checked })}
                       className="rounded border-bark/20"
                     />
                     Active

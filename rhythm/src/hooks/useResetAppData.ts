@@ -1,6 +1,5 @@
 import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useChildStore } from '../stores/useChildStore';
-import { useChildcareStore } from '../stores/useChildcareStore';
 import { useGardenStore } from '../stores/useGardenStore';
 import { useNapStore } from '../stores/useNapStore';
 import { useTaskStore } from '../stores/useTaskStore';
@@ -13,7 +12,6 @@ export function useResetAppData() {
   const clearNapSchedules = useNapStore((state) => state.clearNapSchedules);
   const clearNapLogs = useNapStore((state) => state.clearNapLogs);
   const clearGardenState = useGardenStore((state) => state.clearGardenState);
-  const clearChildcareSchedules = useChildcareStore((state) => state.clearSchedules);
   const clearCareBlocks = useCareBlockStore((state) => state.clearBlocks);
   const clearAwayLogs = useAwayStore((state) => state.clearAwayLogs);
 
@@ -22,7 +20,6 @@ export function useResetAppData() {
     clearTasks();
     clearNapSchedules();
     clearNapLogs();
-    clearChildcareSchedules();
     clearCareBlocks();
     clearGardenState();
     clearAwayLogs();
