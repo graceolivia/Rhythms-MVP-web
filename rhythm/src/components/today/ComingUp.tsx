@@ -77,7 +77,7 @@ export function ComingUp() {
         }
       });
 
-    // Upcoming nap schedules
+    // Upcoming sleep schedules
     napSchedules.forEach((schedule) => {
       const child = children.find((c) => c.id === schedule.childId);
       if (!child || !child.isNappingAge) return;
@@ -88,7 +88,7 @@ export function ComingUp() {
         entries.push({
           time: schedule.typicalStart,
           timeMinutes: timeMins,
-          label: `${child.name}'s nap ${schedule.napNumber}`,
+          label: `${child.name}'s sleep ${schedule.napNumber}`,
           type: 'nap-schedule',
         });
       }
@@ -143,7 +143,7 @@ export function ComingUp() {
             <span className="text-sm text-bark/70">{entry.label}</span>
             {entry.triggeredBy && (
               <span className="text-xs text-bark/30 ml-auto">
-                after {entry.triggeredBy.replace('nap-end', 'nap').replace('care-block-end', 'pickup')}
+                after {entry.triggeredBy.replace('nap-end', 'sleep').replace('care-block-end', 'pickup')}
               </span>
             )}
           </div>

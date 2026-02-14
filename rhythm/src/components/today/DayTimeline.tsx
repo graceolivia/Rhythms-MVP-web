@@ -80,7 +80,7 @@ export function DayTimeline() {
         });
       });
 
-    // Add nap schedules
+    // Add sleep schedules
     napSchedules.forEach((schedule) => {
       const child = children.find((c) => c.id === schedule.childId);
       if (!child || !child.isNappingAge) return;
@@ -89,7 +89,7 @@ export function DayTimeline() {
       items.push({
         time: schedule.typicalStart,
         timeMinutes: sh * 60 + sm,
-        label: `(${child.name} nap ${schedule.napNumber})`,
+        label: `(${child.name} sleep ${schedule.napNumber})`,
         type: 'nap-schedule',
         isCurrentSegment: false,
       });

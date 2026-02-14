@@ -34,7 +34,7 @@ const BLOCK_TYPE_OPTIONS: { value: CareBlockType; label: string; icon: string; d
   { value: 'babysitter', label: 'Babysitter', icon: '👤', description: 'Sitter at home (I\'m free)' },
   { value: 'appointment', label: 'Appointment', icon: '📅', description: 'Doctor, etc. with kid (I\'m busy)' },
   { value: 'activity', label: 'Activity', icon: '⚽', description: 'Class, sports, etc. (I\'m busy)' },
-  { value: 'sleep', label: 'Sleep', icon: '😴', description: 'Nap or nighttime (I have quiet time)' },
+  { value: 'sleep', label: 'Sleep', icon: '😴', description: 'Daytime or nighttime sleep (I have quiet time)' },
 ];
 
 const RECURRENCE_OPTIONS: { value: 'one-off' | RecurrenceRule; label: string }[] = [
@@ -280,7 +280,7 @@ export function Settings() {
                     onChange={(e) => updateChild(child.id, { isNappingAge: e.target.checked })}
                     className="rounded border-bark/20"
                   />
-                  Still naps
+                  Daytime sleep
                 </label>
 
                 {/* Bedtime and Wake time */}
@@ -319,17 +319,17 @@ export function Settings() {
                   </p>
                 </div>
 
-                {/* Nap Schedules (only for napping-age children) */}
+                {/* Sleep Schedules (only for napping-age children) */}
                 {child.isNappingAge && (
                   <div className="border-t border-bark/10 pt-3 mt-3">
-                    <label className="text-xs text-bark/50 block mb-2">Nap Schedule</label>
+                    <label className="text-xs text-bark/50 block mb-2">Sleep Schedule</label>
                     {napSchedules
                       .filter((nap) => nap.childId === child.id)
                       .sort((a, b) => a.napNumber - b.napNumber)
                       .map((nap) => (
                         <div key={nap.id} className="mb-3">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs text-bark/40 w-12">Nap {nap.napNumber}</span>
+                            <span className="text-xs text-bark/40 w-12">Sleep {nap.napNumber}</span>
                             <input
                               type="time"
                               value={nap.typicalStart}
@@ -357,7 +357,7 @@ export function Settings() {
                               onChange={(e) => updateNapSchedule(nap.id, { autoTrack: e.target.checked })}
                               className="rounded border-bark/20"
                             />
-                            Auto-track this nap
+                            Auto-track this sleep
                           </label>
                         </div>
                       ))}
@@ -365,7 +365,7 @@ export function Settings() {
                       onClick={() => handleAddNap(child.id)}
                       className="w-full py-1 border border-dashed border-bark/20 rounded-lg text-bark/50 hover:border-bark/40 text-xs"
                     >
-                      + Add Nap
+                      + Add Sleep
                     </button>
                   </div>
                 )}

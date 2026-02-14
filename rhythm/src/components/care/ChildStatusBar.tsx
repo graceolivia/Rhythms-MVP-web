@@ -159,7 +159,7 @@ export function ChildStatusBar({ napPredictions }: ChildStatusBarProps) {
                 {isSleeping ? (
                   <>
                     <span className="text-sm text-lavender">
-                      {sleepEmoji} {activeSleep.sleepType === 'night' ? 'sleeping' : 'napping'} ({formatDuration(sleepDuration)})
+                      {sleepEmoji} sleeping ({formatDuration(sleepDuration)})
                     </span>
                     {predictions?.probableWakeTime && (
                       <span className="text-xs text-bark/40 hidden sm:inline">
@@ -183,7 +183,7 @@ export function ChildStatusBar({ napPredictions }: ChildStatusBarProps) {
                     </span>
                     {predictions?.nextNapTime && (
                       <span className="text-xs text-bark/40 hidden sm:inline">
-                        · nap usually ~{predictions.nextNapTime}
+                        · sleep usually ~{predictions.nextNapTime}
                       </span>
                     )}
                   </>
@@ -212,7 +212,7 @@ export function ChildStatusBar({ napPredictions }: ChildStatusBarProps) {
                           onClick={() => handleStartSleep(child.id)}
                           className="px-3 py-1 rounded-lg text-xs font-medium bg-lavender/15 text-lavender hover:bg-lavender/25 transition-colors"
                         >
-                          nap
+                          sleep
                         </button>
                       )}
                       {childcareOptions.length > 0 ? (

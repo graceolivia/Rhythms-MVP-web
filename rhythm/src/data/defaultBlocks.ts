@@ -40,7 +40,7 @@ export function createDefaultBlocks(_childIds: string[]): {
       color: 'terracotta',
     },
     {
-      name: 'Baby Nap 1',
+      name: 'Baby Sleep 1',
       emoji: '😴',
       anchor: { type: 'time', time: '09:00' },
       estimatedEndTime: '10:30',
@@ -65,7 +65,7 @@ export function createDefaultBlocks(_childIds: string[]): {
       color: 'skyblue',
     },
     {
-      name: 'Overlap Nap',
+      name: 'Overlap Sleep',
       emoji: '✨',
       anchor: { type: 'time', time: '13:00' },
       estimatedEndTime: '15:00',

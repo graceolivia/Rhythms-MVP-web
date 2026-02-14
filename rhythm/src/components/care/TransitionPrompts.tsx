@@ -49,7 +49,7 @@ export function TransitionPrompts({ napContext }: TransitionPromptsProps) {
               </p>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {transition.type === 'nap-start' && transition.autoTracked ? (
-                  // Auto-tracked nap start: nap already running
+                  // Auto-tracked sleep start: sleep already running
                   <>
                     <button
                       onClick={() => confirmTransition(transition.id)}
@@ -61,11 +61,11 @@ export function TransitionPrompts({ napContext }: TransitionPromptsProps) {
                       onClick={() => dismissTransition(transition.id)}
                       className="text-xs text-bark/40 hover:text-bark/60 transition-colors"
                     >
-                      Didn't nap
+                      Didn't sleep
                     </button>
                   </>
                 ) : transition.type === 'nap-start' ? (
-                  // Suggestion-only nap start: need to start nap on confirm
+                  // Suggestion-only sleep start: need to start sleep on confirm
                   <>
                     <button
                       onClick={() => {
@@ -85,7 +85,7 @@ export function TransitionPrompts({ napContext }: TransitionPromptsProps) {
                     </button>
                   </>
                 ) : transition.type === 'nap-end' ? (
-                  // Nap end: nap already ended
+                  // Sleep end: sleep already ended
                   <>
                     <button
                       onClick={() => confirmTransition(transition.id)}

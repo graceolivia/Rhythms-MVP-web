@@ -222,7 +222,7 @@ function ChildrenStep({
                 onChange={(e) => updateChild(child.id, { isNappingAge: e.target.checked })}
                 className="rounded border-bark/20"
               />
-              Still naps
+              Daytime sleep
             </label>
             <div className="flex gap-3">
               <div className="flex-1">
@@ -315,9 +315,9 @@ function NapSchedulesStep({
   if (nappingChildren.length === 0) {
     return (
       <div>
-        <h2 className="font-display text-2xl text-bark mb-2">Nap Schedules</h2>
+        <h2 className="font-display text-2xl text-bark mb-2">Sleep Schedules</h2>
         <p className="text-bark/60 mb-6">
-          No napping-age children. You can skip this step.
+          No children with daytime sleep. You can skip this step.
         </p>
         <div className="flex gap-3">
           <button
@@ -339,20 +339,20 @@ function NapSchedulesStep({
 
   return (
     <div>
-      <h2 className="font-display text-2xl text-bark mb-2">Nap Schedules</h2>
+      <h2 className="font-display text-2xl text-bark mb-2">Sleep Schedules</h2>
       <p className="text-bark/60 text-sm mb-6">
-        When do your little ones typically nap?
+        When do your little ones typically sleep?
       </p>
 
       {nappingChildren.map((child) => {
         const childNaps = napSchedules.filter((n) => n.childId === child.id);
         return (
           <div key={child.id} className="mb-6">
-            <h3 className="font-medium text-bark mb-3">{child.name}'s Naps</h3>
+            <h3 className="font-medium text-bark mb-3">{child.name}'s Sleep</h3>
             {childNaps.map((nap) => (
               <div key={nap.id} className="bg-parchment rounded-xl p-4 mb-2">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-bark/60">Nap {nap.napNumber}</span>
+                  <span className="text-sm text-bark/60">Sleep {nap.napNumber}</span>
                   <button
                     onClick={() => removeNap(nap.id)}
                     className="text-bark/40 hover:text-bark text-sm"
@@ -381,7 +381,7 @@ function NapSchedulesStep({
               onClick={() => addNapForChild(child)}
               className="w-full py-2 border border-dashed border-bark/20 rounded-lg text-bark/50 hover:border-bark/40 text-sm"
             >
-              + Add Nap
+              + Add Sleep
             </button>
           </div>
         );

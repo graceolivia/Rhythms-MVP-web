@@ -32,7 +32,7 @@ function SeedCard({ instance, isSuggested }: { instance: TaskInstance; isSuggest
       return t.bestWhen.map((s) => labels[s] || s).join(' or ');
     }
     if (t.napContext && t.napContext !== 'any') {
-      return 'nap time';
+      return 'sleep time';
     }
     if (t.careContext && t.careContext !== 'any') {
       return t.careContext === 'all-home' ? 'with kids' : 'kids away';
