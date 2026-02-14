@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import sunPng from '../assets/sky/sun001.png';
 import moonPng from '../assets/sky/moon001.png';
+import daySkyPng from '../assets/sky/daysky001.png';
+import nightSkyPng from '../assets/sky/nightsky.png';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapState } from '../hooks/useNapState';
@@ -79,16 +80,23 @@ const TIER_CONFIG: Record<TaskTier, { label: string; subtitle: string; color: st
 //  Sky Header (unchanged)
 // ────────────────────────────────────────────────
 
-function getSkyGradient(dayProgress: number): string {
-  if (dayProgress < -0.15) return 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)';
-  if (dayProgress < -0.02) return 'linear-gradient(180deg, #1e1b4b 0%, #581c87 40%, #831843 70%, #1e1b4b 100%)';
-  if (dayProgress < 0.08) return 'linear-gradient(180deg, #fecdd3 0%, #fed7aa 40%, #bae6fd 80%, #FAF6F1 100%)';
-  if (dayProgress < 0.2) return 'linear-gradient(180deg, #7dd3fc 0%, #bae6fd 50%, #fef3c7 80%, #FAF6F1 100%)';
-  if (dayProgress < 0.8) return 'linear-gradient(180deg, #38bdf8 0%, #7dd3fc 40%, #e0f2fe 75%, #FAF6F1 100%)';
-  if (dayProgress < 0.92) return 'linear-gradient(180deg, #7dd3fc 0%, #fdba74 45%, #fecdd3 75%, #FAF6F1 100%)';
-  if (dayProgress < 1.02) return 'linear-gradient(180deg, #f97316 0%, #ec4899 35%, #7c3aed 70%, #2e1065 100%)';
-  if (dayProgress < 1.15) return 'linear-gradient(180deg, #4c1d95 0%, #1e1b4b 60%, #0f172a 100%)';
-  return 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)';
+type SkyStyle = { type: 'image'; src: string } | { type: 'gradient'; value: string };
+
+function getSkyStyle(dayProgress: number): SkyStyle {
+  // Night
+  if (dayProgress < -0.15) return { type: 'image', src: nightSkyPng };
+  // Dawn (gradient until sunrise art is added)
+  if (dayProgress < -0.02) return { type: 'gradient', value: 'linear-gradient(180deg, #1e1b4b 0%, #581c87 40%, #831843 70%, #1e1b4b 100%)' };
+  if (dayProgress < 0.08) return { type: 'gradient', value: 'linear-gradient(180deg, #fecdd3 0%, #fed7aa 40%, #bae6fd 80%, #FAF6F1 100%)' };
+  if (dayProgress < 0.2) return { type: 'gradient', value: 'linear-gradient(180deg, #7dd3fc 0%, #bae6fd 50%, #fef3c7 80%, #FAF6F1 100%)' };
+  // Day
+  if (dayProgress < 0.8) return { type: 'image', src: daySkyPng };
+  // Dusk (gradient until sunset art is added)
+  if (dayProgress < 0.92) return { type: 'gradient', value: 'linear-gradient(180deg, #7dd3fc 0%, #fdba74 45%, #fecdd3 75%, #FAF6F1 100%)' };
+  if (dayProgress < 1.02) return { type: 'gradient', value: 'linear-gradient(180deg, #f97316 0%, #ec4899 35%, #7c3aed 70%, #2e1065 100%)' };
+  if (dayProgress < 1.15) return { type: 'gradient', value: 'linear-gradient(180deg, #4c1d95 0%, #1e1b4b 60%, #0f172a 100%)' };
+  // Night
+  return { type: 'image', src: nightSkyPng };
 }
 
 function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
@@ -106,12 +114,16 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
   const dayLength = sunsetMs - sunriseMs;
   const dayProgress = (nowMs - sunriseMs) / dayLength;
 
+  // Bottom content (info bar + dirt + flowers) is ~90px, so arc baseline starts above that
+  const arcBasePx = 90;
+  const arcHeightPx = 80;
+
   const sunPosition = useMemo(() => {
     const visible = dayProgress > -0.05 && dayProgress < 1.05;
     const clamped = Math.max(0, Math.min(1, dayProgress));
-    const x = 8 + clamped * 84;
+    const x = 2 + clamped * 96;
     const arc = 4 * clamped * (1 - clamped);
-    const bottomPx = 8 + arc * 80;
+    const bottomPx = arcBasePx + arc * arcHeightPx;
     const opacity = dayProgress < 0
       ? Math.max(0, 1 + dayProgress * 20)
       : dayProgress > 1
@@ -132,9 +144,9 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
     }
     const visible = nightProgress > -0.05 && nightProgress < 1.05;
     const clamped = Math.max(0, Math.min(1, nightProgress));
-    const x = 8 + clamped * 84;
+    const x = 2 + clamped * 96;
     const arc = 4 * clamped * (1 - clamped);
-    const bottomPx = 8 + arc * 80;
+    const bottomPx = arcBasePx + arc * arcHeightPx;
     const opacity = nightProgress < 0
       ? Math.max(0, 1 + nightProgress * 20)
       : nightProgress > 1
@@ -143,14 +155,19 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
     return { visible, x, bottomPx, opacity };
   }, [dayProgress, nowMs, sunriseMs, sunsetMs, dayLength]);
 
-  const skyGradient = getSkyGradient(dayProgress);
+  const skyStyle = getSkyStyle(dayProgress);
   const isNight = dayProgress < -0.1 || dayProgress > 1.1;
   const isDawnOrDusk = (dayProgress > -0.05 && dayProgress < 0.08) || (dayProgress > 0.92 && dayProgress < 1.05);
 
+  const headerStyle: React.CSSProperties = skyStyle.type === 'image'
+    ? { backgroundImage: `url(${skyStyle.src})`, backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%', backgroundPosition: 'bottom', imageRendering: 'pixelated', minHeight: '200px' }
+    : { background: skyStyle.value, minHeight: '200px' };
+
   return (
+    <>
     <header
       className="-mx-4 -mt-4 px-4 pt-6 pb-0 mb-4 relative overflow-hidden flex flex-col"
-      style={{ background: skyGradient, minHeight: '200px' }}
+      style={headerStyle}
     >
       {sunPosition.visible && (
         <img src={sunPng} alt="" className="absolute w-10 h-10 pointer-events-none select-none"
@@ -160,39 +177,24 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
         <img src={moonPng} alt="" className="absolute w-9 h-9 pointer-events-none select-none"
           style={{ left: `${moonPosition.x}%`, bottom: `${moonPosition.bottomPx}px`, transform: 'translateX(-50%)', opacity: moonPosition.opacity, transition: 'bottom 60s linear, left 60s linear' }} />
       )}
-      {isNight && (
-        <>
-          <div className="absolute w-1 h-1 bg-white/60 rounded-full" style={{ left: '15%', top: '20px' }} />
-          <div className="absolute w-1 h-1 bg-white/40 rounded-full" style={{ left: '35%', top: '45px' }} />
-          <div className="absolute w-1.5 h-1.5 bg-white/50 rounded-full" style={{ left: '55%', top: '15px' }} />
-          <div className="absolute w-1 h-1 bg-white/30 rounded-full" style={{ left: '75%', top: '55px' }} />
-          <div className="absolute w-1 h-1 bg-white/50 rounded-full" style={{ left: '85%', top: '30px' }} />
-          <div className="absolute w-1 h-1 bg-white/40 rounded-full" style={{ left: '25%', top: '65px' }} />
-        </>
-      )}
-      {/* Top bar: icons only */}
-      <div className="relative z-10 flex justify-between items-start">
-        <div className={`text-right text-sm ${isNight ? 'text-white/60' : 'text-bark/50'}`}>
-          <p>☀️ {format(sunrise, 'h:mm a')}</p>
-          <p>🌙 {format(sunset, 'h:mm a')}</p>
-        </div>
-        <Link to="/timeline" className={`p-2 rounded-lg transition-colors ${isNight ? 'bg-white/10 hover:bg-white/20 text-white/80' : 'bg-bark/5 hover:bg-bark/10 text-bark/60'}`} title="View Timeline">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </Link>
-      </div>
-      {/* Date below the sun/moon arc */}
-      <div className="relative z-10 mt-auto">
-        <p className={`text-sm ${isNight ? 'text-white/70' : 'text-bark/60'}`}>{format(now, 'EEEE')}</p>
-        <h1 className={`font-display text-3xl ${isNight ? 'text-white' : 'text-bark'}`}>{format(now, 'MMMM d')}</h1>
-      </div>
+      {/* Spacer so sun/moon arc has room */}
+      <div className="flex-1" />
 
       {/* Growing plot at bottom of header */}
       <div className="relative z-10">
         <GrowingPlot isNight={isNight} justBloomedId={justBloomedId} />
       </div>
+
     </header>
+    <div className="flex items-center justify-between py-2">
+      <h1 className="font-display text-lg text-bark">
+        {format(now, 'MMMM d')} <span className="text-bark/50 font-body text-sm">- {format(now, 'EEEE')}</span>
+      </h1>
+      <p className="text-xs text-bark/50">
+        ☀️ {format(sunrise, 'h:mm a')}  ·  🌙 {format(sunset, 'h:mm a')}
+      </p>
+    </div>
+  </>
   );
 }
 

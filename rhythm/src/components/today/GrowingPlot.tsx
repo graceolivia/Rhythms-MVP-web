@@ -60,12 +60,12 @@ function DailyFlowerSlot() {
         <img
           src={sprite}
           alt="Daily flower"
-          className={`w-8 h-8 block ${
+          className={`w-16 h-16 block ${
             justBloomed ? 'animate-bloom-burst' :
             animating ? 'animate-sprout-grow' :
             stage > 0 ? 'animate-gentle-sway' : ''
           }`}
-          style={{ imageRendering: 'pixelated' }}
+          style={{ imageRendering: 'pixelated', filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))' }}
         />
       </button>
     </div>

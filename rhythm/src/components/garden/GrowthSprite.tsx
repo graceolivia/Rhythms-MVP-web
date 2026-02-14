@@ -39,9 +39,9 @@ const SIZE_CLASSES = {
 };
 
 const IMG_SIZE_CLASSES = {
-  sm: 'w-5 h-5',
-  md: 'w-8 h-8',
-  lg: 'w-10 h-10',
+  sm: 'w-10 h-10',
+  md: 'w-16 h-16',
+  lg: 'w-20 h-20',
 };
 
 const ANIM_CLASSES = {
@@ -60,7 +60,7 @@ export function GrowthSprite({ stage, flowerType, sprites, size = 'md', animate 
         src={src}
         alt={`${stage} plant`}
         className={`${IMG_SIZE_CLASSES[size]} ${ANIM_CLASSES[animate]} select-none block`}
-        style={{ imageRendering: 'pixelated' }}
+        style={{ imageRendering: 'pixelated', filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))' }}
       />
     );
   }

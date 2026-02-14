@@ -1,10 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
+import { format, differenceInMinutes } from 'date-fns';
 import type { NapSchedule, NapLog, SleepType, ChildTaskType } from '../types';
 import { useTaskStore } from './useTaskStore';
 import { useEventStore } from './useEventStore';
+
+// Max durations before auto-closing an unended sleep (in minutes)
+const MAX_NAP_MINUTES = 180;      // 3 hours
+const MAX_NIGHT_MINUTES = 840;    // 14 hours
+const DEFAULT_NAP_DURATION = 120; // fallback end: start + 2h
+const DEFAULT_NIGHT_DURATION = 660; // fallback end: start + 11h
 
 interface NapState {
   napSchedules: NapSchedule[];
@@ -34,6 +40,9 @@ interface NapState {
   getActiveSleepForChild: (childId: string) => NapLog | undefined;
   getLastWakeTime: (childId: string) => string | null;
   getLogsForTimelineDate: (date: string) => NapLog[];
+
+  // Expiry
+  closeExpiredSleeps: () => void;
 
   // Auto-tracking
   startAutoNap: (childId: string, scheduledStartTime: string) => string;
@@ -194,16 +203,19 @@ export const useNapStore = create<NapState>()(
       },
 
       getActiveNaps: () => {
+        get().closeExpiredSleeps();
         return get().napLogs.filter(
           (log) => log.endedAt === null && (log.sleepType === 'nap' || !log.sleepType)
         );
       },
 
       getActiveSleep: () => {
+        get().closeExpiredSleeps();
         return get().napLogs.filter((log) => log.endedAt === null);
       },
 
       isChildNapping: (childId) => {
+        get().closeExpiredSleeps();
         return get().napLogs.some(
           (log) =>
             log.childId === childId &&
@@ -213,12 +225,14 @@ export const useNapStore = create<NapState>()(
       },
 
       isChildSleeping: (childId) => {
+        get().closeExpiredSleeps();
         return get().napLogs.some(
           (log) => log.childId === childId && log.endedAt === null
         );
       },
 
       getActiveSleepForChild: (childId) => {
+        get().closeExpiredSleeps();
         return get().napLogs.find(
           (log) => log.childId === childId && log.endedAt === null
         );
@@ -253,6 +267,49 @@ export const useNapStore = create<NapState>()(
 
           return startsOnDate || endsOnDate || spansDate;
         });
+      },
+
+      closeExpiredSleeps: () => {
+        const now = new Date();
+        const { napLogs, napSchedules } = get();
+        const openLogs = napLogs.filter((log) => log.endedAt === null);
+        if (openLogs.length === 0) return;
+
+        let changed = false;
+        const updated = napLogs.map((log) => {
+          if (log.endedAt !== null) return log;
+
+          const startedAt = new Date(log.startedAt);
+          const elapsed = differenceInMinutes(now, startedAt);
+          const isNap = log.sleepType === 'nap' || !log.sleepType;
+          const maxMinutes = isNap ? MAX_NAP_MINUTES : MAX_NIGHT_MINUTES;
+
+          if (elapsed <= maxMinutes) return log;
+
+          // Find a matching schedule to get typical duration
+          let duration = isNap ? DEFAULT_NAP_DURATION : DEFAULT_NIGHT_DURATION;
+          if (isNap) {
+            const childSchedules = napSchedules
+              .filter((s) => s.childId === log.childId)
+              .sort((a, b) => a.napNumber - b.napNumber);
+            // Use first schedule's duration as a reasonable estimate
+            if (childSchedules.length > 0) {
+              const s = childSchedules[0];
+              const [sh, sm] = s.typicalStart.split(':').map(Number);
+              const [eh, em] = s.typicalEnd.split(':').map(Number);
+              const scheduleDuration = (eh * 60 + em) - (sh * 60 + sm);
+              if (scheduleDuration > 0) duration = scheduleDuration;
+            }
+          }
+
+          const endedAt = new Date(startedAt.getTime() + duration * 60_000).toISOString();
+          changed = true;
+          return { ...log, endedAt };
+        });
+
+        if (changed) {
+          set({ napLogs: updated });
+        }
       },
 
       // Auto-tracking methods
