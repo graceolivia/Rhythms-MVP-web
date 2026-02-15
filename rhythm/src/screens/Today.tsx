@@ -23,6 +23,7 @@ import { ComingUp } from '../components/today/ComingUp';
 import { TaskCard } from '../components/today/TaskCard';
 import { GrowingPlot } from '../components/today/GrowingPlot';
 import { HabitBlockCard } from '../components/today/HabitBlockCard';
+import { UpNextBlocks } from '../components/today/UpNextBlocks';
 import { ChoreQueueBanner } from '../components/today/ChoreQueueBanner';
 import { useActiveBlock } from '../hooks/useActiveBlock';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
@@ -517,8 +518,12 @@ export function Today() {
                   recentlyCompleted={recentlyCompleted}
                   fadingOut={fadingOut}
                 />
+
               </>
             )}
+
+            {/* Preview of next 1-2 upcoming blocks */}
+            <UpNextBlocks />
 
             {/* Coming Up (Phase 5) */}
             <ComingUp />
