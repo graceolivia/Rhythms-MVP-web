@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { useChildStore } from '../../stores/useChildStore';
 import { useNapStore } from '../../stores/useNapStore';
@@ -15,8 +16,7 @@ interface TimelineEntry {
   isCurrentSegment: boolean;
 }
 
-export function DayTimeline() {
-  const [collapsed, setCollapsed] = useState(false);
+function useDayTimelineEntries() {
   const tasks = useTaskStore((state) => state.tasks);
   const children = useChildStore((state) => state.children);
   const userWakeTime = useChildStore((state) => state.userWakeTime);
@@ -27,7 +27,7 @@ export function DayTimeline() {
   const getBlocksForDate = useHabitBlockStore((state) => state.getBlocksForDate);
   const getChild = useChildStore((state) => state.getChild);
 
-  const entries = useMemo(() => {
+  return useMemo(() => {
     const now = new Date();
     const today = now;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -52,7 +52,6 @@ export function DayTimeline() {
     blocks
       .filter((b) => b.isActive && (b.blockType === 'childcare' || b.blockType === 'babysitter'))
       .forEach((block) => {
-        // Check if this block occurs today
         const childNames = block.childIds
           .map((id) => getChild(id)?.name)
           .filter(Boolean)
@@ -148,66 +147,106 @@ export function DayTimeline() {
       }
     }
 
-    return items;
+    return { entries: items, currentMinutes };
   }, [tasks, blocks, habitBlocks, getBlocksForDate, napSchedules, children, getChild, userWakeTime, userBedtime]);
+}
+
+const formatTimeDisplay = (time: string) => {
+  const [h, m] = time.split(':').map(Number);
+  const date = new Date();
+  date.setHours(h, m);
+  return format(date, 'h:mm');
+};
+
+function TimelineRow({ entry }: { entry: TimelineEntry }) {
+  return (
+    <div
+      className={`flex items-center gap-3 py-1 ${
+        entry.isCurrentSegment ? 'text-bark font-medium' : 'text-bark/50'
+      }`}
+    >
+      <span className="text-xs w-10 text-right tabular-nums flex-shrink-0">
+        {formatTimeDisplay(entry.time)}
+      </span>
+      {entry.isCurrentSegment ? (
+        <span className="w-1.5 h-1.5 rounded-full bg-sage flex-shrink-0" />
+      ) : (
+        <span className="w-1.5 h-1.5 rounded-full bg-bark/20 flex-shrink-0" />
+      )}
+      <span className={`text-sm ${
+        entry.type === 'care-block' ? 'text-sage' :
+        entry.type === 'nap-schedule' ? 'text-lavender italic' :
+        entry.type === 'user-sleep' ? 'text-dustyrose italic' :
+        entry.type === 'habit-block' ? 'text-terracotta font-medium' :
+        ''
+      }`}>
+        {entry.label}
+      </span>
+    </div>
+  );
+}
+
+/** Compact version for the Today screen: current event + next 2 upcoming */
+export function DayOverviewCompact() {
+  const { entries, currentMinutes } = useDayTimelineEntries();
 
   if (entries.length === 0) return null;
 
-  const formatTimeDisplay = (time: string) => {
-    const [h, m] = time.split(':').map(Number);
-    const date = new Date();
-    date.setHours(h, m);
-    return format(date, 'h:mm');
-  };
+  // Find the current segment index
+  const currentIndex = entries.findIndex((e) => e.isCurrentSegment);
+
+  // Show: current event + next 2 upcoming
+  let visibleEntries: TimelineEntry[];
+  if (currentIndex >= 0) {
+    visibleEntries = entries.slice(currentIndex, currentIndex + 3);
+  } else {
+    // All events are in the future or past — show first upcoming
+    const nextIndex = entries.findIndex((e) => e.timeMinutes > currentMinutes);
+    if (nextIndex >= 0) {
+      visibleEntries = entries.slice(nextIndex, nextIndex + 3);
+    } else {
+      // All past — show last 1
+      visibleEntries = entries.slice(-1);
+    }
+  }
 
   return (
     <div className="mb-4">
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center gap-2 text-xs text-bark/50 hover:text-bark/70 mb-2 transition-colors"
-      >
-        <svg
-          className={`w-3 h-3 transition-transform ${collapsed ? '' : 'rotate-180'}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-        <span className="font-medium uppercase tracking-wide">Day Overview</span>
-      </button>
-
-      {!collapsed && (
-        <div className="bg-parchment/50 rounded-xl p-3">
-          <div className="space-y-0">
-            {entries.map((entry, i) => (
-              <div
-                key={`${entry.time}-${i}`}
-                className={`flex items-center gap-3 py-1 ${
-                  entry.isCurrentSegment ? 'text-bark font-medium' : 'text-bark/50'
-                }`}
-              >
-                <span className="text-xs w-10 text-right tabular-nums flex-shrink-0">
-                  {formatTimeDisplay(entry.time)}
-                </span>
-                {entry.isCurrentSegment && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-sage flex-shrink-0" />
-                )}
-                {!entry.isCurrentSegment && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-bark/20 flex-shrink-0" />
-                )}
-                <span className={`text-sm ${
-                  entry.type === 'care-block' ? 'text-sage' :
-                  entry.type === 'nap-schedule' ? 'text-lavender italic' :
-                  entry.type === 'user-sleep' ? 'text-dustyrose italic' :
-                  entry.type === 'habit-block' ? 'text-terracotta font-medium' :
-                  ''
-                }`}>
-                  {entry.label}
-                </span>
-              </div>
-            ))}
-          </div>
+      <div className="bg-parchment/50 rounded-xl p-3">
+        <div className="space-y-0">
+          {visibleEntries.map((entry, i) => (
+            <TimelineRow key={`${entry.time}-${i}`} entry={entry} />
+          ))}
         </div>
-      )}
+        {entries.length > visibleEntries.length && (
+          <Link
+            to="/timeline"
+            className="block text-center text-xs text-bark/40 hover:text-bark/60 mt-2 pt-1 border-t border-bark/10"
+          >
+            View full timeline
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Full version for the Timeline page */
+export function DayTimeline() {
+  const { entries } = useDayTimelineEntries();
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-2">Day Overview</h2>
+      <div className="bg-parchment/50 rounded-xl p-3">
+        <div className="space-y-0">
+          {entries.map((entry, i) => (
+            <TimelineRow key={`${entry.time}-${i}`} entry={entry} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

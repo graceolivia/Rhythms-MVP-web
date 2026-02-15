@@ -3,6 +3,7 @@ import { format, parseISO, differenceInMinutes, addDays } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
 import { useAwayStore } from '../stores/useAwayStore';
+import { DayTimeline } from '../components/today/DayTimeline';
 import type { ChildColor } from '../types';
 
 // Timeline config
@@ -490,6 +491,9 @@ export function Timeline() {
           <h1 className="font-display text-2xl text-bark">Timeline</h1>
           <p className="text-bark/60 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
         </header>
+
+        {/* Full day overview */}
+        <DayTimeline />
 
         {/* Legend */}
         <div className="flex flex-wrap gap-3 mb-4">

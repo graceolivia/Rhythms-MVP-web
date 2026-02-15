@@ -17,7 +17,7 @@ import { useNapPrediction } from '../hooks/useNapPrediction';
 import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
 import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
 import { TaskEditor } from '../components/tasks/TaskEditor';
-import { DayTimeline } from '../components/today/DayTimeline';
+import { DayOverviewCompact } from '../components/today/DayTimeline';
 import { YourWindow } from '../components/today/YourWindow';
 import { ComingUp } from '../components/today/ComingUp';
 import { TaskCard } from '../components/today/TaskCard';
@@ -461,8 +461,8 @@ export function Today() {
           }])
         )} />
 
-        {/* Day timeline (Phase 5) */}
-        <DayTimeline />
+        {/* Day overview — compact (current + 2 upcoming) */}
+        <DayOverviewCompact />
 
         {tasksWithInstances.length === 0 ? (
           <div className="text-center py-12 bg-cream rounded-xl">
