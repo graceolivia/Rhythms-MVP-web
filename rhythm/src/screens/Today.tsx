@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import sunPng from '../assets/sky/sun001.png';
 import moonPng from '../assets/sky/moon001.png';
@@ -15,6 +16,7 @@ import { useTransitionCheck } from '../hooks/useTransitionCheck';
 import { useEventStore } from '../stores/useEventStore';
 import { useNapPrediction } from '../hooks/useNapPrediction';
 import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
+import { BloomModal } from '../components/common/BloomModal';
 import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
 import { TaskEditor } from '../components/tasks/TaskEditor';
 import { DayOverviewCompact } from '../components/today/DayTimeline';
@@ -27,7 +29,6 @@ import { UpNextBlocks } from '../components/today/UpNextBlocks';
 import { ChoreQueueBanner } from '../components/today/ChoreQueueBanner';
 import { useActiveBlock } from '../hooks/useActiveBlock';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
-import { useChallengeStore } from '../stores/useChallengeStore';
 import type { Task, TaskInstance, TaskTier, NapContext, CareContext } from '../types';
 
 // ────────────────────────────────────────────────
@@ -357,17 +358,16 @@ export function Today() {
   const getEventTimestamp = useEventStore((state) => state.getEventTimestamp);
   const napPredictions = useNapPrediction();
   const { activeBlock } = useActiveBlock();
-  const { justBloomedId, bloomToast } = useChallengeProgress();
-  const clearBloomedChallenges = useChallengeStore((s) => s.clearBloomedChallenges);
+  const { justBloomedId, bloomToast, bloomedTemplateId, dismissBloom } = useChallengeProgress();
+  const navigate = useNavigate();
 
   // Check for transitions on mount + every 5 min
   useTransitionCheck();
 
-  // Generate today's instances on mount + clear yesterday's bloomed challenges
+  // Generate today's instances on mount
   useEffect(() => {
     generateDailyInstances(new Date());
-    clearBloomedChallenges();
-  }, [generateDailyInstances, clearBloomedChallenges]);
+  }, [generateDailyInstances]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -546,16 +546,17 @@ export function Today() {
 
       <GoodEnoughModal />
 
-      {/* Bloom toast */}
-      {bloomToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
-          <div className="bg-cream border border-sage/30 rounded-xl px-4 py-3 shadow-lg text-center">
-            <p className="text-sm font-medium text-bark">
-              Your {bloomToast} bloomed! 🌺
-            </p>
-            <p className="text-xs text-bark/50 mt-0.5">Check your garden</p>
-          </div>
-        </div>
+      {/* Bloom modal */}
+      {bloomToast && bloomedTemplateId && (
+        <BloomModal
+          challengeTitle={bloomToast}
+          templateId={bloomedTemplateId}
+          onDismiss={dismissBloom}
+          onViewGarden={() => {
+            dismissBloom();
+            navigate('/garden');
+          }}
+        />
       )}
 
       {/* Floating Add Button */}

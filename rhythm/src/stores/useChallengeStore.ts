@@ -182,7 +182,6 @@ interface ChallengeState {
   abandonChallenge: (challengeId: string) => void;
   getActiveByPlot: (plotIndex: number) => ActiveChallenge | undefined;
   getTemplate: (templateId: string) => ChallengeTemplate | undefined;
-  clearBloomedChallenges: () => void;
   clearChallengeState: () => void;
 }
 
@@ -197,8 +196,8 @@ export const useChallengeStore = create<ChallengeState>()(
         const template = CHALLENGE_TEMPLATES.find(t => t.id === templateId);
         if (!template) return null;
 
-        // Check plot isn't already taken (growing or bloomed)
-        if (state.activeChallenges.some(c => c.plotIndex === plotIndex && (c.status === 'growing' || c.status === 'bloomed'))) {
+        // Check plot isn't already taken by a growing challenge (bloomed plots can be reused)
+        if (state.activeChallenges.some(c => c.plotIndex === plotIndex && c.status === 'growing')) {
           return null;
         }
 
@@ -343,15 +342,6 @@ export const useChallengeStore = create<ChallengeState>()(
 
       getTemplate: (templateId) => {
         return CHALLENGE_TEMPLATES.find(t => t.id === templateId);
-      },
-
-      clearBloomedChallenges: () => {
-        const today = format(new Date(), 'yyyy-MM-dd');
-        set((s) => ({
-          activeChallenges: s.activeChallenges.filter(
-            c => c.status !== 'bloomed' || c.bloomedDate === today
-          ),
-        }));
       },
 
       clearChallengeState: () => {

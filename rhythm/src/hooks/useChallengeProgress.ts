@@ -9,7 +9,7 @@ import { useChallengeStore, CHALLENGE_TEMPLATES } from '../stores/useChallengeSt
  * - Streak challenges: one progress per day when any task in the matching category is completed
  * - Cumulative challenges: one progress per task completion in the matching category
  *
- * Returns `justBloomedId` for the GrowingPlot bloom animation.
+ * Returns bloom state for the GrowingPlot animation and BloomModal.
  */
 export function useChallengeProgress() {
   const taskInstances = useTaskStore(s => s.taskInstances);
@@ -18,9 +18,16 @@ export function useChallengeProgress() {
 
   const [justBloomedId, setJustBloomedId] = useState<string | null>(null);
   const [bloomToast, setBloomToast] = useState<string | null>(null);
+  const [bloomedTemplateId, setBloomedTemplateId] = useState<string | null>(null);
 
   // Track what we've already processed to avoid duplicate progress
   const processedRef = useRef<Set<string>>(new Set());
+
+  const dismissBloom = useCallback(() => {
+    setJustBloomedId(null);
+    setBloomToast(null);
+    setBloomedTemplateId(null);
+  }, []);
 
   const checkProgress = useCallback(() => {
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -58,10 +65,7 @@ export function useChallengeProgress() {
         if (result === 'bloomed') {
           setJustBloomedId(challenge.id);
           setBloomToast(template.title);
-          setTimeout(() => {
-            setJustBloomedId(null);
-            setBloomToast(null);
-          }, 4000);
+          setBloomedTemplateId(template.id);
         }
       } else {
         // Cumulative: record once per new completion
@@ -74,10 +78,7 @@ export function useChallengeProgress() {
           if (result === 'bloomed') {
             setJustBloomedId(challenge.id);
             setBloomToast(template.title);
-            setTimeout(() => {
-              setJustBloomedId(null);
-              setBloomToast(null);
-            }, 4000);
+            setBloomedTemplateId(template.id);
             break; // Already bloomed, no more progress needed
           }
         }
@@ -103,5 +104,5 @@ export function useChallengeProgress() {
     staleKeys.forEach(k => processedRef.current.delete(k));
   }, []);
 
-  return { justBloomedId, bloomToast };
+  return { justBloomedId, bloomToast, bloomedTemplateId, dismissBloom };
 }

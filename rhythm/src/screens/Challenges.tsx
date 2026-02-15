@@ -223,14 +223,13 @@ export function Challenges() {
   const plantChallenge = useChallengeStore(s => s.plantChallenge);
 
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
+  const [tab, setTab] = useState<'growing' | 'completed'>('growing');
 
   const growing = activeChallenges.filter(c => c.status === 'growing');
-  const bloomed = activeChallenges.filter(c => c.status === 'bloomed');
-  const active = [...growing, ...bloomed];
-  const usedPlots = [...new Set(active.map(c => c.plotIndex))];
+  const usedPlots = [...new Set(growing.map(c => c.plotIndex))];
   const activeTemplateIds = new Set(growing.map(c => c.templateId));
 
-  // Available = not currently active and not completed
+  // Available = not currently growing and not bloomed
   const available = CHALLENGE_TEMPLATES.filter(
     t => !activeTemplateIds.has(t.id)
       && !activeChallenges.some(c => c.templateId === t.id && c.status === 'bloomed')
@@ -263,78 +262,113 @@ export function Challenges() {
   return (
     <div className="min-h-screen bg-parchment/30">
       <div className="max-w-lg mx-auto p-4">
-        <header className="mb-6">
+        <header className="mb-4">
           <h1 className="font-display text-2xl text-bark">Challenges</h1>
           <p className="text-xs text-bark/50 mt-1">Plant a seed, grow a habit, bloom a flower</p>
         </header>
 
-        {/* Active Challenges */}
-        {active.length > 0 && (
-          <section className="mb-6">
-            <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-3">
-              Growing ({active.length}/4)
-            </h2>
-            <div className="space-y-3">
-              {active.map(c => (
-                <ActiveChallengeCard key={c.id} challenge={c} />
-              ))}
-            </div>
-          </section>
-        )}
+        {/* Tab bar */}
+        <div className="flex gap-1 bg-cream rounded-lg p-1 mb-6">
+          <button
+            onClick={() => setTab('growing')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              tab === 'growing'
+                ? 'bg-parchment text-bark shadow-sm'
+                : 'text-bark/40 hover:text-bark/60'
+            }`}
+          >
+            Growing{growing.length > 0 ? ` (${growing.length})` : ''}
+          </button>
+          <button
+            onClick={() => setTab('completed')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              tab === 'completed'
+                ? 'bg-parchment text-bark shadow-sm'
+                : 'text-bark/40 hover:text-bark/60'
+            }`}
+          >
+            Completed{completed.length > 0 ? ` (${completed.length})` : ''}
+          </button>
+        </div>
 
-        {/* Available Challenges */}
-        <section className="mb-6">
-          <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-3">
-            Available
-          </h2>
-          {categories.length === 0 ? (
-            <p className="text-sm text-bark/40 text-center py-4">You've tried them all!</p>
-          ) : (
-            <div className="space-y-4">
-              {categories.map(category => (
-                <div key={category}>
-                  <h3 className="text-xs font-medium text-bark/40 mb-2">
-                    {CATEGORY_LABEL[category] ?? category}
-                  </h3>
-                  <div className="space-y-2">
-                    {available
-                      .filter(t => t.category === category)
-                      .map(template => (
-                        <AvailableChallengeCard
-                          key={template.id}
-                          template={template}
-                          onTap={() => setSelectedTemplate(template)}
-                        />
-                      ))}
-                  </div>
+        {tab === 'growing' ? (
+          <>
+            {/* Active Growing Challenges */}
+            {growing.length > 0 && (
+              <section className="mb-6">
+                <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-3">
+                  Growing ({growing.length}/4)
+                </h2>
+                <div className="space-y-3">
+                  {growing.map(c => (
+                    <ActiveChallengeCard key={c.id} challenge={c} />
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
+              </section>
+            )}
 
-        {/* Completed Challenges */}
-        {completed.length > 0 && (
-          <section className="mb-6">
-            <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-3">
-              Bloomed
-            </h2>
-            <div className="space-y-2">
-              {completed.map(({ challenge, template }) => (
-                <div
-                  key={challenge.id}
-                  className="bg-cream/60 rounded-xl p-3 flex items-center gap-3 border border-bark/5"
-                >
-                  <img src={FLOWER_CATALOG[template.flowerReward].sprite} alt={FLOWER_CATALOG[template.flowerReward].label} className="w-7 h-7" style={{ imageRendering: 'pixelated' }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-bark truncate">{template.title}</p>
-                    <p className="text-xs text-bark/40">
-                      Bloomed {challenge.bloomedDate ?? ''}
-                    </p>
-                  </div>
+            {/* Available Challenges */}
+            <section className="mb-6">
+              <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-3">
+                Available
+              </h2>
+              {categories.length === 0 ? (
+                <p className="text-sm text-bark/40 text-center py-4">You've tried them all!</p>
+              ) : (
+                <div className="space-y-4">
+                  {categories.map(category => (
+                    <div key={category}>
+                      <h3 className="text-xs font-medium text-bark/40 mb-2">
+                        {CATEGORY_LABEL[category] ?? category}
+                      </h3>
+                      <div className="space-y-2">
+                        {available
+                          .filter(t => t.category === category)
+                          .map(template => (
+                            <AvailableChallengeCard
+                              key={template.id}
+                              template={template}
+                              onTap={() => setSelectedTemplate(template)}
+                            />
+                          ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </section>
+          </>
+        ) : (
+          /* Completed tab */
+          <section className="mb-6">
+            {completed.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-sm text-bark/40">No bloomed challenges yet.</p>
+                <p className="text-xs text-bark/30 mt-1">Complete a challenge to see it here.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {completed.map(({ challenge, template }) => (
+                  <div
+                    key={challenge.id}
+                    className="bg-cream rounded-xl p-4 flex items-center gap-3 border border-bark/5"
+                  >
+                    <img
+                      src={template.sprites?.[3] ?? FLOWER_CATALOG[template.flowerReward].sprite}
+                      alt={template.title}
+                      className="w-10 h-10"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-bark truncate">{template.title}</p>
+                      <p className="text-xs text-bark/40">
+                        Bloomed {challenge.bloomedDate ?? ''}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 

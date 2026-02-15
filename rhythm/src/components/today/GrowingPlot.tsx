@@ -177,12 +177,13 @@ function ChallengeDots({
 
 export function GrowingPlot({ isNight, justBloomedId }: GrowingPlotProps) {
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
-  const growing = activeChallenges.filter(c => c.status === 'growing' || c.status === 'bloomed');
+  // Show growing challenges + the justBloomedId challenge (so bloom animation plays)
+  const visible = activeChallenges.filter(
+    c => c.status === 'growing' || (c.status === 'bloomed' && c.id === justBloomedId)
+  );
 
-  // Prefer 'growing' over 'bloomed' when both share the same plot index
   const getByPlot = (index: number) =>
-    growing.find(c => c.plotIndex === index && c.status === 'growing')
-    ?? growing.find(c => c.plotIndex === index);
+    visible.find(c => c.plotIndex === index);
 
   return (
     <div className="relative mt-auto">
