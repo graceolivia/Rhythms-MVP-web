@@ -66,9 +66,12 @@ interface OnboardingData {
   seasonOfLife: SeasonOfLife;
 }
 
-type Step = 'welcome' | 'children' | 'naps' | 'childcare' | 'anchors' | 'rhythms' | 'tending' | 'season' | 'complete';
+type Step = 'welcome' | 'children' | 'only-child' | 'childcare' | 'anchors' | 'rhythms' | 'tending' | 'season' | 'complete';
 
-const STEPS: Step[] = ['welcome', 'children', 'naps', 'childcare', 'anchors', 'rhythms', 'tending', 'season', 'complete'];
+const STEPS: Step[] = ['welcome', 'children', 'only-child', 'childcare', 'anchors', 'rhythms', 'tending', 'season', 'complete'];
+
+// Steps shown as progress dots (only-child is a sub-question of children, not its own dot)
+const INDICATOR_STEPS = STEPS.filter((s) => s !== 'only-child');
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -120,10 +123,11 @@ const PRESET_TENDING: Omit<OnboardingTask, 'id' | 'selected'>[] = [
 // ============================================
 
 function StepIndicator({ currentStep }: { currentStep: Step }) {
-  const currentIndex = STEPS.indexOf(currentStep);
+  const effectiveStep = currentStep === 'only-child' ? 'children' : currentStep;
+  const currentIndex = INDICATOR_STEPS.indexOf(effectiveStep);
   return (
     <div className="flex justify-center gap-1 mb-6">
-      {STEPS.slice(0, -1).map((step, i) => (
+      {INDICATOR_STEPS.slice(0, -1).map((step, i) => (
         <div
           key={step}
           className={`w-2 h-2 rounded-full transition-colors ${
@@ -157,28 +161,57 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
 
 function ChildrenStep({
   children,
+  napSchedules,
   onChange,
+  onNapChange,
   onNext,
   onBack,
 }: {
   children: OnboardingChild[];
+  napSchedules: OnboardingNapSchedule[];
   onChange: (children: OnboardingChild[]) => void;
+  onNapChange: (schedules: OnboardingNapSchedule[]) => void;
   onNext: () => void;
   onBack: () => void;
 }) {
-  const addChild = () => {
-    onChange([
-      ...children,
-      { id: uuidv4(), name: '', birthdate: '', isNappingAge: true, bedtime: '19:30', wakeTime: '07:00' },
-    ]);
-  };
-
   const updateChild = (id: string, updates: Partial<OnboardingChild>) => {
     onChange(children.map((c) => (c.id === id ? { ...c, ...updates } : c)));
   };
 
   const removeChild = (id: string) => {
     onChange(children.filter((c) => c.id !== id));
+    onNapChange(napSchedules.filter((n) => n.childId !== id));
+  };
+
+  const handleNappingToggle = (child: OnboardingChild, checked: boolean) => {
+    updateChild(child.id, { isNappingAge: checked });
+    if (checked) {
+      const existing = napSchedules.filter((n) => n.childId === child.id);
+      if (existing.length === 0) {
+        onNapChange([
+          ...napSchedules,
+          { id: uuidv4(), childId: child.id, childName: child.name, napNumber: 1, typicalStart: '13:00', typicalEnd: '15:00' },
+        ]);
+      }
+    } else {
+      onNapChange(napSchedules.filter((n) => n.childId !== child.id));
+    }
+  };
+
+  const addNap = (child: OnboardingChild) => {
+    const existing = napSchedules.filter((n) => n.childId === child.id);
+    onNapChange([
+      ...napSchedules,
+      { id: uuidv4(), childId: child.id, childName: child.name, napNumber: existing.length + 1, typicalStart: '13:00', typicalEnd: '15:00' },
+    ]);
+  };
+
+  const updateNap = (id: string, updates: Partial<OnboardingNapSchedule>) => {
+    onNapChange(napSchedules.map((n) => (n.id === id ? { ...n, ...updates } : n)));
+  };
+
+  const removeNap = (id: string) => {
+    onNapChange(napSchedules.filter((n) => n.id !== id));
   };
 
   return (
@@ -189,71 +222,113 @@ function ChildrenStep({
       </p>
 
       <div className="space-y-4 mb-6">
-        {children.map((child, index) => (
-          <div key={child.id} className="bg-parchment rounded-xl p-4">
-            <div className="flex justify-between items-start mb-3">
-              <span className="text-sm text-bark/50">Child {index + 1}</span>
-              {children.length > 1 && (
-                <button
-                  onClick={() => removeChild(child.id)}
-                  className="text-bark/40 hover:text-bark text-sm"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-            <input
-              type="text"
-              placeholder="Name"
-              value={child.name}
-              onChange={(e) => updateChild(child.id, { name: e.target.value })}
-              className="w-full mb-3 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-            />
-            <input
-              type="date"
-              value={child.birthdate}
-              onChange={(e) => updateChild(child.id, { birthdate: e.target.value })}
-              className="w-full mb-3 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-            />
-            <label className="flex items-center gap-2 text-sm text-bark/70 mb-3">
+        {children.map((child, index) => {
+          const childNaps = napSchedules.filter((n) => n.childId === child.id);
+          return (
+            <div key={child.id} className="bg-parchment rounded-xl p-4">
+              <div className="flex justify-between items-start mb-3">
+                <span className="text-sm text-bark/50">Child {index + 1}</span>
+                {children.length > 1 && (
+                  <button
+                    onClick={() => removeChild(child.id)}
+                    className="text-bark/40 hover:text-bark text-sm"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
               <input
-                type="checkbox"
-                checked={child.isNappingAge}
-                onChange={(e) => updateChild(child.id, { isNappingAge: e.target.checked })}
-                className="rounded border-bark/20"
+                type="text"
+                placeholder="Name"
+                value={child.name}
+                onChange={(e) => updateChild(child.id, { name: e.target.value })}
+                className="w-full mb-3 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
               />
-              Daytime sleep
-            </label>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="text-xs text-bark/50 block mb-1">Bedtime</label>
-                <input
-                  type="time"
-                  value={child.bedtime}
-                  onChange={(e) => updateChild(child.id, { bedtime: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                />
+              <input
+                type="date"
+                value={child.birthdate}
+                onChange={(e) => updateChild(child.id, { birthdate: e.target.value })}
+                className="w-full mb-3 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+              />
+
+              {/* Night sleep */}
+              <div className="flex gap-3 mb-3">
+                <div className="flex-1">
+                  <label className="text-xs text-bark/50 block mb-1">Bedtime</label>
+                  <input
+                    type="time"
+                    value={child.bedtime}
+                    onChange={(e) => updateChild(child.id, { bedtime: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-bark/50 block mb-1">Wake time</label>
+                  <input
+                    type="time"
+                    value={child.wakeTime}
+                    onChange={(e) => updateChild(child.id, { wakeTime: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                  />
+                </div>
               </div>
-              <div className="flex-1">
-                <label className="text-xs text-bark/50 block mb-1">Wake time</label>
-                <input
-                  type="time"
-                  value={child.wakeTime}
-                  onChange={(e) => updateChild(child.id, { wakeTime: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                />
+
+              {/* Daytime sleep */}
+              <div className="border-t border-bark/10 pt-3">
+                <label className="flex items-center gap-2 text-sm text-bark/70 mb-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={child.isNappingAge}
+                    onChange={(e) => handleNappingToggle(child, e.target.checked)}
+                    className="rounded border-bark/20"
+                  />
+                  Has daytime sleep
+                </label>
+                {child.isNappingAge && (
+                  <div className="mt-2 space-y-2 pl-1">
+                    {childNaps.map((nap, i) => (
+                      <div key={nap.id} className="flex items-center gap-2">
+                        {childNaps.length > 1 && (
+                          <span className="text-xs text-bark/40 w-10 shrink-0">Nap {i + 1}</span>
+                        )}
+                        <input
+                          type="time"
+                          value={nap.typicalStart}
+                          onChange={(e) => updateNap(nap.id, { typicalStart: e.target.value })}
+                          className="flex-1 px-2 py-1.5 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+                        />
+                        <span className="text-bark/30 text-xs">to</span>
+                        <input
+                          type="time"
+                          value={nap.typicalEnd}
+                          onChange={(e) => updateNap(nap.id, { typicalEnd: e.target.value })}
+                          className="flex-1 px-2 py-1.5 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+                        />
+                        {childNaps.length > 1 && (
+                          <button
+                            onClick={() => removeNap(nap.id)}
+                            className="text-bark/30 hover:text-bark/60 text-xs shrink-0"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {childNaps.length < 3 && (
+                      <button
+                        onClick={() => addNap(child)}
+                        className="text-xs text-bark/50 hover:text-bark/70 transition-colors mt-1"
+                      >
+                        + Add another nap
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-
-      <button
-        onClick={addChild}
-        className="w-full py-2 border-2 border-dashed border-bark/20 rounded-xl text-bark/50 hover:border-bark/40 hover:text-bark/70 transition-colors mb-6"
-      >
-        + Add Another Child
-      </button>
 
       <div className="flex gap-3">
         <button
@@ -274,136 +349,57 @@ function ChildrenStep({
   );
 }
 
-function NapSchedulesStep({
+function OnlyChildStep({
   children,
-  napSchedules,
-  onChange,
   onNext,
+  onAddAnother,
   onBack,
 }: {
   children: OnboardingChild[];
-  napSchedules: OnboardingNapSchedule[];
-  onChange: (schedules: OnboardingNapSchedule[]) => void;
   onNext: () => void;
+  onAddAnother: () => void;
   onBack: () => void;
 }) {
-  const nappingChildren = children.filter((c) => c.isNappingAge);
-
-  const addNapForChild = (child: OnboardingChild) => {
-    const existingNaps = napSchedules.filter((n) => n.childId === child.id);
-    onChange([
-      ...napSchedules,
-      {
-        id: uuidv4(),
-        childId: child.id,
-        childName: child.name,
-        napNumber: existingNaps.length + 1,
-        typicalStart: '13:00',
-        typicalEnd: '15:00',
-      },
-    ]);
-  };
-
-  const updateNap = (id: string, updates: Partial<OnboardingNapSchedule>) => {
-    onChange(napSchedules.map((n) => (n.id === id ? { ...n, ...updates } : n)));
-  };
-
-  const removeNap = (id: string) => {
-    onChange(napSchedules.filter((n) => n.id !== id));
-  };
-
-  if (nappingChildren.length === 0) {
-    return (
-      <div>
-        <h2 className="font-display text-2xl text-bark mb-2">Sleep Schedules</h2>
-        <p className="text-bark/60 mb-6">
-          No children with daytime sleep. You can skip this step.
-        </p>
-        <div className="flex gap-3">
-          <button
-            onClick={onBack}
-            className="flex-1 py-3 border border-bark/20 text-bark rounded-xl font-medium"
-          >
-            Back
-          </button>
-          <button
-            onClick={onNext}
-            className="flex-1 py-3 bg-sage text-cream rounded-xl font-medium"
-          >
-            Skip
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const names = children.map((c) => c.name).filter(Boolean);
+  const lastAdded = names[names.length - 1] || 'your child';
+  const isMultiple = children.length > 1;
 
   return (
     <div>
-      <h2 className="font-display text-2xl text-bark mb-2">Sleep Schedules</h2>
-      <p className="text-bark/60 text-sm mb-6">
-        When do your little ones typically sleep?
+      <h2 className="font-display text-2xl text-bark mb-2">
+        {isMultiple ? 'Anyone else?' : `Is ${lastAdded} your only child?`}
+      </h2>
+      <p className="text-bark/60 text-sm mb-8">
+        {isMultiple
+          ? `So far you've added ${names.join(', ')}.`
+          : 'You can always add more children later in settings.'}
       </p>
 
-      {nappingChildren.map((child) => {
-        const childNaps = napSchedules.filter((n) => n.childId === child.id);
-        return (
-          <div key={child.id} className="mb-6">
-            <h3 className="font-medium text-bark mb-3">{child.name}'s Sleep</h3>
-            {childNaps.map((nap) => (
-              <div key={nap.id} className="bg-parchment rounded-xl p-4 mb-2">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-bark/60">Sleep {nap.napNumber}</span>
-                  <button
-                    onClick={() => removeNap(nap.id)}
-                    className="text-bark/40 hover:text-bark text-sm"
-                  >
-                    Remove
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="time"
-                    value={nap.typicalStart}
-                    onChange={(e) => updateNap(nap.id, { typicalStart: e.target.value })}
-                    className="flex-1 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                  />
-                  <span className="self-center text-bark/40">to</span>
-                  <input
-                    type="time"
-                    value={nap.typicalEnd}
-                    onChange={(e) => updateNap(nap.id, { typicalEnd: e.target.value })}
-                    className="flex-1 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                  />
-                </div>
-              </div>
-            ))}
-            <button
-              onClick={() => addNapForChild(child)}
-              className="w-full py-2 border border-dashed border-bark/20 rounded-lg text-bark/50 hover:border-bark/40 text-sm"
-            >
-              + Add Sleep
-            </button>
-          </div>
-        );
-      })}
-
-      <div className="flex gap-3">
-        <button
-          onClick={onBack}
-          className="flex-1 py-3 border border-bark/20 text-bark rounded-xl font-medium"
-        >
-          Back
-        </button>
+      <div className="space-y-3 mb-6">
         <button
           onClick={onNext}
-          className="flex-1 py-3 bg-sage text-cream rounded-xl font-medium"
+          className="w-full py-4 bg-sage text-cream rounded-xl font-medium hover:bg-sage/90 transition-colors"
         >
-          Continue
+          {isMultiple ? "That's everyone" : 'Yes, just the one'}
+        </button>
+        <button
+          onClick={onAddAnother}
+          className="w-full py-4 border border-bark/20 text-bark rounded-xl font-medium hover:bg-parchment transition-colors"
+        >
+          + Add another child
         </button>
       </div>
+
+      <button
+        onClick={onBack}
+        className="w-full text-center text-sm text-bark/40 hover:text-bark/60 transition-colors"
+      >
+        Back
+      </button>
     </div>
   );
 }
+
 
 function ChildcareStep({
   children,
@@ -844,6 +840,17 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     }
   };
 
+  const handleAddAnother = () => {
+    setData({
+      ...data,
+      children: [
+        ...data.children,
+        { id: uuidv4(), name: '', birthdate: '', isNappingAge: true, bedtime: '19:30', wakeTime: '07:00' },
+      ],
+    });
+    setStep('children');
+  };
+
   const handleFinish = () => {
     // Clear any existing data (e.g., seed data from development)
     clearChildren();
@@ -1011,18 +1018,19 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         {step === 'children' && (
           <ChildrenStep
             children={data.children}
+            napSchedules={data.napSchedules}
             onChange={(children) => setData({ ...data, children })}
+            onNapChange={(napSchedules) => setData({ ...data, napSchedules })}
             onNext={goNext}
             onBack={goBack}
           />
         )}
 
-        {step === 'naps' && (
-          <NapSchedulesStep
+        {step === 'only-child' && (
+          <OnlyChildStep
             children={data.children}
-            napSchedules={data.napSchedules}
-            onChange={(napSchedules) => setData({ ...data, napSchedules })}
             onNext={goNext}
+            onAddAnother={handleAddAnother}
             onBack={goBack}
           />
         )}
