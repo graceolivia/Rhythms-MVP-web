@@ -220,7 +220,7 @@ export const useChallengeStore = create<ChallengeState>()(
             const taskId = taskStore.addTask({
               type: 'standard',
               title: seedTask.title,
-              tier: 'tending',
+              tier: 'todo',
               scheduledTime: null,
               recurrence: isRecurring ? 'daily' : 'daily',
               napContext: null,

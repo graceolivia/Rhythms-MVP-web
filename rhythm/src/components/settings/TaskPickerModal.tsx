@@ -27,7 +27,7 @@ export function TaskPickerModal({ isOpen, onClose, onSelect, excludeTaskIds = []
     const id = addTask({
       type: 'standard',
       title: newTitle.trim(),
-      tier: 'tending',
+      tier: 'todo',
       scheduledTime: null,
       recurrence: 'daily',
       napContext: null,

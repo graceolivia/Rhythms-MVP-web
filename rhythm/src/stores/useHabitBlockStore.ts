@@ -287,7 +287,7 @@ export const useHabitBlockStore = create<HabitBlockState>()(
               taskStore.addTask({
                 type: 'standard',
                 title: chore.title,
-                tier: 'tending',
+                tier: 'todo',
                 scheduledTime: null,
                 recurrence: 'daily',
                 napContext: null,
@@ -320,7 +320,7 @@ export const useHabitBlockStore = create<HabitBlockState>()(
                 const id = taskStore.addTask({
                   type: 'standard',
                   title: item.taskId, // taskId is title in default blocks before resolution
-                  tier: 'tending',
+                  tier: 'todo',
                   scheduledTime: null,
                   recurrence: 'daily',
                   napContext: null,

@@ -10,9 +10,9 @@ interface TaskEditorProps {
 }
 
 const TIER_LABELS: Record<TaskTier, string> = {
-  anchor: 'Anchors',
-  rhythm: 'Rhythms',
-  tending: 'Tending Tasks',
+  'fixed-schedule': 'Fixed Schedule',
+  'routine': 'Routines',
+  'todo': 'To-dos',
 };
 
 const RECURRENCE_OPTIONS: { value: RecurrenceRule; label: string }[] = [
@@ -130,7 +130,7 @@ function EditableTask({
 
       {expanded && (
         <div className="mt-3 space-y-3 pt-3 border-t border-bark/10">
-          {tier === 'anchor' && (
+          {tier === 'fixed-schedule' && (
             <div>
               <label className="text-xs text-bark/50 block mb-1">Scheduled time</label>
               <input
@@ -277,7 +277,7 @@ function EditableTask({
             </>
           )}
 
-          {tier !== 'anchor' && (
+          {tier !== 'fixed-schedule' && (
             <div>
               <label className="text-xs text-bark/50 block mb-1">Nap context</label>
               <select
@@ -418,9 +418,9 @@ export function TaskEditor({ tier, isOpen, onClose }: TaskEditorProps) {
       type: 'standard',
       title: 'New task',
       tier,
-      scheduledTime: tier === 'anchor' ? '09:00' : null,
+      scheduledTime: tier === 'fixed-schedule' ? '09:00' : null,
       recurrence: 'daily',
-      napContext: tier === 'anchor' ? null : 'any',
+      napContext: tier === 'fixed-schedule' ? null : 'any',
       isActive: true,
       category: 'other',
     });
@@ -469,7 +469,7 @@ export function TaskEditor({ tier, isOpen, onClose }: TaskEditorProps) {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Add {tier === 'anchor' ? 'Anchor' : tier === 'rhythm' ? 'Rhythm' : 'Task'}
+            Add {tier === 'fixed-schedule' ? 'Fixed Schedule Item' : tier === 'routine' ? 'Routine' : 'To-do'}
           </button>
         </div>
       </div>

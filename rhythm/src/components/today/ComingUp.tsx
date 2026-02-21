@@ -30,7 +30,7 @@ export function ComingUp() {
 
     // Upcoming anchor tasks
     tasks
-      .filter((t) => t.tier === 'anchor' && t.scheduledTime && shouldTaskOccurOnDate(t, now))
+      .filter((t) => t.tier === 'fixed-schedule' && t.scheduledTime && shouldTaskOccurOnDate(t, now))
       .forEach((task) => {
         const [h, m] = task.scheduledTime!.split(':').map(Number);
         const timeMins = h * 60 + m;

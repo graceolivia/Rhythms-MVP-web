@@ -147,7 +147,7 @@ export interface HabitBlock {
 
 // Tasks
 
-export type TaskTier = 'anchor' | 'rhythm' | 'tending';
+export type TaskTier = 'fixed-schedule' | 'routine' | 'todo';
 
 export type RecurrenceRule =
   | 'daily'

@@ -65,7 +65,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Milo daycare dropoff',
-    tier: 'anchor',
+    tier: 'fixed-schedule',
     scheduledTime: '08:45',
     recurrence: 'weekdays',
     napContext: null,
@@ -76,7 +76,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Milo pickup',
-    tier: 'anchor',
+    tier: 'fixed-schedule',
     scheduledTime: '12:30',
     recurrence: 'weekdays',
     napContext: null,
@@ -87,7 +87,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Hazel bedtime',
-    tier: 'anchor',
+    tier: 'fixed-schedule',
     scheduledTime: '19:00',
     recurrence: 'daily',
     napContext: null,
@@ -98,7 +98,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Milo bedtime',
-    tier: 'anchor',
+    tier: 'fixed-schedule',
     scheduledTime: '20:00',
     recurrence: 'daily',
     napContext: null,
@@ -112,7 +112,7 @@ export const seedTasks: TaskInput[] = [
     type: 'meal',
     mealType: 'breakfast',
     title: 'Breakfast for everyone',
-    tier: 'rhythm',
+    tier: 'routine',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'any',
@@ -123,7 +123,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Dress & change both kids',
-    tier: 'rhythm',
+    tier: 'routine',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'both-awake',
@@ -134,7 +134,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Lunch for me',
-    tier: 'rhythm',
+    tier: 'routine',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'any',
@@ -146,7 +146,7 @@ export const seedTasks: TaskInput[] = [
     type: 'meal',
     mealType: 'lunch',
     title: 'Lunch for Milo',
-    tier: 'rhythm',
+    tier: 'routine',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'any',
@@ -158,7 +158,7 @@ export const seedTasks: TaskInput[] = [
     type: 'meal',
     mealType: 'dinner',
     title: 'Dinner for everyone',
-    tier: 'rhythm',
+    tier: 'routine',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'any',
@@ -169,7 +169,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'House reset',
-    tier: 'rhythm',
+    tier: 'routine',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'both-asleep',
@@ -182,7 +182,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Empty dishwasher',
-    tier: 'tending',
+    tier: 'todo',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'baby-asleep',
@@ -193,7 +193,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Wipe kitchen counters',
-    tier: 'tending',
+    tier: 'todo',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'any',
@@ -204,7 +204,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Sweep kitchen',
-    tier: 'tending',
+    tier: 'todo',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'both-asleep',
@@ -215,7 +215,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Focused computer work',
-    tier: 'tending',
+    tier: 'todo',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'both-asleep',
@@ -226,7 +226,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Fold laundry',
-    tier: 'tending',
+    tier: 'todo',
     scheduledTime: null,
     recurrence: 'daily',
     napContext: 'toddler-asleep',
@@ -237,7 +237,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Start a load of laundry',
-    tier: 'tending',
+    tier: 'todo',
     scheduledTime: null,
     recurrence: { type: 'specific-days', days: [1, 3, 5] }, // Mon, Wed, Fri
     napContext: 'any',
@@ -248,7 +248,7 @@ export const seedTasks: TaskInput[] = [
   {
     type: 'standard',
     title: 'Vacuum living room',
-    tier: 'tending',
+    tier: 'todo',
     scheduledTime: null,
     recurrence: 'weekly',
     napContext: 'both-awake',

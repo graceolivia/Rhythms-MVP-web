@@ -5,9 +5,9 @@ import { useChildStore } from '../stores/useChildStore';
 import type { Task, TaskTier, RecurrenceRule, TaskInput } from '../types';
 
 const TIER_CONFIG: Record<TaskTier, { label: string; color: string; bg: string; border: string }> = {
-  anchor: { label: 'Anchors', color: 'text-terracotta', bg: 'bg-terracotta/10', border: 'border-terracotta/30' },
-  rhythm: { label: 'Rhythms', color: 'text-sage', bg: 'bg-sage/10', border: 'border-sage/30' },
-  tending: { label: 'Tending', color: 'text-skyblue', bg: 'bg-skyblue/10', border: 'border-skyblue/30' },
+  'fixed-schedule': { label: 'Fixed Schedule', color: 'text-terracotta', bg: 'bg-terracotta/10', border: 'border-terracotta/30' },
+  'routine': { label: 'Routines', color: 'text-sage', bg: 'bg-sage/10', border: 'border-sage/30' },
+  'todo': { label: 'To-dos', color: 'text-skyblue', bg: 'bg-skyblue/10', border: 'border-skyblue/30' },
 };
 
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -206,7 +206,7 @@ function TaskEditModal({ task, onClose, onSave, onDelete, children }: TaskEditMo
             )}
 
             {/* Time (for anchors and rhythms) */}
-            {task.tier !== 'tending' && (
+            {task.tier !== 'todo' && (
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div>
                   <label className="text-xs text-bark/60 block mb-1">Time</label>
@@ -313,7 +313,7 @@ interface NewTaskModalProps {
   children: { id: string; name: string }[];
 }
 
-function NewTaskModal({ onClose, onAdd, defaultTier = 'rhythm', children }: NewTaskModalProps) {
+function NewTaskModal({ onClose, onAdd, defaultTier = 'routine', children }: NewTaskModalProps) {
   const [title, setTitle] = useState('');
   const [tier, setTier] = useState<TaskTier>(defaultTier);
   const [scheduledTime, setScheduledTime] = useState('09:00');
@@ -329,7 +329,7 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'rhythm', children }: NewT
       type: 'standard',
       title: title.trim(),
       tier,
-      scheduledTime: tier !== 'tending' ? scheduledTime : null,
+      scheduledTime: tier !== 'todo' ? scheduledTime : null,
       duration,
       recurrence,
       daysOfWeek: recurrence === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
@@ -382,7 +382,7 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'rhythm', children }: NewT
         <div className="mb-4">
           <label className="text-xs text-bark/60 block mb-2">Type</label>
           <div className="grid grid-cols-3 gap-2">
-            {(['anchor', 'rhythm', 'tending'] as TaskTier[]).map((t) => {
+            {(['fixed-schedule', 'routine', 'todo'] as TaskTier[]).map((t) => {
               const c = TIER_CONFIG[t];
               return (
                 <button
@@ -434,7 +434,7 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'rhythm', children }: NewT
         )}
 
         {/* Time (for anchors and rhythms) */}
-        {tier !== 'tending' && (
+        {tier !== 'todo' && (
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label className="text-xs text-bark/60 block mb-1">Time</label>
@@ -537,8 +537,8 @@ export function Tasks() {
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
-  const [newTaskTier, setNewTaskTier] = useState<TaskTier>('rhythm');
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['anchors', 'rhythms']));
+  const [newTaskTier, setNewTaskTier] = useState<TaskTier>('routine');
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['fixed-schedule', 'routines']));
 
   // Helper to get child by ID
   const getChild = (id: string) => children.find(c => c.id === id);
@@ -556,12 +556,12 @@ export function Tasks() {
   };
 
   // Group active tasks by tier
-  const { anchors, rhythms, tending } = useMemo(() => {
+  const { fixedSchedule, routines, todos } = useMemo(() => {
     const active = tasks.filter(t => t.isActive);
     return {
-      anchors: active.filter(t => t.tier === 'anchor'),
-      rhythms: active.filter(t => t.tier === 'rhythm'),
-      tending: active.filter(t => t.tier === 'tending'),
+      fixedSchedule: active.filter(t => t.tier === 'fixed-schedule'),
+      routines: active.filter(t => t.tier === 'routine'),
+      todos: active.filter(t => t.tier === 'todo'),
     };
   }, [tasks]);
 
@@ -587,37 +587,37 @@ export function Tasks() {
           <p className="text-bark/60 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
         </header>
 
-        {/* Anchors */}
+        {/* Fixed Schedule */}
         <section className="mb-3">
           <button
-            onClick={() => toggleSection('anchors')}
+            onClick={() => toggleSection('fixed-schedule')}
             className="w-full flex items-center justify-between p-3 rounded-lg bg-terracotta/5 hover:bg-terracotta/10 transition-colors"
           >
             <h2 className="font-medium text-terracotta flex items-center gap-2">
-              <span>⚓</span> Anchors
-              <span className="text-xs text-bark/40 font-normal">({anchors.length})</span>
+              <span>⏰</span> Fixed Schedule
+              <span className="text-xs text-bark/40 font-normal">({fixedSchedule.length})</span>
             </h2>
             <div className="flex items-center gap-2">
               <button
-                onClick={(e) => { e.stopPropagation(); openNewTaskModal('anchor'); }}
+                onClick={(e) => { e.stopPropagation(); openNewTaskModal('fixed-schedule'); }}
                 className="text-xs px-2 py-1 rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20"
               >
                 + Add
               </button>
               <svg
-                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('anchors') ? 'rotate-180' : ''}`}
+                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('fixed-schedule') ? 'rotate-180' : ''}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
           </button>
-          {expandedSections.has('anchors') && (
+          {expandedSections.has('fixed-schedule') && (
             <div className="mt-2 space-y-2">
-              {anchors.length === 0 ? (
-                <p className="text-sm text-bark/40 italic py-2 px-3">No anchors yet</p>
+              {fixedSchedule.length === 0 ? (
+                <p className="text-sm text-bark/40 italic py-2 px-3">No fixed schedule items yet</p>
               ) : (
-                anchors.map(task => (
+                fixedSchedule.map(task => (
                   <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
                 ))
               )}
@@ -625,37 +625,37 @@ export function Tasks() {
           )}
         </section>
 
-        {/* Rhythms */}
+        {/* Routines */}
         <section className="mb-3">
           <button
-            onClick={() => toggleSection('rhythms')}
+            onClick={() => toggleSection('routines')}
             className="w-full flex items-center justify-between p-3 rounded-lg bg-sage/5 hover:bg-sage/10 transition-colors"
           >
             <h2 className="font-medium text-sage flex items-center gap-2">
-              <span>🌿</span> Rhythms
-              <span className="text-xs text-bark/40 font-normal">({rhythms.length})</span>
+              <span>🌿</span> Routines
+              <span className="text-xs text-bark/40 font-normal">({routines.length})</span>
             </h2>
             <div className="flex items-center gap-2">
               <button
-                onClick={(e) => { e.stopPropagation(); openNewTaskModal('rhythm'); }}
+                onClick={(e) => { e.stopPropagation(); openNewTaskModal('routine'); }}
                 className="text-xs px-2 py-1 rounded-lg bg-sage/10 text-sage hover:bg-sage/20"
               >
                 + Add
               </button>
               <svg
-                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('rhythms') ? 'rotate-180' : ''}`}
+                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('routines') ? 'rotate-180' : ''}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
           </button>
-          {expandedSections.has('rhythms') && (
+          {expandedSections.has('routines') && (
             <div className="mt-2 space-y-2">
-              {rhythms.length === 0 ? (
-                <p className="text-sm text-bark/40 italic py-2 px-3">No rhythms yet</p>
+              {routines.length === 0 ? (
+                <p className="text-sm text-bark/40 italic py-2 px-3">No routines yet</p>
               ) : (
-                rhythms.map(task => (
+                routines.map(task => (
                   <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
                 ))
               )}
@@ -663,37 +663,37 @@ export function Tasks() {
           )}
         </section>
 
-        {/* Tending */}
+        {/* To-dos */}
         <section className="mb-3">
           <button
-            onClick={() => toggleSection('tending')}
+            onClick={() => toggleSection('todos')}
             className="w-full flex items-center justify-between p-3 rounded-lg bg-skyblue/5 hover:bg-skyblue/10 transition-colors"
           >
             <h2 className="font-medium text-skyblue flex items-center gap-2">
-              <span>🌱</span> Tending
-              <span className="text-xs text-bark/40 font-normal">({tending.length})</span>
+              <span>🌱</span> To-dos
+              <span className="text-xs text-bark/40 font-normal">({todos.length})</span>
             </h2>
             <div className="flex items-center gap-2">
               <button
-                onClick={(e) => { e.stopPropagation(); openNewTaskModal('tending'); }}
+                onClick={(e) => { e.stopPropagation(); openNewTaskModal('todo'); }}
                 className="text-xs px-2 py-1 rounded-lg bg-skyblue/10 text-skyblue hover:bg-skyblue/20"
               >
                 + Add
               </button>
               <svg
-                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('tending') ? 'rotate-180' : ''}`}
+                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('todos') ? 'rotate-180' : ''}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
           </button>
-          {expandedSections.has('tending') && (
+          {expandedSections.has('todos') && (
             <div className="mt-2 space-y-2">
-              {tending.length === 0 ? (
-                <p className="text-sm text-bark/40 italic py-2 px-3">No tending tasks yet</p>
+              {todos.length === 0 ? (
+                <p className="text-sm text-bark/40 italic py-2 px-3">No to-dos yet</p>
               ) : (
-                tending.map(task => (
+                todos.map(task => (
                   <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
                 ))
               )}

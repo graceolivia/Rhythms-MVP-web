@@ -6,9 +6,9 @@ import { GrowthSprite } from '../garden/GrowthSprite';
 import type { Task, TaskInstance, TaskTier } from '../../types';
 
 const TIER_CONFIG: Record<TaskTier, { label: string; color: string; bg: string }> = {
-  anchor: { label: 'Anchor', color: 'text-terracotta', bg: 'bg-terracotta/10' },
-  rhythm: { label: 'Rhythm', color: 'text-sage', bg: 'bg-sage/10' },
-  tending: { label: 'Tending', color: 'text-lavender', bg: 'bg-lavender/10' },
+  'fixed-schedule': { label: 'Fixed Schedule', color: 'text-terracotta', bg: 'bg-terracotta/10' },
+  'routine': { label: 'Routine', color: 'text-sage', bg: 'bg-sage/10' },
+  'todo': { label: 'To-do', color: 'text-lavender', bg: 'bg-lavender/10' },
 };
 
 export function TaskCard({

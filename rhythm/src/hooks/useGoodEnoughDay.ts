@@ -26,7 +26,7 @@ export function useGoodEnoughDay(): GoodEnoughResult {
     // Find rhythm tasks that have instances today
     const rhythmInstances = todaysInstances.filter((instance) => {
       const task = tasks.find((t) => t.id === instance.taskId);
-      return task?.tier === 'rhythm';
+      return task?.tier === 'routine';
     });
 
     // Count completed rhythms

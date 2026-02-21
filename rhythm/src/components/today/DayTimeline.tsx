@@ -35,7 +35,7 @@ function useDayTimelineEntries() {
 
     // Add anchor tasks for today
     tasks
-      .filter((t) => t.tier === 'anchor' && t.scheduledTime && shouldTaskOccurOnDate(t, today))
+      .filter((t) => t.tier === 'fixed-schedule' && t.scheduledTime && shouldTaskOccurOnDate(t, today))
       .forEach((task) => {
         const [h, m] = task.scheduledTime!.split(':').map(Number);
         const childName = task.childId ? getChild(task.childId)?.name : null;

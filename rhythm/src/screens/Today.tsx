@@ -29,6 +29,7 @@ import { HabitBlockCard } from '../components/today/HabitBlockCard';
 import { UpNextBlocks } from '../components/today/UpNextBlocks';
 import { ChoreQueueBanner } from '../components/today/ChoreQueueBanner';
 import { useActiveBlock } from '../hooks/useActiveBlock';
+import { useAutoComplete } from '../hooks/useAutoComplete';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import type { Task, TaskInstance, TaskTier, NapContext, CareContext } from '../types';
 
@@ -72,11 +73,11 @@ interface TaskWithInstance {
   instance: TaskInstance;
 }
 
-const TIER_ORDER: TaskTier[] = ['anchor', 'rhythm', 'tending'];
+const TIER_ORDER: TaskTier[] = ['fixed-schedule', 'routine', 'todo'];
 const TIER_CONFIG: Record<TaskTier, { label: string; subtitle: string; color: string; bg: string }> = {
-  anchor: { label: 'Anchor', subtitle: 'Fixed events that structure your day', color: 'text-terracotta', bg: 'bg-terracotta/10' },
-  rhythm: { label: 'Rhythm', subtitle: 'Daily non-negotiables, flexible in timing', color: 'text-sage', bg: 'bg-sage/10' },
-  tending: { label: 'Tending', subtitle: 'Nice-to-haves that maintain your life', color: 'text-lavender', bg: 'bg-lavender/10' },
+  'fixed-schedule': { label: 'Fixed Schedule', subtitle: 'Things with set times', color: 'text-terracotta', bg: 'bg-terracotta/10' },
+  'routine': { label: 'Routine', subtitle: 'Daily habits that don\'t need a clock', color: 'text-sage', bg: 'bg-sage/10' },
+  'todo': { label: 'To-do', subtitle: 'Worth doing when you can', color: 'text-lavender', bg: 'bg-lavender/10' },
 };
 
 // ────────────────────────────────────────────────
@@ -307,7 +308,7 @@ function AllTasksView({
                       task={task} instance={instance} today={today} suggested={suggested}
                       onTap={() => onTaskTap(instance)}
                       onEdit={() => onEdit(task)}
-                      onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
+                      onDefer={task.tier === 'todo' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
                     />
                   </div>
                 );
@@ -399,7 +400,7 @@ function SuggestedDuringBlock({
                 suggested={true}
                 onTap={() => onTaskTap(instance)}
                 onEdit={() => onEdit(task)}
-                onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
+                onDefer={task.tier === 'todo' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
               />
             </div>
           );
@@ -440,6 +441,9 @@ export function Today() {
 
   // Check for transitions on mount + every 5 min
   useTransitionCheck();
+
+  // Auto-complete past fixed-schedule tasks
+  useAutoComplete();
 
   // Generate today's instances on mount
   useEffect(() => {

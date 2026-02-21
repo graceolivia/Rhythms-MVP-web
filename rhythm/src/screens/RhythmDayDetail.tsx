@@ -4,12 +4,12 @@ import { useTaskStore } from '../stores/useTaskStore';
 import { shouldTaskOccurOnDate } from '../stores/useTaskStore';
 import type { TaskTier } from '../types';
 
-const TIER_ORDER: TaskTier[] = ['anchor', 'rhythm', 'tending'];
+const TIER_ORDER: TaskTier[] = ['fixed-schedule', 'routine', 'todo'];
 
 const TIER_STYLES: Record<TaskTier, { bg: string; text: string; label: string }> = {
-  anchor: { bg: 'bg-terracotta/15', text: 'text-terracotta', label: 'Anchor' },
-  rhythm: { bg: 'bg-sage/15', text: 'text-sage', label: 'Rhythm' },
-  tending: { bg: 'bg-skyblue/15', text: 'text-skyblue', label: 'Tending' },
+  'fixed-schedule': { bg: 'bg-terracotta/15', text: 'text-terracotta', label: 'Fixed Schedule' },
+  'routine': { bg: 'bg-sage/15', text: 'text-sage', label: 'Routine' },
+  'todo': { bg: 'bg-skyblue/15', text: 'text-skyblue', label: 'To-do' },
 };
 
 export function RhythmDayDetail() {

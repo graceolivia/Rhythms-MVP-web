@@ -317,7 +317,7 @@ export const useTaskStore = create<TaskState>()(
           }
 
           const task = tasks.find((t) => t.id === instance.taskId);
-          if (task?.tier === 'tending') {
+          if (task?.tier === 'todo') {
             // Move to seeds queue by marking as deferred
             return {
               ...instance,
@@ -392,7 +392,7 @@ export const useTaskStore = create<TaskState>()(
           id: taskId,
           type: 'standard',
           title,
-          tier: 'tending',
+          tier: 'todo',
           scheduledTime: scheduledTime ?? null,
           recurrence: 'daily',
           napContext,
@@ -491,7 +491,7 @@ export const useTaskStore = create<TaskState>()(
             id: uuidv4(),
             type: 'standard',
             title: `dropoff (${schedule.name})`,
-            tier: 'anchor',
+            tier: 'fixed-schedule',
             scheduledTime: schedule.dropoffTime,
             recurrence: 'daily',
             daysOfWeek: schedule.daysOfWeek,
@@ -509,7 +509,7 @@ export const useTaskStore = create<TaskState>()(
             id: uuidv4(),
             type: 'standard',
             title: `pickup (${schedule.name})`,
-            tier: 'anchor',
+            tier: 'fixed-schedule',
             scheduledTime: schedule.pickupTime,
             recurrence: 'daily',
             daysOfWeek: schedule.daysOfWeek,
@@ -571,7 +571,7 @@ export const useTaskStore = create<TaskState>()(
     }),
     {
       name: 'rhythm_tasks',
-      version: 5,
+      version: 6,
       migrate: (persisted: unknown, version: number) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let state = persisted as any;
@@ -629,6 +629,22 @@ export const useTaskStore = create<TaskState>()(
             tasks: (state.tasks as any[]).map((task: any) => ({
               ...task,
               isChoreQueue: task.isChoreQueue ?? false,
+            })),
+          };
+        }
+
+        if (version < 6) {
+          // Rename tier values: anchor→fixed-schedule, rhythm→routine, tending→todo
+          const tierMap: Record<string, string> = {
+            'anchor': 'fixed-schedule',
+            'rhythm': 'routine',
+            'tending': 'todo',
+          };
+          state = {
+            ...state,
+            tasks: (state.tasks as any[]).map((task: any) => ({
+              ...task,
+              tier: tierMap[task.tier] ?? task.tier,
             })),
           };
         }

@@ -111,7 +111,7 @@ export function YourWindow({
                   suggested={true}
                   onTap={() => onTaskTap(instance)}
                   onEdit={() => onEdit(task)}
-                  onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
+                  onDefer={task.tier === 'todo' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
                 />
               </div>
             );
@@ -137,7 +137,7 @@ export function YourWindow({
                   today={today}
                   onTap={() => onTaskTap(instance)}
                   onEdit={() => onEdit(task)}
-                  onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
+                  onDefer={task.tier === 'todo' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
                 />
               </div>
             );
