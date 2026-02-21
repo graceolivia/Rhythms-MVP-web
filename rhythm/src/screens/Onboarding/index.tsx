@@ -89,14 +89,13 @@ const PRESET_FIXED_SCHEDULE: Omit<OnboardingTask, 'id' | 'selected'>[] = [
   { title: 'Breakfast', tier: 'fixed-schedule', scheduledTime: '08:00', category: 'meals', routineGroup: 'morning' },
   { title: 'Daycare/school dropoff', tier: 'fixed-schedule', scheduledTime: '08:30', category: 'kids', routineGroup: 'morning' },
   { title: 'Daycare/school pickup', tier: 'fixed-schedule', scheduledTime: '15:00', category: 'kids' },
+  { title: 'Lunch', tier: 'fixed-schedule', scheduledTime: '12:00', category: 'meals' },
   { title: 'Dinner', tier: 'fixed-schedule', scheduledTime: '18:00', category: 'meals' },
   { title: 'Bedtime routine', tier: 'fixed-schedule', scheduledTime: '19:30', category: 'kids', routineGroup: 'bedtime' },
 ];
 
 const PRESET_ROUTINES: Omit<OnboardingTask, 'id' | 'selected'>[] = [
   { title: 'Get everyone dressed', tier: 'routine', scheduledTime: null, category: 'kids', bestWhen: ['parenting'], routineGroup: 'morning' },
-  { title: 'Lunch for kids', tier: 'routine', scheduledTime: null, category: 'meals', bestWhen: ['parenting'] },
-  { title: 'Lunch for me', tier: 'routine', scheduledTime: null, category: 'self-care', bestWhen: ['quiet'] },
   { title: 'Afternoon snack', tier: 'routine', scheduledTime: null, category: 'meals', bestWhen: ['parenting'] },
   { title: 'Evening tidy up', tier: 'routine', scheduledTime: null, category: 'tidying', bestWhen: ['quiet'], routineGroup: 'bedtime' },
   { title: 'Load dishwasher', tier: 'routine', scheduledTime: null, category: 'kitchen' },
@@ -222,14 +221,23 @@ function ChildrenStep({
 
   const addNap = (child: OnboardingChild) => {
     const existing = napSchedules.filter((n) => n.childId === child.id);
+    // Second+ naps default to AM time
+    const isSecondOrLater = existing.length >= 1;
     onNapChange([
       ...napSchedules,
-      { id: uuidv4(), childId: child.id, childName: child.name, napNumber: existing.length + 1, typicalStart: '13:00', typicalEnd: '15:00' },
+      {
+        id: uuidv4(),
+        childId: child.id,
+        childName: child.name,
+        napNumber: existing.length + 1,
+        typicalStart: isSecondOrLater ? '09:00' : '13:00',
+        typicalEnd: isSecondOrLater ? '10:30' : '15:00',
+      },
     ]);
   };
 
-  const updateNap = (id: string, updates: Partial<OnboardingNapSchedule>) => {
-    onNapChange(napSchedules.map((n) => (n.id === id ? { ...n, ...updates } : n)));
+  const updateNap = (napId: string, updates: Partial<OnboardingNapSchedule>) => {
+    onNapChange(napSchedules.map((n) => (n.id === napId ? { ...n, ...updates } : n)));
   };
 
   const removeNap = (id: string) => {
@@ -282,20 +290,20 @@ function ChildrenStep({
               {/* Night sleep */}
               <div className="flex gap-3 mb-3">
                 <div className="flex-1">
-                  <label className="text-xs text-bark/50 block mb-1">Bedtime</label>
-                  <input
-                    type="time"
-                    value={child.bedtime}
-                    onChange={(e) => updateChild(child.id, { bedtime: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                  />
-                </div>
-                <div className="flex-1">
                   <label className="text-xs text-bark/50 block mb-1">Wake time</label>
                   <input
                     type="time"
                     value={child.wakeTime}
                     onChange={(e) => updateChild(child.id, { wakeTime: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-bark/50 block mb-1">Bedtime</label>
+                  <input
+                    type="time"
+                    value={child.bedtime}
+                    onChange={(e) => updateChild(child.id, { bedtime: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
                   />
                 </div>
@@ -792,12 +800,20 @@ function TaskSelectionStep({
             value={customTitle}
             onChange={(e) => setCustomTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addCustomTask()}
+            onBlur={(e) => {
+              // Auto-add if focus is leaving the custom row entirely (not moving to the time input)
+              const next = e.relatedTarget as HTMLElement | null;
+              if (customTitle.trim() && !(next instanceof HTMLInputElement && next.type === 'time')) {
+                addCustomTask();
+              }
+            }}
             className="flex-1 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
           />
           <input
             type="time"
             value={customTime}
             onChange={(e) => setCustomTime(e.target.value)}
+            onBlur={() => customTitle.trim() && addCustomTask()}
             className="w-28 px-2 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
           />
           <button
@@ -844,14 +860,10 @@ function TodosStep({
   const [selfCare, setSelfCare] = useState<SelfCareChip[]>(() =>
     SELF_CARE_CHIP_PRESETS.map((c) => ({ ...c, id: uuidv4(), selected: false }))
   );
-
-  const selectedChoresCount = chores.filter((c) => c.selected).length;
+  const [customTodo, setCustomTodo] = useState('');
+  const [customTodos, setCustomTodos] = useState<string[]>([]);
 
   const toggleChore = (id: string) => {
-    const chore = chores.find((c) => c.id === id);
-    if (!chore) return;
-    // If trying to select and already at 3, deselect another instead
-    if (!chore.selected && selectedChoresCount >= 3) return;
     setChores(chores.map((c) => (c.id === id ? { ...c, selected: !c.selected } : c)));
   };
 
@@ -859,8 +871,20 @@ function TodosStep({
     setChores(chores.map((c) => (c.id === id ? { ...c, frequency } : c)));
   };
 
+  // Multi-select for self-care
   const toggleSelfCare = (id: string) => {
-    setSelfCare(selfCare.map((c) => (c.id === id ? { ...c, selected: !c.selected } : { ...c, selected: false })));
+    setSelfCare(selfCare.map((c) => (c.id === id ? { ...c, selected: !c.selected } : c)));
+  };
+
+  const addCustomTodo = () => {
+    const trimmed = customTodo.trim();
+    if (!trimmed) return;
+    setCustomTodos([...customTodos, trimmed]);
+    setCustomTodo('');
+  };
+
+  const removeCustomTodo = (index: number) => {
+    setCustomTodos(customTodos.filter((_, i) => i !== index));
   };
 
   const handleContinue = () => {
@@ -882,17 +906,27 @@ function TodosStep({
       });
     }
 
-    const selectedSC = selfCare.find((c) => c.selected);
-    if (selectedSC) {
+    for (const sc of selfCare.filter((c) => c.selected)) {
       newTodos.push({
         id: uuidv4(),
-        title: selectedSC.title,
+        title: sc.title,
         tier: 'todo',
         scheduledTime: null,
-        category: selectedSC.category,
+        category: sc.category,
         selected: true,
-        bestWhen: selectedSC.bestWhen,
+        bestWhen: sc.bestWhen,
         recurrence: 'daily',
+      });
+    }
+
+    for (const title of customTodos) {
+      newTodos.push({
+        id: uuidv4(),
+        title,
+        tier: 'todo',
+        scheduledTime: null,
+        category: 'other',
+        selected: true,
       });
     }
 
@@ -906,21 +940,18 @@ function TodosStep({
 
       {/* Section A: Chores */}
       <div className="mb-8">
-        <h3 className="font-medium text-bark mb-1">What 3 chores make the biggest difference when they actually happen?</h3>
-        <p className="text-xs text-bark/50 mb-4">Pick up to 3 to start — you can always add more later</p>
+        <h3 className="font-medium text-bark mb-1">What chores make the biggest difference when they actually happen?</h3>
+        <p className="text-xs text-bark/50 mb-4">Pick as many as you like — you can always adjust later</p>
 
         <div className="flex flex-wrap gap-2 mb-4">
           {chores.map((chore) => (
             <button
               key={chore.id}
               onClick={() => toggleChore(chore.id)}
-              disabled={!chore.selected && selectedChoresCount >= 3}
               className={`px-3 py-2 rounded-full text-sm font-medium transition-colors ${
                 chore.selected
                   ? 'bg-bark text-cream'
-                  : selectedChoresCount >= 3
-                    ? 'bg-parchment text-bark/30 cursor-not-allowed'
-                    : 'bg-parchment text-bark hover:bg-bark/10'
+                  : 'bg-parchment text-bark hover:bg-bark/10'
               }`}
             >
               {chore.title}
@@ -957,8 +988,8 @@ function TodosStep({
 
       {/* Section B: Self-care */}
       <div className="mb-8">
-        <h3 className="font-medium text-bark mb-1">What's one self-care thing you're trying to make space for?</h3>
-        <p className="text-xs text-bark/50 mb-4">Pick one (optional)</p>
+        <h3 className="font-medium text-bark mb-1">What self-care things are you trying to make space for?</h3>
+        <p className="text-xs text-bark/50 mb-4">Pick any that apply (optional)</p>
         <div className="flex flex-wrap gap-2">
           {selfCare.map((item) => (
             <button
@@ -974,6 +1005,43 @@ function TodosStep({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Section C: Custom to-dos */}
+      <div className="mb-8">
+        <h3 className="font-medium text-bark mb-3">Anything else on your list?</h3>
+        <div className="flex gap-2 mb-3">
+          <input
+            type="text"
+            placeholder="Add a to-do..."
+            value={customTodo}
+            onChange={(e) => setCustomTodo(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addCustomTodo()}
+            className="flex-1 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage text-sm"
+          />
+          <button
+            onClick={addCustomTodo}
+            disabled={!customTodo.trim()}
+            className="px-4 py-2 bg-parchment text-bark rounded-lg hover:bg-linen disabled:opacity-50 text-sm"
+          >
+            Add
+          </button>
+        </div>
+        {customTodos.length > 0 && (
+          <div className="space-y-1">
+            {customTodos.map((title, i) => (
+              <div key={i} className="flex items-center gap-2 bg-parchment/50 rounded-lg px-3 py-2">
+                <span className="text-sm text-bark flex-1">{title}</span>
+                <button
+                  onClick={() => removeCustomTodo(i)}
+                  className="text-bark/30 hover:text-bark/60 text-xs"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-3">
@@ -1081,7 +1149,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState<Step>('welcome');
   const [editingChildId, setEditingChildId] = useState<string | null>(null);
   const [data, setData] = useState<OnboardingData>({
-    children: [{ id: uuidv4(), name: '', birthdate: '', isNappingAge: true, bedtime: '19:30', wakeTime: '07:00' }],
+    children: [{ id: uuidv4(), name: '', birthdate: '', isNappingAge: false, bedtime: '19:30', wakeTime: '07:00' }],
     napSchedules: [],
     childcare: [],
     fixedSchedule: PRESET_FIXED_SCHEDULE.map((t) => ({ ...t, id: uuidv4(), selected: false })),
@@ -1104,7 +1172,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   };
 
   const handleAddAnother = () => {
-    const newChild = { id: uuidv4(), name: '', birthdate: '', isNappingAge: true, bedtime: '19:30', wakeTime: '07:00' };
+    const newChild = { id: uuidv4(), name: '', birthdate: '', isNappingAge: false, bedtime: '19:30', wakeTime: '07:00' };
     setData({
       ...data,
       children: [...data.children, newChild],
@@ -1113,15 +1181,12 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     setStep('children');
   };
 
-  // Filter fixed-schedule presets to exclude childcare tasks if no childcare configured
+  // Always filter dropoff/pickup from preset list — they're auto-created from the Childcare step
   const getFilteredFixedSchedule = () => {
-    if (data.childcare.length === 0) {
-      return data.fixedSchedule.filter((t) => {
-        const lowerTitle = t.title.toLowerCase();
-        return !(t.category === 'kids' && (lowerTitle.includes('dropoff') || lowerTitle.includes('pickup')));
-      });
-    }
-    return data.fixedSchedule;
+    return data.fixedSchedule.filter((t) => {
+      const lowerTitle = t.title.toLowerCase();
+      return !(t.category === 'kids' && (lowerTitle.includes('dropoff') || lowerTitle.includes('pickup')));
+    });
   };
 
   const handleFinish = () => {
@@ -1282,8 +1347,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           <ChildrenStep
             children={data.children}
             napSchedules={data.napSchedules}
-            onChange={(children) => setData({ ...data, children })}
-            onNapChange={(napSchedules) => setData({ ...data, napSchedules })}
+            onChange={(children) => setData((d) => ({ ...d, children }))}
+            onNapChange={(napSchedules) => setData((d) => ({ ...d, napSchedules }))}
             onNext={() => { setEditingChildId(null); goNext(); }}
             onBack={goBack}
             editingChildId={editingChildId}
