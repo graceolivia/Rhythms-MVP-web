@@ -3,16 +3,17 @@ import { format } from 'date-fns';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { HabitBlockHeader } from './HabitBlockHeader';
 import { HabitBlockItemRow } from './HabitBlockItemRow';
-import type { HabitBlock, TaskInstance } from '../../types';
+import type { HabitBlock, Task, TaskInstance } from '../../types';
 
 interface HabitBlockCardProps {
   block: HabitBlock;
   onTaskTap: (instance: TaskInstance) => void;
+  onEdit: (task: Task) => void;
   fadingOut: Set<string>;
   recentlyCompleted: Set<string>;
 }
 
-export function HabitBlockCard({ block, onTaskTap, fadingOut, recentlyCompleted }: HabitBlockCardProps) {
+export function HabitBlockCard({ block, onTaskTap, onEdit, fadingOut, recentlyCompleted }: HabitBlockCardProps) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const tasks = useTaskStore((s) => s.tasks);
   const taskInstances = useTaskStore((s) => s.taskInstances);
@@ -61,6 +62,7 @@ export function HabitBlockCard({ block, onTaskTap, fadingOut, recentlyCompleted 
               item={item}
               today={today}
               onTaskTap={onTaskTap}
+              onEdit={onEdit}
               fadingOut={fadingOut}
               recentlyCompleted={recentlyCompleted}
             />

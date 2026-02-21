@@ -111,7 +111,7 @@ interface TaskState {
 
   // Seeds queue management
   getSeeds: () => TaskInstance[];
-  addSeed: (title: string, napContext: Task['napContext'], category?: Task['category'], bestWhen?: AvailabilityState[] | null, scheduledTime?: string | null) => void;
+  addSeed: (title: string, napContext: Task['napContext'], category?: Task['category'], bestWhen?: AvailabilityState[] | null, scheduledTime?: string | null, dueDate?: string | null) => void;
   promoteToToday: (instanceId: string) => void;
   dismissSeed: (instanceId: string) => void;
   archiveOldSeeds: () => void;
@@ -385,7 +385,7 @@ export const useTaskStore = create<TaskState>()(
         );
       },
 
-      addSeed: (title, napContext, category = 'other', bestWhen, scheduledTime) => {
+      addSeed: (title, napContext, category = 'other', bestWhen, scheduledTime, dueDate) => {
         // Create task template
         const taskId = uuidv4();
         const newTask: Task = {
@@ -399,15 +399,17 @@ export const useTaskStore = create<TaskState>()(
           isActive: true,
           category,
           ...(bestWhen ? { bestWhen } : {}),
+          ...(dueDate ? { dueDate } : {}),
         };
 
-        // Create deferred instance (yesterday's date so it shows in seeds)
-        const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+        // If dueDate is set, create a pending instance on that date (shows up on Today automatically)
+        // Otherwise, create a deferred instance (yesterday's date so it shows in seeds queue)
+        const instanceDate = dueDate ?? format(subDays(new Date(), 1), 'yyyy-MM-dd');
         const newInstance: TaskInstance = {
           id: uuidv4(),
           taskId,
-          date: yesterday,
-          status: 'deferred',
+          date: instanceDate,
+          status: dueDate ? 'pending' : 'deferred',
           completedAt: null,
           deferredTo: null,
         };

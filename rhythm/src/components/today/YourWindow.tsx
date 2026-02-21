@@ -30,6 +30,7 @@ interface YourWindowProps {
   tasksWithInstances: TaskWithInstance[];
   onTaskTap: (instance: TaskInstance) => void;
   onDefer: (instanceId: string) => void;
+  onEdit: (task: Task) => void;
   recentlyCompleted: Set<string>;
   fadingOut: Set<string>;
 }
@@ -40,6 +41,7 @@ export function YourWindow({
   tasksWithInstances,
   onTaskTap,
   onDefer,
+  onEdit,
   recentlyCompleted,
   fadingOut,
 }: YourWindowProps) {
@@ -108,6 +110,7 @@ export function YourWindow({
                   today={today}
                   suggested={true}
                   onTap={() => onTaskTap(instance)}
+                  onEdit={() => onEdit(task)}
                   onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
                 />
               </div>
@@ -133,6 +136,7 @@ export function YourWindow({
                   instance={instance}
                   today={today}
                   onTap={() => onTaskTap(instance)}
+                  onEdit={() => onEdit(task)}
                   onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
                 />
               </div>

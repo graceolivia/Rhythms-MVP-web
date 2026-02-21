@@ -23,6 +23,7 @@ import { DayOverviewCompact } from '../components/today/DayTimeline';
 import { YourWindow } from '../components/today/YourWindow';
 import { ComingUp } from '../components/today/ComingUp';
 import { TaskCard } from '../components/today/TaskCard';
+import { TaskDetailSheet } from '../components/today/TaskDetailSheet';
 import { GrowingPlot } from '../components/today/GrowingPlot';
 import { HabitBlockCard } from '../components/today/HabitBlockCard';
 import { UpNextBlocks } from '../components/today/UpNextBlocks';
@@ -208,6 +209,7 @@ function AllTasksView({
   tasksWithInstances,
   onTaskTap,
   onDefer,
+  onEdit,
   recentlyCompleted,
   fadingOut,
   expandedDoneSections,
@@ -218,6 +220,7 @@ function AllTasksView({
   tasksWithInstances: TaskWithInstance[];
   onTaskTap: (instance: TaskInstance) => void;
   onDefer: (instanceId: string) => void;
+  onEdit: (task: Task) => void;
   recentlyCompleted: Set<string>;
   fadingOut: Set<string>;
   expandedDoneSections: Set<string>;
@@ -303,6 +306,7 @@ function AllTasksView({
                     <TaskCard
                       task={task} instance={instance} today={today} suggested={suggested}
                       onTap={() => onTaskTap(instance)}
+                      onEdit={() => onEdit(task)}
                       onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
                     />
                   </div>
@@ -319,7 +323,7 @@ function AllTasksView({
                   {isExpanded && (
                     <div className="space-y-2 mt-2">
                       {doneItems.map(({ task, instance }) => (
-                        <TaskCard key={instance.id} task={task} instance={instance} today={today} onTap={() => onTaskTap(instance)} />
+                        <TaskCard key={instance.id} task={task} instance={instance} today={today} onTap={() => onTaskTap(instance)} onEdit={() => onEdit(task)} />
                       ))}
                     </div>
                   )}
@@ -329,6 +333,78 @@ function AllTasksView({
           </section>
         );
       })}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────
+//  Suggested tasks shown alongside active block
+// ────────────────────────────────────────────────
+
+function SuggestedDuringBlock({
+  activeBlock,
+  tasksWithInstances,
+  onTaskTap,
+  onEdit,
+  onDefer,
+  recentlyCompleted,
+  fadingOut,
+  today,
+}: {
+  activeBlock: { items: { taskId: string }[] };
+  tasksWithInstances: TaskWithInstance[];
+  onTaskTap: (instance: TaskInstance) => void;
+  onEdit: (task: Task) => void;
+  onDefer: (instanceId: string) => void;
+  recentlyCompleted: Set<string>;
+  fadingOut: Set<string>;
+  today: string;
+}) {
+  const { isTaskSuggested } = useAvailability();
+
+  const blockTaskIds = useMemo(
+    () => new Set(activeBlock.items.map((item) => item.taskId)),
+    [activeBlock.items]
+  );
+
+  const suggestedItems = useMemo(() => {
+    return tasksWithInstances.filter(({ task, instance }) => {
+      if (blockTaskIds.has(task.id)) return false;
+      if (instance.status === 'completed' && !recentlyCompleted.has(instance.id)) return false;
+      return isTaskSuggested(task);
+    });
+  }, [tasksWithInstances, blockTaskIds, isTaskSuggested, recentlyCompleted]);
+
+  if (suggestedItems.length === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <h3 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-2">
+        Also suggested right now
+      </h3>
+      <div className="space-y-2">
+        {suggestedItems.map(({ task, instance }) => {
+          const isFading = fadingOut.has(instance.id);
+          return (
+            <div
+              key={instance.id}
+              className={`transition-all duration-300 ease-in-out ${
+                isFading ? 'opacity-0 max-h-0 overflow-hidden -my-1' : 'opacity-100 max-h-40'
+              }`}
+            >
+              <TaskCard
+                task={task}
+                instance={instance}
+                today={today}
+                suggested={true}
+                onTap={() => onTaskTap(instance)}
+                onEdit={() => onEdit(task)}
+                onDefer={task.tier === 'tending' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -345,6 +421,7 @@ export function Today() {
   const [recentlyCompleted, setRecentlyCompleted] = useState<Set<string>>(new Set());
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
   const [expandedDoneSections, setExpandedDoneSections] = useState<Set<string>>(new Set());
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>[]>>(new Map());
 
   const tasks = useTaskStore((state) => state.tasks);
@@ -485,6 +562,7 @@ export function Today() {
               tasksWithInstances={tasksWithInstances}
               onTaskTap={handleTaskTap}
               onDefer={handleDefer}
+              onEdit={setEditingTask}
               recentlyCompleted={recentlyCompleted}
               fadingOut={fadingOut}
               expandedDoneSections={expandedDoneSections}
@@ -497,12 +575,25 @@ export function Today() {
           <>
             {/* Active block view — shows when a habit block is currently active */}
             {activeBlock ? (
+              <>
               <HabitBlockCard
                 block={activeBlock}
                 onTaskTap={handleTaskTap}
+                onEdit={setEditingTask}
                 fadingOut={fadingOut}
                 recentlyCompleted={recentlyCompleted}
               />
+              <SuggestedDuringBlock
+                activeBlock={activeBlock}
+                tasksWithInstances={tasksWithInstances}
+                onTaskTap={handleTaskTap}
+                onEdit={setEditingTask}
+                onDefer={handleDefer}
+                recentlyCompleted={recentlyCompleted}
+                fadingOut={fadingOut}
+                today={today}
+              />
+              </>
             ) : (
               <>
                 {/* Chore queue banner — shows between blocks if chore not yet done */}
@@ -515,6 +606,7 @@ export function Today() {
                   tasksWithInstances={tasksWithInstances}
                   onTaskTap={handleTaskTap}
                   onDefer={handleDefer}
+                  onEdit={setEditingTask}
                   recentlyCompleted={recentlyCompleted}
                   fadingOut={fadingOut}
                 />
@@ -579,6 +671,8 @@ export function Today() {
       {editingTier && (
         <TaskEditor tier={editingTier} isOpen={true} onClose={() => { setEditingTier(null); generateDailyInstances(new Date()); }} />
       )}
+
+      <TaskDetailSheet task={editingTask} onClose={() => setEditingTask(null)} />
     </div>
   );
 }

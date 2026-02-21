@@ -18,6 +18,7 @@ export function TaskCard({
   suggested,
   onTap,
   onDefer,
+  onEdit,
 }: {
   task: Task;
   instance: TaskInstance;
@@ -25,6 +26,7 @@ export function TaskCard({
   suggested?: boolean;
   onTap: () => void;
   onDefer?: () => void;
+  onEdit?: () => void;
 }) {
   const updateMealPlan = useTaskStore((state) => state.updateMealPlan);
   const getChild = useChildStore((state) => state.getChild);
@@ -55,7 +57,7 @@ export function TaskCard({
 
   return (
     <div
-      onClick={onTap}
+      onClick={onEdit}
       className={`w-full text-left p-4 rounded-xl transition-all cursor-pointer ${
         isCompleted
           ? 'bg-sage/10 border border-sage/20'
@@ -66,7 +68,9 @@ export function TaskCard({
     >
       <div className="flex items-start gap-3">
         {/* Checkbox */}
-        <span
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onTap(); }}
           className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
             isCompleted
               ? 'border-sage bg-sage text-cream'
@@ -78,7 +82,7 @@ export function TaskCard({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
           )}
-        </span>
+        </button>
 
         {/* Content */}
         <div className="flex-1 min-w-0">

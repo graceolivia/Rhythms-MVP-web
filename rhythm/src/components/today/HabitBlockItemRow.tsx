@@ -2,12 +2,13 @@ import { useTaskStore } from '../../stores/useTaskStore';
 import { TaskCard } from './TaskCard';
 import { RoutineItemRow } from './RoutineItemRow';
 import { ChoreQueueSlot } from './ChoreQueueSlot';
-import type { HabitBlockItem, TaskInstance } from '../../types';
+import type { HabitBlockItem, Task, TaskInstance } from '../../types';
 
 interface HabitBlockItemRowProps {
   item: HabitBlockItem;
   today: string;
   onTaskTap: (instance: TaskInstance) => void;
+  onEdit: (task: Task) => void;
   fadingOut: Set<string>;
   recentlyCompleted: Set<string>;
 }
@@ -16,6 +17,7 @@ export function HabitBlockItemRow({
   item,
   today,
   onTaskTap,
+  onEdit,
   fadingOut,
   recentlyCompleted,
 }: HabitBlockItemRowProps) {
@@ -61,6 +63,7 @@ export function HabitBlockItemRow({
         instance={instance}
         today={today}
         onTap={() => onTaskTap(instance)}
+        onEdit={() => onEdit(task)}
       />
     </div>
   );

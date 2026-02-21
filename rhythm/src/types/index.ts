@@ -195,6 +195,7 @@ export type TimeBlock = 'morning' | 'midday' | 'afternoon' | 'evening';
 interface BaseTask {
   id: string;
   title: string;
+  notes?: string;
   tier: TaskTier;
   scheduledTime: string | null; // '08:45' for anchors
   recurrence: RecurrenceRule;
@@ -226,6 +227,9 @@ interface BaseTask {
 
   // Chore queue: random daily chore pool
   isChoreQueue?: boolean;  // true = in the "one random chore a day" pool
+
+  // One-off to-dos: the date this task should appear
+  dueDate?: string;  // ISO date (YYYY-MM-DD) — used with recurrence: 'one-off'
 }
 
 export interface StandardTask extends BaseTask {

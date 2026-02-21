@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { useTaskStore } from '../../stores/useTaskStore';
 import type { AvailabilityState, NapContext } from '../../types';
 
@@ -54,6 +55,8 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
   const [goalTime, setGoalTime] = useState<string>('');
   const [showTime, setShowTime] = useState(false);
   const [isChoreQueue, setIsChoreQueue] = useState(false);
+  const [dueDate, setDueDate] = useState<string>('');
+  const [showDate, setShowDate] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +66,7 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
     const bestWhen: AvailabilityState[] | undefined =
       focusLevel === 'needs-focus' ? ['free', 'quiet'] : undefined;
     const trimmedTitle = title.trim();
-    addSeed(trimmedTitle, napContext, undefined, bestWhen, goalTime || null);
+    addSeed(trimmedTitle, napContext, undefined, bestWhen, goalTime || null, dueDate || null);
 
     // If marked as chore queue, find the just-created task and flag it
     if (isChoreQueue) {
@@ -82,6 +85,8 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
     setGoalTime('');
     setShowTime(false);
     setIsChoreQueue(false);
+    setDueDate('');
+    setShowDate(false);
     onClose();
   };
 
@@ -121,6 +126,36 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
               className="w-full px-4 py-3 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark"
               autoFocus
             />
+          </div>
+
+          {/* Due date (optional) */}
+          <div className="mb-4">
+            {!showDate ? (
+              <button
+                type="button"
+                onClick={() => { setShowDate(true); setDueDate(format(new Date(), 'yyyy-MM-dd')); }}
+                className="text-sm text-sage hover:text-sage/80 transition-colors"
+              >
+                + Add a date
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-bark/70 shrink-0">Do on</label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="flex-1 px-4 py-2 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => { setShowDate(false); setDueDate(''); }}
+                  className="text-bark/40 hover:text-bark text-sm"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Goal time (optional) */}
