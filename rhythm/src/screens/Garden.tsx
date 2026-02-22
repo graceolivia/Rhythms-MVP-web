@@ -84,7 +84,7 @@ function FlowerSpriteByType({ type }: { type: FlowerType }) {
   );
 }
 
-function FlowerPalette() {
+function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: FlowerType) => void }) {
   const flowers = useGardenStore((s) => s.flowers);
   const placedFlowers = useGardenStore((s) => s.placedFlowers);
   const selectedFlowerType = useGardenStore((s) => s.selectedFlowerType);
@@ -150,6 +150,13 @@ function FlowerPalette() {
               return (
                 <button
                   key={type}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'copy';
+                    e.dataTransfer.setData('text/plain', `palette:${type}`);
+                    handleSelect(type);
+                    onFlowerDragStart?.(type);
+                  }}
                   onClick={() => handleSelect(type)}
                   className={`flex flex-col items-center justify-center rounded-xl transition-all duration-200 border-2 p-2 ${
                     isSelected
@@ -236,21 +243,46 @@ export function Garden() {
 
   const handleDrop = useCallback((e: React.DragEvent, col: number, row: number) => {
     e.preventDefault();
-    const placedId = e.dataTransfer.getData('text/plain');
+    const data = e.dataTransfer.getData('text/plain');
     const key = `${col},${row}`;
 
     if (BLOCKED_CELLS.has(key)) {
       showToast("Can't plant there! 🏠");
+      setDraggingId(null);
+      setDraggingFromCell(null);
+      setDragOverCell(null);
       return;
     }
 
+    // Drag from palette: data is "palette:<flowerType>"
+    if (data.startsWith('palette:')) {
+      const flowerType = data.slice('palette:'.length) as FlowerType;
+      const existingFlower = getFlowerAt(col, row);
+      if (existingFlower) {
+        showToast('Spot occupied!');
+      } else {
+        // Select type and place using store directly (Zustand mutations are synchronous)
+        useGardenStore.getState().selectFlowerType(flowerType);
+        useGardenStore.getState().setMode('place');
+        if (useGardenStore.getState().placeFlower(col, row)) {
+          showToast(`Planted ${FLOWER_CATALOG[flowerType].label}! 🌸`);
+        }
+      }
+      setDragOverCell(null);
+      return;
+    }
+
+    // Drag to move an already-placed flower
     const existingFlower = getFlowerAt(col, row);
-    if (existingFlower && existingFlower.id !== placedId) {
+    if (existingFlower && existingFlower.id !== data) {
       showToast('Spot occupied!');
+      setDraggingId(null);
+      setDraggingFromCell(null);
+      setDragOverCell(null);
       return;
     }
 
-    if (moveFlower(placedId, col, row)) {
+    if (moveFlower(data, col, row)) {
       showToast('Moved! ✨');
     }
 
@@ -484,7 +516,7 @@ export function Garden() {
       </div>
 
       {/* Flower Palette */}
-      <FlowerPalette />
+      <FlowerPalette onFlowerDragStart={() => setDragOverCell(null)} />
 
       {/* Toast */}
       {toast && <Toast message={toast} />}

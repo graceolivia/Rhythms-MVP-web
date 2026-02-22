@@ -538,7 +538,7 @@ export function Tasks() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTaskTier, setNewTaskTier] = useState<TaskTier>('routine');
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['fixed-schedule', 'routines']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['todos', 'routines']));
 
   // Helper to get child by ID
   const getChild = (id: string) => children.find(c => c.id === id);
@@ -558,8 +558,15 @@ export function Tasks() {
   // Group active tasks by tier
   const { fixedSchedule, routines, todos } = useMemo(() => {
     const active = tasks.filter(t => t.isActive);
+    const fixed = active
+      .filter(t => t.tier === 'fixed-schedule')
+      .sort((a, b) => {
+        if (!a.scheduledTime) return 1;
+        if (!b.scheduledTime) return -1;
+        return a.scheduledTime.localeCompare(b.scheduledTime);
+      });
     return {
-      fixedSchedule: active.filter(t => t.tier === 'fixed-schedule'),
+      fixedSchedule: fixed,
       routines: active.filter(t => t.tier === 'routine'),
       todos: active.filter(t => t.tier === 'todo'),
     };
@@ -587,39 +594,46 @@ export function Tasks() {
           <p className="text-bark/60 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
         </header>
 
-        {/* Fixed Schedule */}
+        {/* To-dos */}
         <section className="mb-3">
           <button
-            onClick={() => toggleSection('fixed-schedule')}
-            className="w-full flex items-center justify-between p-3 rounded-lg bg-terracotta/5 hover:bg-terracotta/10 transition-colors"
+            onClick={() => toggleSection('todos')}
+            className="w-full flex items-center justify-between p-3 rounded-lg bg-skyblue/5 hover:bg-skyblue/10 transition-colors"
           >
-            <h2 className="font-medium text-terracotta flex items-center gap-2">
-              <span>⏰</span> Fixed Schedule
-              <span className="text-xs text-bark/40 font-normal">({fixedSchedule.length})</span>
+            <h2 className="font-medium text-skyblue flex items-center gap-2">
+              <span>🌱</span> To-dos
+              <span className="text-xs text-bark/40 font-normal">({todos.length})</span>
             </h2>
             <div className="flex items-center gap-2">
               <button
-                onClick={(e) => { e.stopPropagation(); openNewTaskModal('fixed-schedule'); }}
-                className="text-xs px-2 py-1 rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20"
+                onClick={(e) => { e.stopPropagation(); openNewTaskModal('todo'); }}
+                className="text-xs px-2 py-1 rounded-lg bg-skyblue/10 text-skyblue hover:bg-skyblue/20"
               >
                 + Add
               </button>
               <svg
-                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('fixed-schedule') ? 'rotate-180' : ''}`}
+                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('todos') ? 'rotate-180' : ''}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
           </button>
-          {expandedSections.has('fixed-schedule') && (
+          {expandedSections.has('todos') && (
             <div className="mt-2 space-y-2">
-              {fixedSchedule.length === 0 ? (
-                <p className="text-sm text-bark/40 italic py-2 px-3">No fixed schedule items yet</p>
+              {todos.length === 0 ? (
+                <p className="text-sm text-bark/40 italic py-2 px-3">No to-dos yet</p>
               ) : (
-                fixedSchedule.map(task => (
+                todos.map(task => (
                   <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
                 ))
+              )}
+              {seedCount > 0 && (
+                <div className="p-3 rounded-lg bg-linen/50 border border-bark/10 mt-2">
+                  <p className="text-sm text-bark/60">
+                    <span className="font-medium">{seedCount} deferred</span> waiting to be replanted
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -663,46 +677,39 @@ export function Tasks() {
           )}
         </section>
 
-        {/* To-dos */}
+        {/* Fixed Schedule */}
         <section className="mb-3">
           <button
-            onClick={() => toggleSection('todos')}
-            className="w-full flex items-center justify-between p-3 rounded-lg bg-skyblue/5 hover:bg-skyblue/10 transition-colors"
+            onClick={() => toggleSection('fixed-schedule')}
+            className="w-full flex items-center justify-between p-3 rounded-lg bg-terracotta/5 hover:bg-terracotta/10 transition-colors"
           >
-            <h2 className="font-medium text-skyblue flex items-center gap-2">
-              <span>🌱</span> To-dos
-              <span className="text-xs text-bark/40 font-normal">({todos.length})</span>
+            <h2 className="font-medium text-terracotta flex items-center gap-2">
+              <span>⏰</span> Fixed Schedule
+              <span className="text-xs text-bark/40 font-normal">({fixedSchedule.length})</span>
             </h2>
             <div className="flex items-center gap-2">
               <button
-                onClick={(e) => { e.stopPropagation(); openNewTaskModal('todo'); }}
-                className="text-xs px-2 py-1 rounded-lg bg-skyblue/10 text-skyblue hover:bg-skyblue/20"
+                onClick={(e) => { e.stopPropagation(); openNewTaskModal('fixed-schedule'); }}
+                className="text-xs px-2 py-1 rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20"
               >
                 + Add
               </button>
               <svg
-                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('todos') ? 'rotate-180' : ''}`}
+                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('fixed-schedule') ? 'rotate-180' : ''}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
           </button>
-          {expandedSections.has('todos') && (
+          {expandedSections.has('fixed-schedule') && (
             <div className="mt-2 space-y-2">
-              {todos.length === 0 ? (
-                <p className="text-sm text-bark/40 italic py-2 px-3">No to-dos yet</p>
+              {fixedSchedule.length === 0 ? (
+                <p className="text-sm text-bark/40 italic py-2 px-3">No fixed schedule items yet</p>
               ) : (
-                todos.map(task => (
+                fixedSchedule.map(task => (
                   <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
                 ))
-              )}
-              {seedCount > 0 && (
-                <div className="p-3 rounded-lg bg-linen/50 border border-bark/10 mt-2">
-                  <p className="text-sm text-bark/60">
-                    <span className="font-medium">{seedCount} deferred</span> waiting to be replanted
-                  </p>
-                </div>
               )}
             </div>
           )}

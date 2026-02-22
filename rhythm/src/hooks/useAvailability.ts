@@ -172,6 +172,14 @@ export function useAvailability(): AvailabilityInfo {
   // Display info
   const display = STATE_DISPLAY[currentState];
 
+  // Make description more accurate when children are in mixed states
+  let stateDescription = display.description;
+  if (currentState === 'parenting' && childrenAsleep.length > 0 && childrenHome.length > 0) {
+    stateDescription = 'Some kids are awake, some are sleeping';
+  } else if (currentState === 'parenting' && childrenAsleep.length > 0) {
+    stateDescription = 'Kids are sleeping';
+  }
+
   return {
     currentState,
     activeBlocks,
@@ -188,7 +196,7 @@ export function useAvailability(): AvailabilityInfo {
     stateLabel: display.label,
     stateIcon: display.icon,
     stateColor: display.color,
-    stateDescription: display.description,
+    stateDescription,
   };
 }
 

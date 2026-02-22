@@ -15,7 +15,6 @@ import { TransitionPrompts } from '../components/care/TransitionPrompts';
 import { useTransitionCheck } from '../hooks/useTransitionCheck';
 import { useEventStore } from '../stores/useEventStore';
 import { useNapPrediction } from '../hooks/useNapPrediction';
-import { GoodEnoughModal } from '../components/common/GoodEnoughModal';
 import { BloomModal } from '../components/common/BloomModal';
 import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
 import { TaskEditor } from '../components/tasks/TaskEditor';
@@ -639,8 +638,6 @@ export function Today() {
         {/* Bottom padding for mobile */}
         <div className="h-20" />
       </div>
-
-      <GoodEnoughModal />
 
       {/* Bloom modal */}
       {bloomToast && bloomedTemplateId && (

@@ -34,6 +34,7 @@ export function TaskCard({
   const config = TIER_CONFIG[task.tier];
   const isCompleted = instance.status === 'completed';
   const isMeal = task.type === 'meal';
+  const isSoftMarker = task.childTaskType === 'bedtime' || task.childTaskType === 'wake-up';
   const savedMeal = isMeal ? (task.plannedMeals?.[today] ?? '') : '';
   const [mealInput, setMealInput] = useState(savedMeal);
   const displayTitle = getTaskDisplayTitle(task, getChild);
@@ -59,30 +60,47 @@ export function TaskCard({
     <div
       onClick={onEdit}
       className={`w-full text-left p-4 rounded-xl transition-all cursor-pointer ${
-        isCompleted
-          ? 'bg-sage/10 border border-sage/20'
-          : suggested
-            ? 'bg-cream border border-sage/40 shadow-sm ring-1 ring-sage/20'
-            : 'bg-cream border border-bark/5 shadow-sm'
+        isSoftMarker
+          ? isCompleted
+            ? 'bg-bark/5 border border-bark/10'
+            : 'bg-linen/60 border border-bark/10'
+          : isCompleted
+            ? 'bg-sage/10 border border-sage/20'
+            : suggested
+              ? 'bg-cream border border-sage/40 shadow-sm ring-1 ring-sage/20'
+              : 'bg-cream border border-bark/5 shadow-sm'
       }`}
     >
       <div className="flex items-start gap-3">
-        {/* Checkbox */}
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onTap(); }}
-          className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-            isCompleted
-              ? 'border-sage bg-sage text-cream'
-              : 'border-bark/20'
-          }`}
-        >
-          {isCompleted && (
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </button>
+        {/* Checkbox or soft marker icon */}
+        {isSoftMarker ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onTap(); }}
+            className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-base transition-colors ${
+              isCompleted ? 'opacity-40' : 'opacity-60'
+            }`}
+            title="Confirm"
+          >
+            {isCompleted ? '✓' : task.childTaskType === 'bedtime' ? '🌙' : '☀️'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onTap(); }}
+            className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+              isCompleted
+                ? 'border-sage bg-sage text-cream'
+                : 'border-bark/20'
+            }`}
+          >
+            {isCompleted && (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </button>
+        )}
 
         {/* Content */}
         <div className="flex-1 min-w-0">
@@ -111,7 +129,7 @@ export function TaskCard({
               <span className="text-xs text-bark/40">{task.scheduledTime}</span>
             )}
           </div>
-          <p className={`font-medium ${isCompleted ? 'text-bark/50 line-through' : 'text-bark'}`}>
+          <p className={`font-medium line-clamp-2 ${isCompleted ? 'text-bark/50 line-through' : isSoftMarker ? 'text-bark/70' : 'text-bark'}`}>
             {displayTitle}
           </p>
           {isMeal && (

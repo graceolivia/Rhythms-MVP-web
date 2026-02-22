@@ -4,6 +4,7 @@ import { useTaskStore } from '../stores/useTaskStore';
 
 /**
  * Auto-completes past fixed-schedule tasks that the user didn't explicitly check off.
+ * Also auto-completes morning routines after noon — if it didn't happen by midday it's not happening.
  * Runs on mount and every minute. Excludes informational tasks and child bedtime/wake-up tasks
  * (those are meaningful confirmations that should stay pending).
  */
@@ -25,15 +26,21 @@ export function useAutoComplete() {
       for (const instance of todaysInstances) {
         const task = tasks.find((t) => t.id === instance.taskId);
         if (!task) continue;
-        if (task.tier !== 'fixed-schedule') continue;
         if (task.isInformational) continue;
         if (task.childTaskType === 'bedtime' || task.childTaskType === 'wake-up') continue;
-        if (!task.scheduledTime) continue;
 
-        const [h, m] = task.scheduledTime.split(':').map(Number);
-        const taskMinutes = h * 60 + m;
+        // Auto-complete past fixed-schedule tasks
+        if (task.tier === 'fixed-schedule' && task.scheduledTime) {
+          const [h, m] = task.scheduledTime.split(':').map(Number);
+          const taskMinutes = h * 60 + m;
+          if (taskMinutes < currentMinutes) {
+            completeTask(instance.id);
+          }
+          continue;
+        }
 
-        if (taskMinutes < currentMinutes) {
+        // Auto-complete morning routines after noon — they're either done or irrelevant by then
+        if (task.tier === 'routine' && task.routineGroup === 'morning' && currentMinutes >= 12 * 60) {
           completeTask(instance.id);
         }
       }

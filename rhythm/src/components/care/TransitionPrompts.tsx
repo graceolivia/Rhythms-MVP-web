@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { useTransitionStore } from '../../stores/useTransitionStore';
 import { useNapStore } from '../../stores/useNapStore';
@@ -26,11 +26,19 @@ export function TransitionPrompts({ napContext }: TransitionPromptsProps) {
     );
   }, [transitions]);
 
-  if (pendingTransitions.length === 0) return null;
+  // Only show the most recent prompt — auto-dismiss older ones that have piled up
+  useEffect(() => {
+    if (pendingTransitions.length <= 1) return;
+    pendingTransitions.slice(0, -1).forEach((t) => dismissTransition(t.id));
+  }, [pendingTransitions.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visibleTransition = pendingTransitions[pendingTransitions.length - 1];
+
+  if (!visibleTransition) return null;
 
   return (
     <div className="space-y-2 mb-4">
-      {pendingTransitions.map((transition) => {
+      {[visibleTransition].map((transition) => {
         const isNapType = transition.type === 'nap-start' || transition.type === 'nap-end';
         const borderColor = isNapType ? 'border-l-lavender' : 'border-l-sage';
         const wakeWindowInfo = napContext?.[transition.childId]?.wakeWindowText;
