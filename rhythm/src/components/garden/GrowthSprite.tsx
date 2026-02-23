@@ -1,3 +1,4 @@
+import { SpriteSheet } from './SpriteSheet';
 import type { GrowthStage, FlowerType } from '../../types';
 
 // Emoji placeholders — swap for <img src={pngPath}> when pixel art is ready
@@ -14,6 +15,7 @@ const BLOOM_EMOJI: Record<FlowerType, string> = {
   'self-care-sunflower': '🌻',
   'golden-hour-lily': '🌷',
   'challenge-bloom': '🌺',
+  'heliotrope': '💜',
 };
 
 const STAGE_INDEX: Record<GrowthStage, number> = {
@@ -28,6 +30,8 @@ interface GrowthSpriteProps {
   flowerType?: FlowerType;
   /** Custom pixel art sprites [seed, sprout, budding, bloom] */
   sprites?: [string, string, string, string];
+  /** Horizontal sprite sheet — frames 0-3 map to seed/sprout/budding/bloom */
+  spriteSheet?: string;
   size?: 'sm' | 'md' | 'lg';
   animate?: 'idle' | 'grow' | 'bloom' | 'none';
 }
@@ -44,6 +48,12 @@ const IMG_SIZE_CLASSES = {
   lg: 'w-20 h-20',
 };
 
+const SHEET_SCALE: Record<'sm' | 'md' | 'lg', number> = {
+  sm: 2.5,  // 16 × 2.5 = 40px
+  md: 4,    // 16 × 4   = 64px
+  lg: 5,    // 16 × 5   = 80px
+};
+
 const ANIM_CLASSES = {
   idle: 'animate-gentle-sway',
   grow: 'animate-sprout-grow',
@@ -51,8 +61,22 @@ const ANIM_CLASSES = {
   none: '',
 };
 
-export function GrowthSprite({ stage, flowerType, sprites, size = 'md', animate = 'idle' }: GrowthSpriteProps) {
-  // Use pixel art if custom sprites provided
+export function GrowthSprite({ stage, flowerType, sprites, spriteSheet, size = 'md', animate = 'idle' }: GrowthSpriteProps) {
+  // Sprite sheet: frames 0–3 map directly to growth stages
+  if (spriteSheet) {
+    return (
+      <SpriteSheet
+        src={spriteSheet}
+        frame={STAGE_INDEX[stage]}
+        frameSize={16}
+        scale={SHEET_SCALE[size]}
+        className={ANIM_CLASSES[animate]}
+        shadow
+      />
+    );
+  }
+
+  // Individual sprites [seed, sprout, budding, bloom]
   if (sprites) {
     const src = sprites[STAGE_INDEX[stage]];
     return (

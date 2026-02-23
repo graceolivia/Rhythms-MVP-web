@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import sunPng from '../assets/sky/sun001.png';
+import sunPng from '../assets/sky/sun2.png';
 import moonPng from '../assets/sky/moon001.png';
-import daySkyPng from '../assets/sky/daysky001.png';
+import daySkyPng from '../assets/sky/sky2.png';
 import nightSkyPng from '../assets/sky/nightsky.png';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
@@ -117,9 +117,10 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
   const dayLength = sunsetMs - sunriseMs;
   const dayProgress = (nowMs - sunriseMs) / dayLength;
 
-  // Bottom content (info bar + dirt + flowers) is ~90px, so arc baseline starts above that
-  const arcBasePx = 90;
-  const arcHeightPx = 80;
+  // Header is 160px. Sun is 48px (3× of 16px art). Arc peak + sunHeight must stay ≤ 160.
+  // arcBase(80) + arcHeight(25) + sun(48) = 153 — 7px clearance at top.
+  const arcBasePx = 80;
+  const arcHeightPx = 25;
 
   const sunPosition = useMemo(() => {
     const visible = dayProgress > -0.05 && dayProgress < 1.05;
@@ -162,19 +163,21 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
   const isNight = dayProgress < -0.1 || dayProgress > 1.1;
   const isDawnOrDusk = (dayProgress > -0.05 && dayProgress < 0.08) || (dayProgress > 0.92 && dayProgress < 1.05);
 
+  // Sky art is 100×40px; 4× scale = 400×160px. Pin explicit pixel sizes so scale is always
+  // a clean integer regardless of container height (avoids subpixel blurring).
   const headerStyle: React.CSSProperties = skyStyle.type === 'image'
-    ? { backgroundImage: `url(${skyStyle.src})`, backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%', backgroundPosition: 'bottom', imageRendering: 'pixelated', minHeight: '200px' }
-    : { background: skyStyle.value, minHeight: '200px' };
+    ? { backgroundImage: `url(${skyStyle.src})`, backgroundRepeat: 'repeat-x', backgroundSize: '400px 160px', backgroundPosition: 'left bottom', minHeight: '160px' }
+    : { background: skyStyle.value, minHeight: '160px' };
 
   return (
     <>
     <header
-      className="-mx-4 -mt-4 px-4 pt-6 pb-0 mb-4 relative overflow-hidden flex flex-col"
+      className={`-mx-4 -mt-4 px-4 pt-6 pb-0 mb-4 relative overflow-hidden flex flex-col${skyStyle.type === 'image' ? ' pixel-bg' : ''}`}
       style={headerStyle}
     >
       {sunPosition.visible && (
-        <img src={sunPng} alt="" className="absolute w-10 h-10 pointer-events-none select-none"
-          style={{ left: `${sunPosition.x}%`, bottom: `${sunPosition.bottomPx}px`, transform: 'translateX(-50%)', opacity: sunPosition.opacity, filter: isDawnOrDusk ? 'brightness(1.3) saturate(0.7)' : 'none', transition: 'bottom 60s linear, left 60s linear' }} />
+        <img src={sunPng} alt="" className="absolute w-12 h-12 pointer-events-none select-none"
+          style={{ left: `${sunPosition.x}%`, bottom: `${sunPosition.bottomPx}px`, transform: 'translateX(-50%)', opacity: sunPosition.opacity, filter: isDawnOrDusk ? 'brightness(1.3) saturate(0.7)' : 'none', transition: 'bottom 60s linear, left 60s linear', imageRendering: 'pixelated' }} />
       )}
       {moonPosition.visible && (
         <img src={moonPng} alt="" className="absolute w-9 h-9 pointer-events-none select-none"

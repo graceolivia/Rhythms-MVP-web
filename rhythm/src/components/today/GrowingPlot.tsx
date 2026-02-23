@@ -4,14 +4,10 @@ import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChalleng
 import { useGardenStore } from '../../stores/useGardenStore';
 import { useDailyFlower } from '../../hooks/useDailyFlower';
 import { GrowthSprite } from '../garden/GrowthSprite';
+import { SpriteSheet } from '../garden/SpriteSheet';
 import type { ActiveChallenge } from '../../types';
 
-// Daily flower pixel art imports
-import seed049 from '../../assets/flowers/049.png';
-import sprout039 from '../../assets/flowers/039.png';
-import bloom042 from '../../assets/flowers/042.png';
-
-const DAILY_FLOWER_SPRITES = [seed049, sprout039, bloom042, bloom042] as const;
+import heliotropeSheet from '../../assets/flowers/sheets/heliotrope.png';
 
 interface GrowingPlotProps {
   isNight: boolean;
@@ -42,31 +38,34 @@ function DailyFlowerSlot() {
 
   useEffect(() => {
     if (isBloomed && !alreadyEarned) {
-      earnFlower('daily-daisy', undefined, bloom042);
+      earnFlower('daily-daisy');
       setJustBloomed(true);
       const timer = setTimeout(() => setJustBloomed(false), 3000);
       return () => clearTimeout(timer);
     }
   }, [isBloomed, alreadyEarned, earnFlower]);
 
-  const sprite = DAILY_FLOWER_SPRITES[stage];
+  const animClass =
+    justBloomed ? 'animate-bloom-burst' :
+    animating ? 'animate-sprout-grow' :
+    stage > 0 ? 'animate-gentle-sway' : '';
 
   return (
     <div className="relative flex flex-col items-center">
       <button
         onClick={() => navigate('/challenges')}
         className="flex items-end justify-center w-16"
+        aria-label="Daily flower"
       >
-        <img
-          src={sprite}
-          alt="Daily flower"
-          className={`w-16 h-16 block ${
-            justBloomed ? 'animate-bloom-burst' :
-            animating ? 'animate-sprout-grow' :
-            stage > 0 ? 'animate-gentle-sway' : ''
-          }`}
-          style={{ imageRendering: 'pixelated', filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))' }}
-        />
+        <div className={animClass}>
+          <SpriteSheet
+            src={heliotropeSheet}
+            frame={stage}
+            frameSize={16}
+            scale={4}
+            shadow
+          />
+        </div>
       </button>
     </div>
   );

@@ -306,7 +306,8 @@ export type FlowerType =
   | 'rhythm-rose' // all rhythms completed
   | 'golden-hour-lily' // used double-nap well
   | 'self-care-sunflower' // self-care task done
-  | 'challenge-bloom'; // special challenge
+  | 'challenge-bloom' // special challenge
+  | 'heliotrope'; // hand-drawn — sprite sheet flower
 
 export interface Flower {
   id: string;

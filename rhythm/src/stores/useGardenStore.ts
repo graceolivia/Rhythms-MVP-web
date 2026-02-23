@@ -10,6 +10,7 @@ import rhythmRoseSprite from '../assets/flowers/064.png';
 import goldenHourLilySprite from '../assets/flowers/046.png';
 import selfCareSunflowerSprite from '../assets/flowers/064.png';
 import challengeBloomSprite from '../assets/flowers/046.png';
+import heliotropeSheet from '../assets/flowers/sheets/heliotrope.png';
 
 // ===========================================
 // GRID CONFIGURATION
@@ -29,12 +30,27 @@ export const BLOCKED_CELLS = new Set([
 // FLOWER CATALOG - maps earned flower types to display
 // ===========================================
 
-export const FLOWER_CATALOG: Record<FlowerType, { emoji: string; label: string; sprite: string }> = {
+export const FLOWER_CATALOG: Record<FlowerType, {
+  emoji: string;
+  label: string;
+  sprite: string;        // single-frame image OR used as fallback
+  sheet?: string;        // sprite sheet URL (horizontal, 16×16 frames)
+  sheetBloomFrame?: number; // which frame (0-indexed) is the bloom/catalog display
+  sheetFrameCount?: number; // total frames in sheet (for growth stages)
+}> = {
   'daily-daisy': { emoji: '🌼', label: 'Daily Daisy', sprite: dailyDaisySprite },
   'rhythm-rose': { emoji: '🌹', label: 'Rhythm Rose', sprite: rhythmRoseSprite },
   'golden-hour-lily': { emoji: '🌷', label: 'Golden Hour Lily', sprite: goldenHourLilySprite },
   'self-care-sunflower': { emoji: '🌻', label: 'Self-Care Sunflower', sprite: selfCareSunflowerSprite },
   'challenge-bloom': { emoji: '🌺', label: 'Challenge Bloom', sprite: challengeBloomSprite },
+  'heliotrope': {
+    emoji: '💜',
+    label: 'Heliotrope',
+    sprite: heliotropeSheet,     // fallback (shows full sheet — garden will use SpriteSheet instead)
+    sheet: heliotropeSheet,
+    sheetBloomFrame: 3,          // frame 3 (rightmost) is the full bloom
+    sheetFrameCount: 4,
+  },
 };
 
 // ===========================================

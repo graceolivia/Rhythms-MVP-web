@@ -8,6 +8,13 @@ body {
   @apply bg-cream text-bark font-body;
 }
 
+/* Pixel-art crisp rendering for background images (cross-browser) */
+.pixel-bg {
+  image-rendering: -webkit-optimize-contrast; /* Safari */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
 /* Safe area utilities for mobile devices */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0);

@@ -6,6 +6,7 @@ import {
   BLOCKED_CELLS,
   FLOWER_CATALOG,
 } from '../stores/useGardenStore';
+import { SpriteSheet } from '../components/garden/SpriteSheet';
 import type { FlowerType } from '../types';
 
 // ===========================================
@@ -73,11 +74,22 @@ function Cottage() {
 
 /** Render a flower sprite by type (uses catalog default) */
 function FlowerSpriteByType({ type }: { type: FlowerType }) {
-  const src = FLOWER_CATALOG[type].sprite;
+  const entry = FLOWER_CATALOG[type];
+  if (entry.sheet) {
+    return (
+      <SpriteSheet
+        src={entry.sheet}
+        frame={entry.sheetBloomFrame ?? 0}
+        frameSize={16}
+        scale={2}
+        shadow
+      />
+    );
+  }
   return (
     <img
-      src={src}
-      alt={FLOWER_CATALOG[type].label}
+      src={entry.sprite}
+      alt={entry.label}
       className="w-8 h-8 block select-none"
       style={{ imageRendering: 'pixelated' }}
     />
