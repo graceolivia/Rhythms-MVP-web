@@ -160,7 +160,7 @@ export function Seeds() {
                 Choose which to plant today, or let them go with grace.
               </p>
               <span className="text-xs px-2 py-1 rounded-full bg-cream text-bark/60 whitespace-nowrap flex items-center gap-1">
-                <span>{stateIcon}</span>
+                <span className="emoji-icon">{stateIcon}</span>
                 <span>{stateLabel}</span>
               </span>
             </div>

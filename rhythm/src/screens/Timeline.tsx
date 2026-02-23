@@ -148,7 +148,7 @@ function SleepLogPopup({
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xl">{sleepEmoji}</span>
+                  <span className="text-xl emoji-icon">{sleepEmoji}</span>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-lavender/20 text-lavender">
                     {sleepLabel}
                   </span>
@@ -550,7 +550,7 @@ export function Timeline() {
                   }}
                 >
                   <div className={`px-2 py-1 text-xs font-medium ${colors.text} truncate flex items-center gap-1`}>
-                    <span>{sleepEmoji}</span>
+                    <span className="emoji-icon">{sleepEmoji}</span>
                     <span>{block.childName}</span>
                     {block.isActive && <span className="text-bark/50">sleeping</span>}
                   </div>

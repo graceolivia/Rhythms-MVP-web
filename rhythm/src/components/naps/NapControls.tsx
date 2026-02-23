@@ -128,7 +128,7 @@ export function NapControls() {
                     <span className="text-bark font-medium">{child.name}</span>
                     {isSleeping && !isEditing && (
                       <span className="text-sm text-lavender">
-                        {sleepEmoji} {formatDuration(duration)}
+                        <span className="emoji-icon">{sleepEmoji}</span> {formatDuration(duration)}
                       </span>
                     )}
                     {!isSleeping && awakeDuration !== null && awakeDuration < 720 && (

@@ -12,6 +12,7 @@ interface TimelineEntry {
   time: string;       // HH:mm
   timeMinutes: number; // for sorting
   label: string;
+  emoji?: string;
   type: 'anchor' | 'care-block' | 'nap-schedule' | 'user-sleep' | 'habit-block';
   isCurrentSegment: boolean;
 }
@@ -106,7 +107,8 @@ function useDayTimelineEntries() {
         items.push({
           time: block.anchor.time,
           timeMinutes: startMins,
-          label: `${block.emoji || ''} ${block.name}`.trim(),
+          label: block.name,
+          emoji: block.emoji,
           type: 'habit-block',
           isCurrentSegment: currentMinutes >= startMins && currentMinutes < endMins,
         });
@@ -173,13 +175,14 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
       ) : (
         <span className="w-1.5 h-1.5 rounded-full bg-bark/20 flex-shrink-0" />
       )}
-      <span className={`text-sm ${
+      <span className={`text-sm flex items-center gap-1 ${
         entry.type === 'care-block' ? 'text-sage' :
         entry.type === 'nap-schedule' ? 'text-lavender italic' :
         entry.type === 'user-sleep' ? 'text-dustyrose italic' :
         entry.type === 'habit-block' ? 'text-terracotta font-medium' :
         ''
       }`}>
+        {entry.emoji && <span className="emoji-icon">{entry.emoji}</span>}
         {entry.label}
       </span>
     </div>

@@ -69,7 +69,7 @@ function TaskItem({ task, onClick, getChild }: TaskItemProps) {
           </div>
         </div>
         <div className="flex items-center gap-1 text-sm" title={freq.label}>
-          <span>{freq.emoji}</span>
+          <span className="emoji-icon">{freq.emoji}</span>
           <span className="text-xs text-bark/40 hidden sm:inline">{freq.label}</span>
         </div>
       </div>
@@ -246,10 +246,10 @@ function TaskEditModal({ task, onClose, onSave, onDelete, children }: TaskEditMo
                         : 'bg-bark/5 text-bark/60 hover:bg-bark/10'
                     }`}
                   >
-                    {r === 'daily' && '☀️ Daily'}
-                    {r === 'weekdays' && '💼 Weekdays'}
-                    {r === 'weekends' && '🌴 Weekends'}
-                    {r === 'weekly' && '🔁 Custom'}
+                    {r === 'daily' && <><span className="emoji-icon">☀️</span> Daily</>}
+                    {r === 'weekdays' && <><span className="emoji-icon">💼</span> Weekdays</>}
+                    {r === 'weekends' && <><span className="emoji-icon">🌴</span> Weekends</>}
+                    {r === 'weekly' && <><span className="emoji-icon">🔁</span> Custom</>}
                   </button>
                 ))}
               </div>
@@ -474,10 +474,10 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'routine', children }: New
                     : 'bg-bark/5 text-bark/60 hover:bg-bark/10'
                 }`}
               >
-                {r === 'daily' && '☀️ Daily'}
-                {r === 'weekdays' && '💼 Weekdays'}
-                {r === 'weekends' && '🌴 Weekends'}
-                {r === 'weekly' && '🔁 Custom'}
+                {r === 'daily' && <><span className="emoji-icon">☀️</span> Daily</>}
+                {r === 'weekdays' && <><span className="emoji-icon">💼</span> Weekdays</>}
+                {r === 'weekends' && <><span className="emoji-icon">🌴</span> Weekends</>}
+                {r === 'weekly' && <><span className="emoji-icon">🔁</span> Custom</>}
               </button>
             ))}
           </div>
@@ -601,7 +601,7 @@ export function Tasks() {
             className="w-full flex items-center justify-between p-3 rounded-lg bg-skyblue/5 hover:bg-skyblue/10 transition-colors"
           >
             <h2 className="font-medium text-skyblue flex items-center gap-2">
-              <span>🌱</span> To-dos
+              <span className="emoji-icon">🌱</span> To-dos
               <span className="text-xs text-bark/40 font-normal">({todos.length})</span>
             </h2>
             <div className="flex items-center gap-2">
@@ -646,7 +646,7 @@ export function Tasks() {
             className="w-full flex items-center justify-between p-3 rounded-lg bg-sage/5 hover:bg-sage/10 transition-colors"
           >
             <h2 className="font-medium text-sage flex items-center gap-2">
-              <span>🌿</span> Routines
+              <span className="emoji-icon">🌿</span> Routines
               <span className="text-xs text-bark/40 font-normal">({routines.length})</span>
             </h2>
             <div className="flex items-center gap-2">
@@ -684,7 +684,7 @@ export function Tasks() {
             className="w-full flex items-center justify-between p-3 rounded-lg bg-terracotta/5 hover:bg-terracotta/10 transition-colors"
           >
             <h2 className="font-medium text-terracotta flex items-center gap-2">
-              <span>⏰</span> Fixed Schedule
+              <span className="emoji-icon">⏰</span> Fixed Schedule
               <span className="text-xs text-bark/40 font-normal">({fixedSchedule.length})</span>
             </h2>
             <div className="flex items-center gap-2">
@@ -722,7 +722,7 @@ export function Tasks() {
             className="w-full flex items-center justify-between p-3 rounded-lg bg-dustyrose/5 hover:bg-dustyrose/10 transition-colors"
           >
             <h2 className="font-medium text-dustyrose flex items-center gap-2">
-              <span>⭐</span> Challenges
+              <span className="emoji-icon">⭐</span> Challenges
               <span className="text-xs text-bark/40 font-normal">Coming soon</span>
             </h2>
             <svg

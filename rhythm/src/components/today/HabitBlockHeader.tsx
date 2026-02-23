@@ -20,7 +20,7 @@ export function HabitBlockHeader({ block, completed, total }: HabitBlockHeaderPr
   return (
     <div className="flex items-center justify-between mb-3">
       <div className="flex items-center gap-2">
-        {block.emoji && <span className="text-lg">{block.emoji}</span>}
+        {block.emoji && <span className="text-lg emoji-icon">{block.emoji}</span>}
         <h2 className="font-display text-base text-bark">{block.name}</h2>
         <span className="text-xs text-bark/40">{completed}/{total}</span>
       </div>

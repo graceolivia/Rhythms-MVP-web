@@ -159,7 +159,7 @@ export function ChildStatusBar({ napPredictions }: ChildStatusBarProps) {
                 {isSleeping ? (
                   <>
                     <span className="text-sm text-lavender">
-                      {sleepEmoji} sleeping ({formatDuration(sleepDuration)})
+                      <span className="emoji-icon">{sleepEmoji}</span> sleeping ({formatDuration(sleepDuration)})
                     </span>
                     {predictions?.probableWakeTime && (
                       <span className="text-xs text-bark/40 hidden sm:inline">

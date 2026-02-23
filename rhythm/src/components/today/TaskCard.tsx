@@ -82,7 +82,7 @@ export function TaskCard({
             }`}
             title="Confirm"
           >
-            {isCompleted ? '✓' : task.childTaskType === 'bedtime' ? '🌙' : '☀️'}
+            {isCompleted ? '✓' : <span className="emoji-icon">{task.childTaskType === 'bedtime' ? '🌙' : '☀️'}</span>}
           </button>
         ) : (
           <button

@@ -8,6 +8,11 @@ body {
   @apply bg-cream text-bark font-body;
 }
 
+/* Monochrome-tinted emoji to match the app's earthy palette */
+.emoji-icon {
+  filter: grayscale(1) sepia(0.4) brightness(0.85);
+}
+
 /* Pixel-art crisp rendering for background images (cross-browser) */
 .pixel-bg {
   image-rendering: -webkit-optimize-contrast; /* Safari */

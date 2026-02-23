@@ -10,6 +10,7 @@ interface ComingUpEntry {
   time: string;       // HH:mm
   timeMinutes: number;
   label: string;
+  emoji?: string;
   type: 'task' | 'care-block' | 'nap-schedule' | 'habit-block';
   triggeredBy?: string;
 }
@@ -104,7 +105,8 @@ export function ComingUp() {
           entries.push({
             time: block.anchor.time,
             timeMinutes: timeMins,
-            label: `${block.emoji || ''} ${block.name}`.trim(),
+            label: block.name,
+            emoji: block.emoji,
             type: 'habit-block',
           });
         }
@@ -140,7 +142,10 @@ export function ComingUp() {
               entry.type === 'habit-block' ? 'bg-terracotta' :
               'bg-terracotta'
             }`} />
-            <span className="text-sm text-bark/70">{entry.label}</span>
+            <span className="text-sm text-bark/70 flex items-center gap-1">
+              {entry.emoji && <span className="emoji-icon">{entry.emoji}</span>}
+              {entry.label}
+            </span>
             {entry.triggeredBy && (
               <span className="text-xs text-bark/30 ml-auto">
                 after {entry.triggeredBy.replace('nap-end', 'sleep').replace('care-block-end', 'pickup')}

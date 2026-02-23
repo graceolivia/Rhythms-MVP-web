@@ -197,7 +197,7 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
         {format(now, 'MMMM d')} <span className="text-bark/50 font-body text-sm">- {format(now, 'EEEE')}</span>
       </h1>
       <p className="text-xs text-bark/50">
-        ☀️ {format(sunrise, 'h:mm a')}  ·  🌙 {format(sunset, 'h:mm a')}
+        <span className="emoji-icon">☀️</span> {format(sunrise, 'h:mm a')}  ·  <span className="emoji-icon">🌙</span> {format(sunset, 'h:mm a')}
       </p>
     </div>
   </>

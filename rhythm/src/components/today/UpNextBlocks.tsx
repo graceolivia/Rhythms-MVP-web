@@ -40,7 +40,7 @@ function BlockPreview({ block }: { block: HabitBlock }) {
   return (
     <div className="bg-cream/50 rounded-lg p-3 border border-bark/5">
       <div className="flex items-center gap-2 mb-2">
-        {block.emoji && <span className="text-sm">{block.emoji}</span>}
+        {block.emoji && <span className="text-sm emoji-icon">{block.emoji}</span>}
         <span className="font-display text-sm text-bark/70">{block.name}</span>
         {time && (
           <span className="text-xs text-bark/40 ml-auto">{time}</span>
