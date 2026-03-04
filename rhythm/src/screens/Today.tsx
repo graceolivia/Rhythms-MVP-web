@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import sunPng from '../assets/sky/sun2.png';
-import moonPng from '../assets/sky/moon001.png';
+import moonPng from '../assets/sky/16moon.png';
 import daySkyPng from '../assets/sky/sky2.png';
 import nightSkyPng from '../assets/sky/nightsky.png';
 import { useTaskStore } from '../stores/useTaskStore';
@@ -107,7 +107,7 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 60000);
+    const interval = setInterval(() => setNow(new Date()), 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -122,12 +122,14 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
   const arcBasePx = 80;
   const arcHeightPx = 25;
 
+  const snap = (n: number) => Math.round(n / 2) * 2;
+
   const sunPosition = useMemo(() => {
     const visible = dayProgress > -0.05 && dayProgress < 1.05;
     const clamped = Math.max(0, Math.min(1, dayProgress));
-    const x = 2 + clamped * 96;
+    const x = snap(2 + clamped * 96);
     const arc = 4 * clamped * (1 - clamped);
-    const bottomPx = arcBasePx + arc * arcHeightPx;
+    const bottomPx = snap(arcBasePx + arc * arcHeightPx);
     const opacity = dayProgress < 0
       ? Math.max(0, 1 + dayProgress * 20)
       : dayProgress > 1
@@ -148,9 +150,9 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
     }
     const visible = nightProgress > -0.05 && nightProgress < 1.05;
     const clamped = Math.max(0, Math.min(1, nightProgress));
-    const x = 2 + clamped * 96;
+    const x = snap(2 + clamped * 96);
     const arc = 4 * clamped * (1 - clamped);
-    const bottomPx = arcBasePx + arc * arcHeightPx;
+    const bottomPx = snap(arcBasePx + arc * arcHeightPx);
     const opacity = nightProgress < 0
       ? Math.max(0, 1 + nightProgress * 20)
       : nightProgress > 1
@@ -163,25 +165,32 @@ function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
   const isNight = dayProgress < -0.1 || dayProgress > 1.1;
   const isDawnOrDusk = (dayProgress > -0.05 && dayProgress < 0.08) || (dayProgress > 0.92 && dayProgress < 1.05);
 
-  // Sky art is 100×40px; 4× scale = 400×160px. Pin explicit pixel sizes so scale is always
-  // a clean integer regardless of container height (avoids subpixel blurring).
-  const headerStyle: React.CSSProperties = skyStyle.type === 'image'
-    ? { backgroundImage: `url(${skyStyle.src})`, backgroundRepeat: 'repeat-x', backgroundSize: '400px 160px', backgroundPosition: 'left bottom', minHeight: '160px' }
-    : { background: skyStyle.value, minHeight: '160px' };
+  const headerStyle: React.CSSProperties = skyStyle.type === 'gradient'
+    ? { background: skyStyle.value, minHeight: '160px' }
+    : { minHeight: '160px' };
 
   return (
     <>
     <header
-      className={`-mx-4 -mt-4 px-4 pt-6 pb-0 mb-4 relative overflow-hidden flex flex-col${skyStyle.type === 'image' ? ' pixel-bg' : ''}`}
+      className="-mx-4 -mt-4 px-4 pt-6 pb-0 mb-4 relative overflow-hidden flex flex-col"
       style={headerStyle}
     >
+      {/* Sky image — rendered as <img> tiles so imageRendering: pixelated is reliable */}
+      {skyStyle.type === 'image' && (
+        <div className="absolute bottom-0 left-0 flex pointer-events-none select-none" style={{ zIndex: 0 }}>
+          {[0, 1, 2, 3].map(i => (
+            <img key={i} src={skyStyle.src} alt=""
+              style={{ height: '160px', width: 'auto', imageRendering: 'pixelated', display: 'block', flexShrink: 0 }} />
+          ))}
+        </div>
+      )}
       {sunPosition.visible && (
         <img src={sunPng} alt="" className="absolute w-12 h-12 pointer-events-none select-none"
-          style={{ left: `${sunPosition.x}%`, bottom: `${sunPosition.bottomPx}px`, transform: 'translateX(-50%)', opacity: sunPosition.opacity, filter: isDawnOrDusk ? 'brightness(1.3) saturate(0.7)' : 'none', transition: 'bottom 60s linear, left 60s linear', imageRendering: 'pixelated' }} />
+          style={{ left: `${sunPosition.x}%`, bottom: `${sunPosition.bottomPx}px`, transform: 'translateX(-50%)', opacity: sunPosition.opacity, filter: isDawnOrDusk ? 'brightness(1.3) saturate(0.7)' : 'none', imageRendering: 'pixelated', zIndex: 1 }} />
       )}
       {moonPosition.visible && (
-        <img src={moonPng} alt="" className="absolute w-9 h-9 pointer-events-none select-none"
-          style={{ left: `${moonPosition.x}%`, bottom: `${moonPosition.bottomPx}px`, transform: 'translateX(-50%)', opacity: moonPosition.opacity, transition: 'bottom 60s linear, left 60s linear' }} />
+        <img src={moonPng} alt="" className="absolute w-8 h-8 pointer-events-none select-none"
+          style={{ left: `${moonPosition.x}%`, bottom: `${moonPosition.bottomPx}px`, transform: 'translateX(-50%)', opacity: moonPosition.opacity, imageRendering: 'pixelated', zIndex: 1 }} />
       )}
       {/* Spacer so sun/moon arc has room */}
       <div className="flex-1" />
