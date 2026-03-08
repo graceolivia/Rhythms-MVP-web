@@ -4,13 +4,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { format, getMonth } from 'date-fns';
 import type { Flower, FlowerType, Season, Garden } from '../types';
 
-// Default flower sprites (bloom stage) per type
-import dailyDaisySprite from '../assets/flowers/042.png';
-import rhythmRoseSprite from '../assets/flowers/064.png';
-import goldenHourLilySprite from '../assets/flowers/046.png';
-import selfCareSunflowerSprite from '../assets/flowers/064.png';
-import challengeBloomSprite from '../assets/flowers/046.png';
-import heliotropeSheet from '../assets/flowers/sheets/heliotrope.png';
+// Your sprite sheets — add new ones here and add an entry to FLOWER_CATALOG below
+import snowdropSheet from '../assets/flowers/sheets/0_winter/snowdrop.png';
+import winterPansySheet from '../assets/flowers/sheets/0_winter/winter-pansy.png';
+import heliotropeSheet from '../assets/flowers/sheets/0_winter/heliotrope.png';
+import pinkroseSheet from '../assets/flowers/sheets/2_summer/pinkrose.png';
 
 // ===========================================
 // GRID CONFIGURATION
@@ -30,27 +28,29 @@ export const BLOCKED_CELLS = new Set([
 // FLOWER CATALOG - maps earned flower types to display
 // ===========================================
 
+// Helpers for sheet-based entries
+const sheet = (src: string, label: string, emoji: string) => ({
+  emoji, label, sprite: src, sheet: src, sheetBloomFrame: 3, sheetFrameCount: 4,
+});
+
+// FLOWER CATALOG — maps FlowerType keys to display info + sprites.
+// All entries here use your own sprite sheets (16×16, 4 frames, bloom = frame 3).
+// To add a new flower: import its sheet above, add a FlowerType in types/index.ts,
+// then add an entry here using the sheet() helper.
 export const FLOWER_CATALOG: Record<FlowerType, {
   emoji: string;
   label: string;
-  sprite: string;        // single-frame image OR used as fallback
-  sheet?: string;        // sprite sheet URL (horizontal, 16×16 frames)
-  sheetBloomFrame?: number; // which frame (0-indexed) is the bloom/catalog display
-  sheetFrameCount?: number; // total frames in sheet (for growth stages)
+  sprite: string;
+  sheet?: string;
+  sheetBloomFrame?: number;
+  sheetFrameCount?: number;
 }> = {
-  'daily-daisy': { emoji: '🌼', label: 'Daily Daisy', sprite: dailyDaisySprite },
-  'rhythm-rose': { emoji: '🌹', label: 'Rhythm Rose', sprite: rhythmRoseSprite },
-  'golden-hour-lily': { emoji: '🌷', label: 'Golden Hour Lily', sprite: goldenHourLilySprite },
-  'self-care-sunflower': { emoji: '🌻', label: 'Self-Care Sunflower', sprite: selfCareSunflowerSprite },
-  'challenge-bloom': { emoji: '🌺', label: 'Challenge Bloom', sprite: challengeBloomSprite },
-  'heliotrope': {
-    emoji: '💜',
-    label: 'Heliotrope',
-    sprite: heliotropeSheet,     // fallback (shows full sheet — garden will use SpriteSheet instead)
-    sheet: heliotropeSheet,
-    sheetBloomFrame: 3,          // frame 3 (rightmost) is the full bloom
-    sheetFrameCount: 4,
-  },
+  'daily-daisy':        sheet(snowdropSheet,    'Snowdrop',     '❄️'),
+  'rhythm-rose':        sheet(pinkroseSheet,    'Pink Rose',    '🌸'),
+  'golden-hour-lily':   sheet(winterPansySheet, 'Winter Pansy', '🌸'),
+  'self-care-sunflower':sheet(heliotropeSheet,  'Heliotrope',   '💜'),
+  'challenge-bloom':    sheet(winterPansySheet, 'Winter Pansy', '🌸'),
+  'heliotrope':         sheet(heliotropeSheet,  'Heliotrope',   '💜'),
 };
 
 // ===========================================

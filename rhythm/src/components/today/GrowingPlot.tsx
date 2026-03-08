@@ -1,13 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
-import { useGardenStore } from '../../stores/useGardenStore';
-import { useDailyFlower } from '../../hooks/useDailyFlower';
 import { GrowthSprite } from '../garden/GrowthSprite';
-import { SpriteSheet } from '../garden/SpriteSheet';
 import type { ActiveChallenge } from '../../types';
-
-import heliotropeSheet from '../../assets/flowers/sheets/heliotrope.png';
 
 interface GrowingPlotProps {
   isNight: boolean;
@@ -15,85 +9,7 @@ interface GrowingPlotProps {
 }
 
 // ===========================================
-// Daily Flower Slot (leftmost, auto-planted)
-// ===========================================
-
-function DailyFlowerSlot() {
-  const { stage, isBloomed, alreadyEarned } = useDailyFlower();
-  const earnFlower = useGardenStore(s => s.earnFlower);
-  const navigate = useNavigate();
-  const [justBloomed, setJustBloomed] = useState(false);
-  const prevStageRef = useRef(stage);
-
-  const [animating, setAnimating] = useState(false);
-  useEffect(() => {
-    if (stage > prevStageRef.current) {
-      setAnimating(true);
-      const timer = setTimeout(() => setAnimating(false), 600);
-      prevStageRef.current = stage;
-      return () => clearTimeout(timer);
-    }
-    prevStageRef.current = stage;
-  }, [stage]);
-
-  useEffect(() => {
-    if (isBloomed && !alreadyEarned) {
-      earnFlower('daily-daisy');
-      setJustBloomed(true);
-      const timer = setTimeout(() => setJustBloomed(false), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isBloomed, alreadyEarned, earnFlower]);
-
-  const animClass =
-    justBloomed ? 'animate-bloom-burst' :
-    animating ? 'animate-sprout-grow' :
-    stage > 0 ? 'animate-gentle-sway' : '';
-
-  return (
-    <div className="relative flex flex-col items-center">
-      <button
-        onClick={() => navigate('/challenges')}
-        className="flex items-end justify-center w-16"
-        aria-label="Daily flower"
-      >
-        <div className={animClass}>
-          <SpriteSheet
-            src={heliotropeSheet}
-            frame={stage}
-            frameSize={16}
-            scale={4}
-            shadow
-          />
-        </div>
-      </button>
-    </div>
-  );
-}
-
-/** Progress dots rendered inside the dirt for the daily flower */
-function DailyFlowerDots({ isNight }: { isNight: boolean }) {
-  const { mealsCompleted } = useDailyFlower();
-  const mealLabels = ['breakfast', 'lunch', 'dinner'];
-
-  return (
-    <div className="flex justify-center gap-1 w-16">
-      {mealLabels.map((meal, i) => (
-        <div
-          key={meal}
-          className={`w-1.5 h-1.5 rounded-full ${
-            i < mealsCompleted
-              ? 'bg-sage'
-              : isNight ? 'bg-cream/20' : 'bg-cream/30'
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ===========================================
-// Challenge Plot Slot (slots 1-3)
+// Challenge Plot Slot
 // ===========================================
 
 function PlotSlot({
@@ -133,6 +49,7 @@ function PlotSlot({
           stage={challenge.growthStage}
           flowerType={template?.flowerReward}
           sprites={template?.sprites}
+          spriteSheet={template?.spriteSheet}
           size="md"
           animate={animate}
         />
@@ -171,12 +88,11 @@ function ChallengeDots({
 }
 
 // ===========================================
-// Main Growing Plot (4 slots)
+// Main Growing Plot
 // ===========================================
 
 export function GrowingPlot({ isNight, justBloomedId }: GrowingPlotProps) {
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
-  // Show growing challenges + the justBloomedId challenge (so bloom animation plays)
   const visible = activeChallenges.filter(
     c => c.status === 'growing' || (c.status === 'bloomed' && c.id === justBloomedId)
   );
@@ -186,9 +102,8 @@ export function GrowingPlot({ isNight, justBloomedId }: GrowingPlotProps) {
 
   return (
     <div className="relative mt-auto">
-      {/* Plants — flush against the dirt below */}
+      {/* Plants */}
       <div className="flex justify-around items-end px-4">
-        <DailyFlowerSlot />
         {[0, 1, 2, 3].map((plotIndex) => (
           <PlotSlot
             key={plotIndex}
@@ -199,7 +114,7 @@ export function GrowingPlot({ isNight, justBloomedId }: GrowingPlotProps) {
         ))}
       </div>
 
-      {/* Dirt strip — plants grow right out of this */}
+      {/* Dirt strip */}
       <div
         className="-mx-4 relative"
         style={{
@@ -209,9 +124,8 @@ export function GrowingPlot({ isNight, justBloomedId }: GrowingPlotProps) {
             : 'linear-gradient(180deg, #8B6914 0%, #6B4F12 40%, #5D4E37 100%)',
         }}
       >
-        {/* Progress dots — centered under each plant */}
+        {/* Progress dots */}
         <div className="flex justify-around items-center px-8 pt-1">
-          <DailyFlowerDots isNight={isNight} />
           {[0, 1, 2, 3].map((plotIndex) => (
             <ChallengeDots
               key={plotIndex}

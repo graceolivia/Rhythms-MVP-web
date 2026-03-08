@@ -8,6 +8,8 @@ import {
 } from '../stores/useGardenStore';
 import { SpriteSheet } from '../components/garden/SpriteSheet';
 import type { FlowerType } from '../types';
+import cottageSprite from '../assets/cottage_scene/cottage3_resize.png';
+import dirtTile from '../assets/cottage_scene/dirt-tile.png';
 
 // ===========================================
 // COTTAGE COMPONENT
@@ -15,55 +17,18 @@ import type { FlowerType } from '../types';
 
 function Cottage() {
   return (
-    <div
-      className="absolute top-2 left-1/2 -translate-x-1/2 z-10"
-      style={{ width: '100px', height: '85px', filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.15))' }}
-    >
-      {/* Chimney */}
-      <div
-        className="absolute top-[4px] right-[20px] w-3 h-5 rounded-sm"
-        style={{ background: 'linear-gradient(180deg, #8B7355 0%, #6B5344 100%)' }}
-      />
-      {/* Roof */}
-      <div
-        className="absolute top-0 left-0 right-0 h-10"
+    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
+      <img
+        src={cottageSprite}
+        alt="Cottage"
+        width={120}
+        height={120}
         style={{
-          background: 'linear-gradient(180deg, #C67B5C 0%, #A66B4F 100%)',
-          clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+          imageRendering: 'pixelated',
+          filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))',
+          display: 'block',
         }}
       />
-      {/* Body */}
-      <div
-        className="absolute bottom-0 left-2 right-2 h-11 rounded border-2 border-bark/30"
-        style={{ background: 'linear-gradient(180deg, #F5E6D3 0%, #E8D4B8 100%)' }}
-      >
-        {/* Windows */}
-        <div
-          className="absolute left-2 bottom-3 w-4 h-4 rounded-sm border border-bark/30"
-          style={{ background: 'linear-gradient(135deg, #A5C4D4 0%, #7BA3B8 100%)' }}
-        >
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="absolute w-full h-px bg-bark/30" />
-            <div className="absolute w-px h-full bg-bark/30" />
-          </div>
-        </div>
-        <div
-          className="absolute right-2 bottom-3 w-4 h-4 rounded-sm border border-bark/30"
-          style={{ background: 'linear-gradient(135deg, #A5C4D4 0%, #7BA3B8 100%)' }}
-        >
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="absolute w-full h-px bg-bark/30" />
-            <div className="absolute w-px h-full bg-bark/30" />
-          </div>
-        </div>
-        {/* Door */}
-        <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-6 rounded-t-lg"
-          style={{ background: 'linear-gradient(180deg, #5D4E37 0%, #4A3F2D 100%)' }}
-        >
-          <div className="absolute right-1 top-1/2 w-1 h-1 rounded-full bg-clay" />
-        </div>
-      </div>
     </div>
   );
 }
@@ -420,14 +385,14 @@ export function Garden() {
               `}
             >
               {(() => {
-                const flower = flowers.find(f => f.id === placedFlower.flowerId);
-                const spriteSrc = flower?.sprite ?? FLOWER_CATALOG[placedFlower.flowerType].sprite;
+                const entry = FLOWER_CATALOG[placedFlower.flowerType];
                 return (
-                  <img
-                    src={spriteSrc}
-                    alt={FLOWER_CATALOG[placedFlower.flowerType].label}
-                    className="w-8 h-8 block select-none"
-                    style={{ imageRendering: 'pixelated' }}
+                  <SpriteSheet
+                    src={entry.sheet ?? entry.sprite}
+                    frame={entry.sheetBloomFrame ?? 0}
+                    frameSize={16}
+                    scale={2}
+                    shadow
                   />
                 );
               })()}
@@ -457,23 +422,18 @@ export function Garden() {
 
       {/* Garden Area */}
       <div className="relative mx-4">
-        {/* Garden bed background */}
+        {/* Garden bed background — tiled pixel art dirt */}
         <div
           className="absolute inset-0 rounded-2xl"
           style={{
-            background:
-              'linear-gradient(180deg, #C8D9A0 0%, #A8C978 50%, #8BB858 100%)',
+            backgroundImage: `url(${dirtTile})`,
+            backgroundSize: '32px 32px',
+            imageRendering: 'pixelated',
           }}
         />
 
         {/* Garden bed border/frame */}
-        <div
-          className="relative rounded-2xl p-4 pt-24"
-          style={{
-            background:
-              'repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(107, 83, 68, 0.06) 39px, rgba(107, 83, 68, 0.06) 40px), repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(107, 83, 68, 0.06) 39px, rgba(107, 83, 68, 0.06) 40px)',
-          }}
-        >
+        <div className="relative rounded-2xl p-4 pt-24">
           <Cottage />
 
           {/* Grid */}

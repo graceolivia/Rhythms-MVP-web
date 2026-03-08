@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../stores/useChallengeStore';
 import { GrowthSprite } from '../components/garden/GrowthSprite';
+import { SpriteSheet } from '../components/garden/SpriteSheet';
 import { FLOWER_CATALOG } from '../stores/useGardenStore';
 import type { ChallengeTemplate, ActiveChallenge } from '../types';
 
@@ -74,7 +75,13 @@ function ChallengeDetailModal({
 
         {/* Reward preview */}
         <div className="bg-parchment/60 rounded-lg p-3 mb-5 flex items-center gap-3">
-          <span className="text-2xl">{flowerInfo.emoji}</span>
+          <SpriteSheet
+            src={flowerInfo.sheet ?? flowerInfo.sprite}
+            frame={flowerInfo.sheetBloomFrame ?? 0}
+            frameSize={16}
+            scale={2}
+            shadow
+          />
           <div>
             <p className="text-xs text-bark/50">Reward</p>
             <p className="text-sm font-medium text-bark">{flowerInfo.label}</p>
@@ -118,6 +125,7 @@ function ActiveChallengeCard({ challenge }: { challenge: ActiveChallenge }) {
           stage={challenge.growthStage}
           flowerType={template.flowerReward}
           sprites={template.sprites}
+          spriteSheet={template.spriteSheet}
           size="lg"
           animate={challenge.status === 'bloomed' ? 'none' : 'idle'}
         />
@@ -206,7 +214,13 @@ function AvailableChallengeCard({
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${diff.bg} ${diff.text}`}>
             {template.difficulty}
           </span>
-          <img src={flowerInfo.sprite} alt={flowerInfo.label} className="w-6 h-6" style={{ imageRendering: 'pixelated' }} />
+          <SpriteSheet
+            src={flowerInfo.sheet ?? flowerInfo.sprite}
+            frame={flowerInfo.sheetBloomFrame ?? 0}
+            frameSize={16}
+            scale={1.5}
+            shadow
+          />
         </div>
       </div>
     </button>
@@ -353,12 +367,18 @@ export function Challenges() {
                     key={challenge.id}
                     className="bg-cream rounded-xl p-4 flex items-center gap-3 border border-bark/5"
                   >
-                    <img
-                      src={template.sprites?.[3] ?? FLOWER_CATALOG[template.flowerReward].sprite}
-                      alt={template.title}
-                      className="w-10 h-10"
-                      style={{ imageRendering: 'pixelated' }}
-                    />
+                    {(() => {
+                      const info = FLOWER_CATALOG[template.flowerReward];
+                      return (
+                        <SpriteSheet
+                          src={info.sheet ?? info.sprite}
+                          frame={info.sheetBloomFrame ?? 0}
+                          frameSize={16}
+                          scale={2.5}
+                          shadow
+                        />
+                      );
+                    })()}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-bark truncate">{template.title}</p>
                       <p className="text-xs text-bark/40">

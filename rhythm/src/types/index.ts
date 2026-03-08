@@ -278,6 +278,8 @@ export interface ChallengeTemplate {
   difficulty: 'gentle' | 'steady' | 'ambitious';
   /** Optional pixel art sprites per growth stage (seed, sprout, budding, bloom) */
   sprites?: [string, string, string, string];
+  /** Horizontal sprite sheet (16×16 frames) — alternative to individual sprites */
+  spriteSheet?: string;
   /** Tasks seeded when the challenge is planted */
   seedTasks?: ChallengeSeedTask[];
 }
