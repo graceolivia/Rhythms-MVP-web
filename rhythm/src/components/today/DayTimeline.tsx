@@ -1,6 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { useChildStore } from '../../stores/useChildStore';
 import { useNapStore } from '../../stores/useNapStore';
@@ -50,8 +49,21 @@ function useDayTimelineEntries() {
       });
 
     // Add care blocks for today
+    const todayDow = today.getDay(); // 0=Sun, 6=Sat
+    const todayStr = format(today, 'yyyy-MM-dd');
     blocks
-      .filter((b) => b.isActive && (b.blockType === 'childcare' || b.blockType === 'babysitter'))
+      .filter((b) => {
+        if (!b.isActive) return false;
+        if (b.blockType !== 'childcare' && b.blockType !== 'babysitter') return false;
+        if (b.recurrence === 'one-off') return b.oneOffDate === todayStr;
+        const days = b.daysOfWeek ?? [];
+        if (days.length > 0) return days.includes(todayDow);
+        // Fallback: recurrence string with no explicit days
+        if (b.recurrence === 'daily') return true;
+        if (b.recurrence === 'weekdays') return todayDow >= 1 && todayDow <= 5;
+        if (b.recurrence === 'weekends') return todayDow === 0 || todayDow === 6;
+        return true;
+      })
       .forEach((block) => {
         const childNames = block.childIds
           .map((id) => getChild(id)?.name)
@@ -189,9 +201,10 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
   );
 }
 
-/** Compact version for the Today screen: current event + next 2 upcoming */
+/** Compact version for the Today screen: current event + next 2, expandable to full */
 export function DayOverviewCompact() {
   const { entries, currentMinutes } = useDayTimelineEntries();
+  const [expanded, setExpanded] = useState(false);
 
   if (entries.length === 0) return null;
 
@@ -203,31 +216,32 @@ export function DayOverviewCompact() {
   if (currentIndex >= 0) {
     visibleEntries = entries.slice(currentIndex, currentIndex + 3);
   } else {
-    // All events are in the future or past — show first upcoming
     const nextIndex = entries.findIndex((e) => e.timeMinutes > currentMinutes);
     if (nextIndex >= 0) {
       visibleEntries = entries.slice(nextIndex, nextIndex + 3);
     } else {
-      // All past — show last 1
       visibleEntries = entries.slice(-1);
     }
   }
+
+  const hasMore = entries.length > visibleEntries.length;
+  const displayedEntries = expanded ? entries : visibleEntries;
 
   return (
     <div className="mb-4">
       <div className="bg-parchment/50 rounded-xl p-3">
         <div className="space-y-0">
-          {visibleEntries.map((entry, i) => (
+          {displayedEntries.map((entry, i) => (
             <TimelineRow key={`${entry.time}-${i}`} entry={entry} />
           ))}
         </div>
-        {entries.length > visibleEntries.length && (
-          <Link
-            to="/timeline"
-            className="block text-center text-xs text-bark/40 hover:text-bark/60 mt-2 pt-1 border-t border-bark/10"
+        {hasMore && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="block w-full text-center text-xs text-bark/40 hover:text-bark/60 mt-2 pt-1 border-t border-bark/10 transition-colors"
           >
-            View full timeline
-          </Link>
+            {expanded ? 'Show less ▲' : 'View full day ▼'}
+          </button>
         )}
       </div>
     </div>

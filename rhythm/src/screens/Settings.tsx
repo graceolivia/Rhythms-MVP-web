@@ -736,7 +736,22 @@ export function Settings() {
       )}
 
       <section className="mb-8">
-        <h2 className="font-display text-lg text-bark mb-4">Reset App</h2>
+        <h2 className="font-display text-lg text-bark mb-4">Reset</h2>
+        <button
+          onClick={() => {
+            const confirmed = window.confirm(
+              'This will delete all your tasks and to-dos. Your children, care blocks, and garden will be kept. Continue?'
+            );
+            if (!confirmed) return;
+            useTaskStore.getState().clearTasks();
+          }}
+          className="w-full py-2 rounded-xl bg-terracotta text-cream hover:bg-terracotta/90 transition-colors mb-3"
+        >
+          Clear All Tasks
+        </button>
+        <p className="text-xs text-bark/50 mb-6">
+          Removes all tasks and to-dos. Your children, care blocks, and garden stay intact.
+        </p>
         <button
           onClick={handleResetApp}
           className="w-full py-2 rounded-xl bg-bark text-cream hover:bg-bark/90 transition-colors"
