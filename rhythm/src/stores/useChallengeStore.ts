@@ -7,6 +7,9 @@ import { useTaskStore } from './useTaskStore';
 import type { ChallengeTemplate, ActiveChallenge, GrowthStage } from '../types';
 
 import pinkroseSheet from '../assets/flowers/sheets/2_summer/pinkrose.png';
+import snowdropSheet from '../assets/flowers/sheets/0_winter/snowdrop.png';
+import winterPansySheet from '../assets/flowers/sheets/0_winter/winter-pansy.png';
+import heliotropeSheet from '../assets/flowers/sheets/0_winter/heliotrope.png';
 
 // ===========================================
 // CHALLENGE TEMPLATES
@@ -39,6 +42,54 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
       { title: 'Move to dryer', sequential: true },
       { title: 'Take laundry out', sequential: true },
       { title: 'Fold and put away', sequential: true },
+    ],
+  },
+  {
+    id: 'morning-close',
+    title: 'Morning Close',
+    description: 'Complete your morning routine from start to finish — a calm, intentional start to the day.',
+    type: 'streak',
+    targetCount: 7,
+    flowerReward: 'daily-daisy',
+    category: 'routine',
+    difficulty: 'gentle',
+    spriteSheet: snowdropSheet,
+    seedTasks: [
+      { title: 'Placeholder morning step 1' },
+      { title: 'Placeholder morning step 2', sequential: true },
+      { title: 'Placeholder morning step 3', sequential: true },
+    ],
+  },
+  {
+    id: 'evening-close',
+    title: 'Evening Close',
+    description: 'Wind down the day with intention — kitchen, kids, and yourself taken care of.',
+    type: 'streak',
+    targetCount: 7,
+    flowerReward: 'golden-hour-lily',
+    category: 'routine',
+    difficulty: 'gentle',
+    spriteSheet: winterPansySheet,
+    seedTasks: [
+      { title: 'Placeholder evening step 1' },
+      { title: 'Placeholder evening step 2', sequential: true },
+      { title: 'Placeholder evening step 3', sequential: true },
+    ],
+  },
+  {
+    id: 'waldorf-enrichment',
+    title: 'Waldorf Child Enrichment',
+    description: 'Bring rhythm and beauty into the week with intentional play, craft, and nature.',
+    type: 'cumulative',
+    targetCount: 5,
+    flowerReward: 'self-care-sunflower',
+    category: 'enrichment',
+    difficulty: 'steady',
+    spriteSheet: heliotropeSheet,
+    seedTasks: [
+      { title: 'Placeholder enrichment step 1' },
+      { title: 'Placeholder enrichment step 2' },
+      { title: 'Placeholder enrichment step 3' },
     ],
   },
 ];
