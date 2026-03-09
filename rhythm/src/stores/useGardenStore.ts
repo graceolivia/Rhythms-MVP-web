@@ -14,14 +14,15 @@ import pinkroseSheet from '../assets/flowers/sheets/2_summer/pinkrose.png';
 // GRID CONFIGURATION
 // ===========================================
 
-export const GRID_COLS = 7;
+export const GRID_COLS = 13;
 export const GRID_ROWS = 8;
 
 // Blocked cells where the cottage sits (top-center)
 export const BLOCKED_CELLS = new Set([
-  '2,0', '3,0', '4,0',
-  '2,1', '3,1', '4,1',
-  '2,2', '3,2', '4,2',
+  // Cottage footprint — image only visually reaches into row 0 (cols 5–7, center of 13)
+  '5,0', '6,0', '7,0',
+  // Stepping stone path — full col 7 (rows 1–7; row 0 already covered above)
+  '7,1', '7,2', '7,3', '7,4', '7,5', '7,6', '7,7',
 ]);
 
 // ===========================================

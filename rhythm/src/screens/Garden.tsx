@@ -10,6 +10,7 @@ import { SpriteSheet } from '../components/garden/SpriteSheet';
 import type { FlowerType } from '../types';
 import cottageSprite from '../assets/cottage_scene/cottage3_resize.png';
 import dirtTile from '../assets/cottage_scene/dirt-tile.png';
+import steppingStonePath from '../assets/cottage_scene/stepping-stone-path.png';
 
 // ===========================================
 // COTTAGE COMPONENT
@@ -365,8 +366,8 @@ export function Garden() {
           onDragOver={(e) => handleDragOver(e, col, row)}
           onDrop={(e) => handleDrop(e, col, row)}
           className={`
-            w-10 h-10 rounded transition-all duration-150
-            ${isBlocked ? 'cursor-not-allowed' : 'cursor-pointer'}
+            w-8 h-8 rounded transition-all duration-150
+            ${isBlocked ? 'cursor-not-allowed' : 'cursor-pointer ring-1 ring-inset ring-white/20'}
             ${!isBlocked && !placedFlower && !isDraggingFrom ? 'hover:bg-sage/30 active:bg-sage/40' : ''}
             ${isDragOver ? 'bg-sage/40 ring-2 ring-sage ring-inset' : ''}
           `}
@@ -420,6 +421,32 @@ export function Garden() {
         </div>
       </header>
 
+      {/* Mode Indicator + Action Buttons */}
+      <div className="px-4 pb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-sage animate-pulse" />
+          <span className="text-xs font-semibold text-sage">{modeLabels[mode] || modeLabels.place}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMode('remove')}
+            className={`w-8 h-8 rounded-full shadow-sm flex items-center justify-center text-base transition-all duration-200 hover:scale-110 ${
+              mode === 'remove' ? 'bg-terracotta text-cream' : 'bg-cream/80'
+            }`}
+            title="Remove flower"
+          >
+            🗑️
+          </button>
+          <button
+            onClick={handleClear}
+            className="w-8 h-8 rounded-full bg-cream/80 shadow-sm flex items-center justify-center text-base transition-all duration-200 hover:scale-110"
+            title="Clear all"
+          >
+            🔄
+          </button>
+        </div>
+      </div>
+
       {/* Garden Area */}
       <div className="relative mx-4">
         {/* Garden bed background — tiled pixel art dirt */}
@@ -441,39 +468,31 @@ export function Garden() {
             className="mx-auto"
             style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${GRID_COLS}, 40px)`,
-              gridTemplateRows: `repeat(${GRID_ROWS}, 40px)`,
+              gridTemplateColumns: `repeat(${GRID_COLS}, 32px)`,
+              gridTemplateRows: `repeat(${GRID_ROWS}, 32px)`,
               width: 'fit-content',
+              position: 'relative',
             }}
           >
             {gridCells}
+
+            {/* Stepping stone path — exactly col 4, rows 0–7 */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '0px',
+                left: '224px',
+                width: '32px',
+                height: '256px',
+                backgroundImage: `url(${steppingStonePath})`,
+                backgroundRepeat: 'repeat-y',
+                backgroundSize: '32px 32px',
+                backgroundPosition: 'center top',
+                zIndex: 1,
+                pointerEvents: 'none',
+              }}
+            />
           </div>
-        </div>
-
-        {/* Mode Indicator */}
-        <div className="absolute top-28 left-6 bg-cream/90 px-3 py-1.5 rounded-full text-xs font-semibold text-sage shadow-sm flex items-center gap-1.5 z-10">
-          <span className="w-2 h-2 rounded-full bg-sage animate-pulse" />
-          <span>{modeLabels[mode] || modeLabels.place}</span>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="absolute top-28 right-6 flex flex-col gap-2 z-10">
-          <button
-            onClick={() => setMode('remove')}
-            className={`w-10 h-10 rounded-full shadow-md flex items-center justify-center text-lg transition-all duration-200 hover:scale-110 ${
-              mode === 'remove' ? 'bg-terracotta text-cream' : 'bg-cream/90'
-            }`}
-            title="Remove"
-          >
-            🗑️
-          </button>
-          <button
-            onClick={handleClear}
-            className="w-10 h-10 rounded-full bg-cream/90 shadow-md flex items-center justify-center text-lg transition-all duration-200 hover:scale-110"
-            title="Clear all"
-          >
-            🔄
-          </button>
         </div>
 
         {/* Help Bubble */}
