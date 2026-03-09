@@ -51,7 +51,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     type: 'streak',
     targetCount: 7,
     flowerReward: 'daily-daisy',
-    category: 'routine',
+    category: 'other',
     difficulty: 'gentle',
     spriteSheet: snowdropSheet,
     seedTasks: [
@@ -67,7 +67,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     type: 'streak',
     targetCount: 7,
     flowerReward: 'golden-hour-lily',
-    category: 'routine',
+    category: 'other',
     difficulty: 'gentle',
     spriteSheet: winterPansySheet,
     seedTasks: [
@@ -83,7 +83,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     type: 'cumulative',
     targetCount: 5,
     flowerReward: 'self-care-sunflower',
-    category: 'enrichment',
+    category: 'kids',
     difficulty: 'steady',
     spriteSheet: heliotropeSheet,
     seedTasks: [
