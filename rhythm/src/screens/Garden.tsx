@@ -368,7 +368,7 @@ export function Garden() {
           className={`
             w-8 h-8 rounded transition-all duration-150
             ${isBlocked ? 'cursor-not-allowed' : 'cursor-pointer ring-1 ring-inset ring-white/20'}
-            ${!isBlocked && !placedFlower && !isDraggingFrom ? 'hover:bg-sage/30 active:bg-sage/40' : ''}
+            ${!isBlocked && !placedFlower && !isDraggingFrom ? 'active:bg-sage/40' : ''}
             ${isDragOver ? 'bg-sage/40 ring-2 ring-sage ring-inset' : ''}
           `}
         >
