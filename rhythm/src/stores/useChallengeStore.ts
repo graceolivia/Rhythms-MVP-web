@@ -105,9 +105,10 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
 
 export function getGrowthStage(progress: number, target: number): GrowthStage {
   if (progress >= target) return 'bloom';
+  if (progress === 0) return 'planted';
   const pct = progress / target;
-  if (pct >= 0.6) return 'budding';
-  if (pct >= 0.25) return 'sprout';
+  if (pct >= 0.68) return 'budding';
+  if (pct >= 0.35) return 'sprout';
   return 'seed';
 }
 
@@ -187,7 +188,7 @@ export const useChallengeStore = create<ChallengeState>()(
           currentStreak: 0,
           totalProgress: 0,
           lastProgressDate: null,
-          growthStage: 'seed',
+          growthStage: 'planted',
           plotIndex,
           status: 'growing',
           bloomedDate: null,

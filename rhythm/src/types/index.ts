@@ -259,7 +259,7 @@ export interface TaskInstance {
 // Challenges
 
 export type ChallengeType = 'streak' | 'cumulative' | 'daily-routine';
-export type GrowthStage = 'seed' | 'sprout' | 'budding' | 'bloom';
+export type GrowthStage = 'planted' | 'seed' | 'sprout' | 'budding' | 'bloom';
 
 export interface ChallengeSeedTask {
   title: string;

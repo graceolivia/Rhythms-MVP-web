@@ -1,8 +1,10 @@
+import plantedSeedPng from '../../assets/flowers/planted seed.png';
 import { SpriteSheet } from './SpriteSheet';
 import type { GrowthStage, FlowerType } from '../../types';
 
 // Emoji placeholders — swap for <img src={pngPath}> when pixel art is ready
 const STAGE_EMOJI: Record<GrowthStage, string> = {
+  planted: '🌱',
   seed: '🌰',
   sprout: '🌱',
   budding: '🌿',
@@ -18,7 +20,9 @@ const BLOOM_EMOJI: Record<FlowerType, string> = {
   'heliotrope': '💜',
 };
 
-const STAGE_INDEX: Record<GrowthStage, number> = {
+// Sprite sheet frames 0–3 map to: seed, sprout, budding, bloom
+// 'planted' is always the universal planted-seed.png, not from the flower's sheet
+const STAGE_INDEX: Record<Exclude<GrowthStage, 'planted'>, number> = {
   seed: 0,
   sprout: 1,
   budding: 2,
@@ -62,12 +66,26 @@ const ANIM_CLASSES = {
 };
 
 export function GrowthSprite({ stage, flowerType, sprites, spriteSheet, size = 'md', animate = 'idle' }: GrowthSpriteProps) {
-  // Sprite sheet: frames 0–3 map directly to growth stages
+  // 'planted' always uses the universal planted-seed image, regardless of flower type
+  if (stage === 'planted') {
+    return (
+      <img
+        src={plantedSeedPng}
+        alt="planted seed"
+        className={`${IMG_SIZE_CLASSES[size]} ${ANIM_CLASSES[animate]} select-none block`}
+        style={{ imageRendering: 'pixelated', filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))' }}
+      />
+    );
+  }
+
+  const frameIndex = STAGE_INDEX[stage];
+
+  // Sprite sheet: frames 0–3 map to seed/sprout/budding/bloom
   if (spriteSheet) {
     return (
       <SpriteSheet
         src={spriteSheet}
-        frame={STAGE_INDEX[stage]}
+        frame={frameIndex}
         frameSize={16}
         scale={SHEET_SCALE[size]}
         className={ANIM_CLASSES[animate]}
@@ -78,10 +96,9 @@ export function GrowthSprite({ stage, flowerType, sprites, spriteSheet, size = '
 
   // Individual sprites [seed, sprout, budding, bloom]
   if (sprites) {
-    const src = sprites[STAGE_INDEX[stage]];
     return (
       <img
-        src={src}
+        src={sprites[frameIndex]}
         alt={`${stage} plant`}
         className={`${IMG_SIZE_CLASSES[size]} ${ANIM_CLASSES[animate]} select-none block`}
         style={{ imageRendering: 'pixelated', filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))' }}
