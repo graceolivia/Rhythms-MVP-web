@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../stores/useChallengeStore';
+import { useTaskStore } from '../stores/useTaskStore';
 import { GrowthSprite } from '../components/garden/GrowthSprite';
 import { SpriteSheet } from '../components/garden/SpriteSheet';
 import { FLOWER_CATALOG } from '../stores/useGardenStore';
@@ -40,13 +41,25 @@ function ChallengeDetailModal({
   noSlotsAvailable,
 }: {
   template: ChallengeTemplate;
-  onPlant: () => void;
+  onPlant: (customStepTitles?: string[]) => void;
   onClose: () => void;
   alreadyActive: boolean;
   noSlotsAvailable: boolean;
 }) {
   const diff = DIFFICULTY_STYLE[template.difficulty];
   const flowerInfo = FLOWER_CATALOG[template.flowerReward];
+  const hasSteps = template.seedTasks && template.seedTasks.length > 0;
+  const [steps, setSteps] = useState<string[]>(
+    () => template.seedTasks?.map(s => s.title) ?? []
+  );
+
+  const updateStep = (i: number, value: string) =>
+    setSteps(prev => prev.map((s, idx) => idx === i ? value : s));
+
+  const addStep = () => setSteps(prev => [...prev, '']);
+
+  const removeStep = (i: number) =>
+    setSteps(prev => prev.filter((_, idx) => idx !== i));
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -73,6 +86,44 @@ function ChallengeDetailModal({
 
         <p className="text-sm text-bark/70 leading-relaxed mb-4">{template.description}</p>
 
+        {/* Editable steps */}
+        {hasSteps && (
+          <div className="bg-parchment/60 rounded-lg p-3 mb-4">
+            <p className="text-xs text-bark/50 mb-2">Steps <span className="text-bark/30">(tap to edit)</span></p>
+            <div className="space-y-2">
+              {steps.map((step, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs text-bark/30 w-4 text-right shrink-0">{i + 1}</span>
+                  <input
+                    type="text"
+                    value={step}
+                    onChange={e => updateStep(i, e.target.value)}
+                    placeholder={`Step ${i + 1}`}
+                    className="flex-1 bg-cream border border-bark/10 rounded-lg px-3 py-1.5 text-sm text-bark placeholder-bark/30 focus:outline-none focus:border-sage/50"
+                  />
+                  {steps.length > 1 && (
+                    <button
+                      onClick={() => removeStep(i)}
+                      className="shrink-0 text-bark/25 hover:text-terracotta/60 transition-colors"
+                      aria-label="Remove step"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={addStep}
+              className="mt-2 w-full py-1.5 border border-dashed border-bark/20 rounded-lg text-xs text-bark/40 hover:text-bark/60 hover:border-bark/30 transition-colors"
+            >
+              + Add a step
+            </button>
+          </div>
+        )}
+
         {/* Reward preview */}
         <div className="bg-parchment/60 rounded-lg p-3 mb-5 flex items-center gap-3">
           <SpriteSheet
@@ -94,8 +145,9 @@ function ChallengeDetailModal({
           <p className="text-center text-sm text-bark/50">All 4 plots are full — complete or abandon a challenge first</p>
         ) : (
           <button
-            onClick={onPlant}
-            className="w-full py-3 bg-sage text-cream rounded-xl font-medium text-sm hover:bg-sage/90 transition-colors"
+            onClick={() => onPlant(hasSteps ? steps.filter(s => s.trim()) : undefined)}
+            disabled={hasSteps && steps.filter(s => s.trim()).length === 0}
+            className="w-full py-3 bg-sage text-cream rounded-xl font-medium text-sm hover:bg-sage/90 transition-colors disabled:opacity-40"
           >
             Plant this seed
           </button>
@@ -109,16 +161,86 @@ function ChallengeDetailModal({
 // Active Challenge Card
 // ===========================================
 
+function EditStepsModal({
+  challenge,
+  onClose,
+}: {
+  challenge: ActiveChallenge;
+  onClose: () => void;
+}) {
+  const tasks = useTaskStore(s => s.tasks);
+  const updateTask = useTaskStore(s => s.updateTask);
+
+  const seededTasks = (challenge.seededTaskIds ?? [])
+    .map(id => tasks.find(t => t.id === id))
+    .filter((t): t is NonNullable<typeof t> => !!t);
+
+  const [steps, setSteps] = useState<string[]>(() => seededTasks.map(t => t.title));
+
+  const updateStep = (i: number, value: string) =>
+    setSteps(prev => prev.map((s, idx) => idx === i ? value : s));
+
+  const handleSave = () => {
+    seededTasks.forEach((task, i) => {
+      if (steps[i] !== undefined && steps[i].trim() && steps[i] !== task.title) {
+        updateTask(task.id, { title: steps[i].trim() });
+      }
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-bark/30" onClick={onClose} />
+      <div className="relative bg-cream rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-6 animate-slide-up">
+        <button onClick={onClose} className="absolute top-4 right-4 text-bark/40 hover:text-bark/60">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <h2 className="font-display text-lg text-bark mb-1">Edit steps</h2>
+        <p className="text-xs text-bark/50 mb-4">Changes take effect on your Today list</p>
+
+        <div className="space-y-2 mb-5">
+          {steps.map((step, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-xs text-bark/30 w-4 text-right shrink-0">{i + 1}</span>
+              <input
+                type="text"
+                value={step}
+                onChange={e => updateStep(i, e.target.value)}
+                placeholder={`Step ${i + 1}`}
+                className="flex-1 bg-parchment/60 border border-bark/10 rounded-lg px-3 py-2 text-sm text-bark placeholder-bark/30 focus:outline-none focus:border-sage/50"
+              />
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={handleSave}
+          className="w-full py-3 bg-sage text-cream rounded-xl font-medium text-sm hover:bg-sage/90 transition-colors"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ActiveChallengeCard({ challenge }: { challenge: ActiveChallenge }) {
   const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
   const abandonChallenge = useChallengeStore(s => s.abandonChallenge);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [editingSteps, setEditingSteps] = useState(false);
 
   if (!template) return null;
 
   const progressPct = Math.round((challenge.totalProgress / template.targetCount) * 100);
+  const hasSteps = (challenge.seededTaskIds?.length ?? 0) > 0;
 
   return (
+    <>
     <div className="bg-cream rounded-xl p-4 border border-bark/5">
       <div className="flex items-start gap-3">
         <GrowthSprite
@@ -151,9 +273,17 @@ function ActiveChallengeCard({ challenge }: { challenge: ActiveChallenge }) {
       </div>
 
       {challenge.status === 'growing' && (
-        <div className="mt-3 text-right">
+        <div className="mt-3 flex items-center justify-end gap-3">
+          {hasSteps && !showConfirm && (
+            <button
+              onClick={() => setEditingSteps(true)}
+              className="text-xs text-bark/30 hover:text-bark/50"
+            >
+              Edit steps
+            </button>
+          )}
           {showConfirm ? (
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center gap-2">
               <span className="text-xs text-bark/50">Give up?</span>
               <button
                 onClick={() => abandonChallenge(challenge.id)}
@@ -179,6 +309,14 @@ function ActiveChallengeCard({ challenge }: { challenge: ActiveChallenge }) {
         </div>
       )}
     </div>
+
+    {editingSteps && (
+      <EditStepsModal
+        challenge={challenge}
+        onClose={() => setEditingSteps(false)}
+      />
+    )}
+    </>
   );
 }
 
@@ -189,9 +327,11 @@ function ActiveChallengeCard({ challenge }: { challenge: ActiveChallenge }) {
 function AvailableChallengeCard({
   template,
   onTap,
+  timesCompleted = 0,
 }: {
   template: ChallengeTemplate;
   onTap: () => void;
+  timesCompleted?: number;
 }) {
   const diff = DIFFICULTY_STYLE[template.difficulty];
   const flowerInfo = FLOWER_CATALOG[template.flowerReward];
@@ -203,11 +343,19 @@ function AvailableChallengeCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm text-bark">{template.title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-sm text-bark">{template.title}</h3>
+            {timesCompleted > 0 && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-sage/15 text-sage font-medium">
+                ×{timesCompleted}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-bark/40 mt-0.5">
             {template.type === 'streak'
               ? `${template.targetCount}-day streak`
               : `${template.targetCount} completions`}
+            {template.repeatable && ' · repeatable'}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -243,11 +391,15 @@ export function Challenges() {
   const usedPlots = [...new Set(growing.map(c => c.plotIndex))];
   const activeTemplateIds = new Set(growing.map(c => c.templateId));
 
-  // Available = not currently growing and not bloomed
+  // Available = not currently growing, and either never bloomed or repeatable
   const available = CHALLENGE_TEMPLATES.filter(
     t => !activeTemplateIds.has(t.id)
-      && !activeChallenges.some(c => c.templateId === t.id && c.status === 'bloomed')
+      && (t.repeatable || !activeChallenges.some(c => c.templateId === t.id && c.status === 'bloomed'))
   );
+
+  // Times completed per template (for repeatable badge)
+  const completionCount = (templateId: string) =>
+    activeChallenges.filter(c => c.templateId === templateId && c.status === 'bloomed').length;
 
   // Completed challenges with their templates
   const completed = activeChallenges
@@ -261,12 +413,12 @@ export function Challenges() {
   // Group available by category
   const categories = Array.from(new Set(available.map(t => t.category)));
 
-  const handlePlant = (template: ChallengeTemplate) => {
+  const handlePlant = (template: ChallengeTemplate, customStepTitles?: string[]) => {
     // Find first available plot
     const nextPlot = [0, 1, 2, 3].find(i => !usedPlots.includes(i));
     if (nextPlot === undefined) return;
 
-    plantChallenge(template.id, nextPlot);
+    plantChallenge(template.id, nextPlot, customStepTitles);
     setSelectedTemplate(null);
     navigate('/');
   };
@@ -343,6 +495,7 @@ export function Challenges() {
                               key={template.id}
                               template={template}
                               onTap={() => setSelectedTemplate(template)}
+                              timesCompleted={completionCount(template.id)}
                             />
                           ))}
                       </div>
@@ -399,7 +552,7 @@ export function Challenges() {
       {selectedTemplate && (
         <ChallengeDetailModal
           template={selectedTemplate}
-          onPlant={() => handlePlant(selectedTemplate)}
+          onPlant={(customStepTitles) => handlePlant(selectedTemplate, customStepTitles)}
           onClose={() => setSelectedTemplate(null)}
           alreadyActive={activeTemplateIds.has(selectedTemplate.id)}
           noSlotsAvailable={noSlotsAvailable}

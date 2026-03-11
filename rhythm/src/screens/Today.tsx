@@ -24,12 +24,14 @@ import { ComingUp } from '../components/today/ComingUp';
 import { TaskCard } from '../components/today/TaskCard';
 import { TaskDetailSheet } from '../components/today/TaskDetailSheet';
 import { GrowingPlot } from '../components/today/GrowingPlot';
+import { RoutineBlock } from '../components/today/RoutineBlock';
 import { HabitBlockCard } from '../components/today/HabitBlockCard';
 import { UpNextBlocks } from '../components/today/UpNextBlocks';
 import { ChoreQueueBanner } from '../components/today/ChoreQueueBanner';
 import { useActiveBlock } from '../hooks/useActiveBlock';
 import { useAutoComplete } from '../hooks/useAutoComplete';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
+import { useChallengeStore, CHALLENGE_TEMPLATES } from '../stores/useChallengeStore';
 import type { Task, TaskInstance, TaskTier, NapContext, CareContext } from '../types';
 
 // ────────────────────────────────────────────────
@@ -448,6 +450,7 @@ export function Today() {
   const napPredictions = useNapPrediction();
   const { activeBlock } = useActiveBlock();
   const { justBloomedId, bloomToast, bloomedTemplateId, dismissBloom } = useChallengeProgress();
+  const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const navigate = useNavigate();
 
   // Check for transitions on mount + every 5 min
@@ -493,6 +496,27 @@ export function Today() {
       }
       return true;
     });
+
+  // Build routine blocks from active daily-routine challenges
+  const routineChallenges = useMemo(() => {
+    return activeChallenges
+      .filter(c => c.status === 'growing')
+      .map(c => {
+        const template = CHALLENGE_TEMPLATES.find(t => t.id === c.templateId);
+        if (!template || template.type !== 'daily-routine') return null;
+        const items = (c.seededTaskIds ?? [])
+          .map(taskId => tasksWithInstances.find(t => t.task.id === taskId))
+          .filter((x): x is { task: Task; instance: TaskInstance } => !!x);
+        return { challenge: c, items };
+      })
+      .filter((x): x is { challenge: typeof activeChallenges[0]; items: { task: Task; instance: TaskInstance }[] } => x !== null && x.items.length > 0);
+  }, [activeChallenges, tasksWithInstances]);
+
+  // Task IDs that belong to a routine block (excluded from the main list)
+  const routineTaskIds = useMemo(() =>
+    new Set(routineChallenges.flatMap(r => r.items.map(i => i.task.id))),
+    [routineChallenges]
+  );
 
   const handleTaskTap = useCallback((instance: TaskInstance) => {
     if (instance.status === 'completed') {
@@ -557,7 +581,21 @@ export function Today() {
         {/* Day overview — compact (current + 2 upcoming) */}
         <DayOverviewCompact />
 
-        {tasksWithInstances.length === 0 ? (
+        {/* Routine blocks — always shown when a daily-routine challenge is active */}
+        {routineChallenges.map(({ challenge, items }) => (
+          <RoutineBlock
+            key={challenge.id}
+            challenge={challenge}
+            items={items}
+            today={today}
+            onTaskTap={handleTaskTap}
+            onEdit={setEditingTask}
+            fadingOut={fadingOut}
+            recentlyCompleted={recentlyCompleted}
+          />
+        ))}
+
+        {tasksWithInstances.filter(t => !routineTaskIds.has(t.task.id)).length === 0 && routineChallenges.length === 0 ? (
           <div className="text-center py-12 bg-cream rounded-xl">
             <p className="text-bark/60">No tasks for today.</p>
             <p className="text-bark/40 text-sm mt-2">Add some tasks to get started.</p>
@@ -574,7 +612,7 @@ export function Today() {
               </button>
             </div>
             <AllTasksView
-              tasksWithInstances={tasksWithInstances}
+              tasksWithInstances={tasksWithInstances.filter(t => !routineTaskIds.has(t.task.id))}
               onTaskTap={handleTaskTap}
               onDefer={handleDefer}
               onEdit={setEditingTask}
@@ -618,7 +656,7 @@ export function Today() {
                 <YourWindow
                   availabilityLabel={stateLabel}
                   availabilityDescription={stateDescription}
-                  tasksWithInstances={tasksWithInstances}
+                  tasksWithInstances={tasksWithInstances.filter(t => !routineTaskIds.has(t.task.id))}
                   onTaskTap={handleTaskTap}
                   onDefer={handleDefer}
                   onEdit={setEditingTask}

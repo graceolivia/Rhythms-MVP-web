@@ -36,6 +36,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'rhythm-rose',
     category: 'laundry',
     difficulty: 'gentle',
+    repeatable: true,
     spriteSheet: pinkroseSheet,
     seedTasks: [
       { title: 'Put laundry in' },
@@ -48,11 +49,13 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     id: 'morning-close',
     title: 'Morning Close',
     description: 'Complete your morning routine from start to finish — a calm, intentional start to the day.',
-    type: 'streak',
-    targetCount: 7,
+    type: 'daily-routine',
+    groupTitle: 'Morning Routine',
+    targetCount: 1,
     flowerReward: 'daily-daisy',
     category: 'other',
     difficulty: 'gentle',
+    repeatable: true,
     spriteSheet: snowdropSheet,
     seedTasks: [
       { title: 'Placeholder morning step 1' },
@@ -64,11 +67,13 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     id: 'evening-close',
     title: 'Evening Close',
     description: 'Wind down the day with intention — kitchen, kids, and yourself taken care of.',
-    type: 'streak',
-    targetCount: 7,
+    type: 'daily-routine',
+    groupTitle: 'Evening Routine',
+    targetCount: 1,
     flowerReward: 'golden-hour-lily',
     category: 'other',
     difficulty: 'gentle',
+    repeatable: true,
     spriteSheet: winterPansySheet,
     seedTasks: [
       { title: 'Placeholder evening step 1' },
@@ -114,7 +119,7 @@ interface ChallengeState {
   activeChallenges: ActiveChallenge[];
   completedChallengeIds: string[];
 
-  plantChallenge: (templateId: string, plotIndex: number) => string | null;
+  plantChallenge: (templateId: string, plotIndex: number, customStepTitles?: string[]) => string | null;
   recordProgress: (challengeId: string) => 'progressed' | 'bloomed' | 'already-recorded' | 'not-found';
   abandonChallenge: (challengeId: string) => void;
   getActiveByPlot: (plotIndex: number) => ActiveChallenge | undefined;
@@ -128,7 +133,7 @@ export const useChallengeStore = create<ChallengeState>()(
       activeChallenges: [],
       completedChallengeIds: [],
 
-      plantChallenge: (templateId, plotIndex) => {
+      plantChallenge: (templateId, plotIndex, customStepTitles?) => {
         const state = get();
         const template = CHALLENGE_TEMPLATES.find(t => t.id === templateId);
         if (!template) return null;
@@ -152,11 +157,12 @@ export const useChallengeStore = create<ChallengeState>()(
           const taskStore = useTaskStore.getState();
           let prevTaskId: string | null = null;
 
-          for (const seedTask of template.seedTasks) {
+          for (let si = 0; si < template.seedTasks.length; si++) {
+            const seedTask = template.seedTasks[si];
             const isRecurring = template.type === 'streak';
             const taskId = taskStore.addTask({
               type: 'standard',
-              title: seedTask.title,
+              title: customStepTitles?.[si] ?? seedTask.title,
               tier: 'todo',
               scheduledTime: null,
               recurrence: isRecurring ? 'daily' : 'daily',
@@ -186,6 +192,9 @@ export const useChallengeStore = create<ChallengeState>()(
           status: 'growing',
           bloomedDate: null,
           seededTaskIds,
+          dailyRoutineTarget: template.type === 'daily-routine'
+            ? (seededTaskIds.length || template.targetCount)
+            : undefined,
         };
 
         set((s) => ({
@@ -210,10 +219,15 @@ export const useChallengeStore = create<ChallengeState>()(
           return 'already-recorded';
         }
 
+        // Use dailyRoutineTarget for daily-routine challenges (set at plant time to seedTasks.length)
+        const effectiveTarget = template.type === 'daily-routine'
+          ? (challenge.dailyRoutineTarget ?? template.targetCount)
+          : template.targetCount;
+
         const newProgress = challenge.totalProgress + 1;
         const newStreak = template.type === 'streak' ? challenge.currentStreak + 1 : challenge.currentStreak;
-        const newStage = getGrowthStage(newProgress, template.targetCount);
-        const isBlooming = newProgress >= template.targetCount;
+        const newStage = getGrowthStage(newProgress, effectiveTarget);
+        const isBlooming = newProgress >= effectiveTarget;
 
         if (isBlooming) {
           const bloomSprite = template.sprites?.[3];

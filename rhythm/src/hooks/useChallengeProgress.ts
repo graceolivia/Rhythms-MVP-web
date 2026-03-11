@@ -53,7 +53,27 @@ export function useChallengeProgress() {
 
       if (matchingCompleted.length === 0) continue;
 
-      if (template.type === 'streak') {
+      if (template.type === 'daily-routine') {
+        // Daily routine: one progress per individual task completion — flower grows step by step
+        if (!challenge.seededTaskIds?.length) continue;
+
+        for (const taskId of challenge.seededTaskIds) {
+          const completedInstance = todayCompleted.find(i => i.taskId === taskId);
+          if (!completedInstance) continue;
+
+          const key = `${challenge.id}:${taskId}:routine-task`;
+          if (processedRef.current.has(key)) continue;
+          processedRef.current.add(key);
+
+          const result = recordProgress(challenge.id);
+          if (result === 'bloomed') {
+            setJustBloomedId(challenge.id);
+            setBloomToast(template.title);
+            setBloomedTemplateId(template.id);
+            break;
+          }
+        }
+      } else if (template.type === 'streak') {
         // Streak: record once per day
         if (challenge.lastProgressDate === today) continue;
 

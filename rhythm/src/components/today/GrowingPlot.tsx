@@ -71,9 +71,13 @@ function ChallengeDots({
   const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
   if (!template) return <div className="w-16" />;
 
+  const effectiveTarget = template.type === 'daily-routine'
+    ? (challenge.dailyRoutineTarget ?? template.targetCount)
+    : template.targetCount;
+
   return (
     <div className="flex justify-center gap-0.5 w-16">
-      {Array.from({ length: Math.min(template.targetCount, 10) }).map((_, i) => (
+      {Array.from({ length: Math.min(effectiveTarget, 10) }).map((_, i) => (
         <div
           key={i}
           className={`w-1 h-1 rounded-full ${

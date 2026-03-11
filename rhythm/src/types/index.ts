@@ -258,7 +258,7 @@ export interface TaskInstance {
 
 // Challenges
 
-export type ChallengeType = 'streak' | 'cumulative';
+export type ChallengeType = 'streak' | 'cumulative' | 'daily-routine';
 export type GrowthStage = 'seed' | 'sprout' | 'budding' | 'bloom';
 
 export interface ChallengeSeedTask {
@@ -280,6 +280,10 @@ export interface ChallengeTemplate {
   sprites?: [string, string, string, string];
   /** Horizontal sprite sheet (16×16 frames) — alternative to individual sprites */
   spriteSheet?: string;
+  /** If true, the challenge can be planted again after blooming */
+  repeatable?: boolean;
+  /** For daily-routine type: display name shown as the group header on Today screen */
+  groupTitle?: string;
   /** Tasks seeded when the challenge is planted */
   seedTasks?: ChallengeSeedTask[];
 }
@@ -297,6 +301,8 @@ export interface ActiveChallenge {
   bloomedDate: string | null;
   /** IDs of tasks seeded when this challenge was planted */
   seededTaskIds?: string[];
+  /** For daily-routine: effective target = number of seeded tasks at plant time */
+  dailyRoutineTarget?: number;
 }
 
 // Garden
