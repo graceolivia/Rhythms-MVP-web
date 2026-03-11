@@ -45,10 +45,12 @@ export function useChallengeProgress() {
       const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
       if (!template) continue;
 
-      // Find completed tasks in the matching category today
+      // Find completed tasks in the matching category today, after the challenge was planted
       const matchingCompleted = todayCompleted.filter(instance => {
         const task = tasks.find(t => t.id === instance.taskId);
-        return task && task.category === template.category;
+        if (!task || task.category !== template.category) return false;
+        if (challenge.startedAt && instance.completedAt && instance.completedAt <= challenge.startedAt) return false;
+        return true;
       });
 
       if (matchingCompleted.length === 0) continue;
@@ -58,7 +60,10 @@ export function useChallengeProgress() {
         if (!challenge.seededTaskIds?.length) continue;
 
         for (const taskId of challenge.seededTaskIds) {
-          const completedInstance = todayCompleted.find(i => i.taskId === taskId);
+          const completedInstance = todayCompleted.find(i =>
+            i.taskId === taskId &&
+            (!challenge.startedAt || !i.completedAt || i.completedAt > challenge.startedAt)
+          );
           if (!completedInstance) continue;
 
           const key = `${challenge.id}:${taskId}:routine-task`;

@@ -41,6 +41,13 @@ function PlotSlot({
 
   return (
     <div className="relative flex flex-col items-center">
+      {template && (
+        <p className={`text-center mb-1 leading-tight max-w-[64px] text-[9px] font-medium ${
+          isNight ? 'text-white/40' : 'text-bark/40'
+        }`}>
+          {template.groupTitle ?? template.title}
+        </p>
+      )}
       <button
         onClick={() => navigate('/challenges')}
         className="flex items-end justify-center w-16"

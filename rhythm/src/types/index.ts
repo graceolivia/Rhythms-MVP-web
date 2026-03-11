@@ -292,6 +292,7 @@ export interface ActiveChallenge {
   id: string;
   templateId: string;
   startedDate: string;
+  startedAt?: string; // ISO datetime — used to ignore completions before planting
   currentStreak: number;
   totalProgress: number;
   lastProgressDate: string | null;

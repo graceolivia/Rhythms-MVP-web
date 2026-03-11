@@ -185,6 +185,7 @@ export const useChallengeStore = create<ChallengeState>()(
           id,
           templateId,
           startedDate: today,
+          startedAt: new Date().toISOString(),
           currentStreak: 0,
           totalProgress: 0,
           lastProgressDate: null,
