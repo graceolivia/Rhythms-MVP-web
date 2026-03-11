@@ -276,33 +276,7 @@ export async function pushAllDataToSupabase(
       if (error) throw error;
     }
 
-    // 9. Habit Blocks
-    if (stores.habitBlocks && stores.habitBlocks.length > 0) {
-      const { error } = await supabase.from('habit_blocks').upsert(
-        (stores.habitBlocks as Array<{
-          id: string; name: string; emoji?: string; anchor?: unknown;
-          estimatedEndTime?: string; deadline?: string; deadlineLabel?: string;
-          items?: unknown[]; recurrence?: string; daysOfWeek?: number[];
-          isActive?: boolean; color?: string;
-        }>).map((hb) => ({
-          id: hb.id,
-          user_id: userId,
-          name: hb.name,
-          emoji: hb.emoji || null,
-          anchor: hb.anchor,
-          estimated_end_time: hb.estimatedEndTime || null,
-          deadline: hb.deadline || null,
-          deadline_label: hb.deadlineLabel || null,
-          items: hb.items || [],
-          recurrence: typeof hb.recurrence === 'string' ? hb.recurrence : 'daily',
-          days_of_week: hb.daysOfWeek || null,
-          is_active: hb.isActive ?? true,
-          color: hb.color || null,
-        })),
-        { onConflict: 'id' }
-      );
-      if (error) throw error;
-    }
+    // Habit blocks not synced (feature not in use)
 
     // 10. Placed Flowers
     if (stores.placedFlowers.length > 0) {
@@ -362,7 +336,6 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       careBlocksRes,
       flowersRes,
       placedFlowersRes,
-      habitBlocksRes,
     ] = await Promise.all([
       supabase.from('children').select('*').eq('user_id', userId),
       supabase.from('tasks').select('*').eq('user_id', userId),
@@ -373,7 +346,6 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       supabase.from('care_blocks').select('*').eq('user_id', userId),
       supabase.from('flowers').select('*').eq('user_id', userId),
       supabase.from('placed_flowers').select('*').eq('user_id', userId),
-      supabase.from('habit_blocks').select('*').eq('user_id', userId),
     ]);
 
     // Check for errors
@@ -387,7 +359,6 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       careBlocksRes.error,
       flowersRes.error,
       placedFlowersRes.error,
-      habitBlocksRes.error,
     ].filter(Boolean);
 
     if (errors.length > 0) {

@@ -11,6 +11,7 @@ import type { FlowerType } from '../types';
 import cottageSprite from '../assets/cottage_scene/cottage3_resize.png';
 import dirtTile from '../assets/cottage_scene/dirt-tile.png';
 import steppingStonePath from '../assets/cottage_scene/stepping-stone-path.png';
+import fenceSprite from '../assets/cottage_scene/fence.png';
 
 // ===========================================
 // COTTAGE COMPONENT
@@ -460,7 +461,7 @@ export function Garden() {
         />
 
         {/* Garden bed border/frame */}
-        <div className="relative rounded-2xl p-4 pt-24">
+        <div className="relative rounded-2xl pt-24 px-4 pb-8">
           <Cottage />
 
           {/* Grid */}
@@ -492,6 +493,50 @@ export function Garden() {
                 pointerEvents: 'none',
               }}
             />
+
+            {/* Fence sprite frames at 2× scale (original 128×16 → 256×32):
+                frame 0: bottom-left corner    frame 4: top horizontal
+                frame 1: bottom horizontal     frame 5: top-right corner
+                frame 2: bottom-right corner   frame 6: right vertical
+                frame 3: top-left corner       frame 7: left vertical */}
+            {(() => {
+              const fenceTile = (frame: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, key: string | number) => (
+                <div
+                  key={key}
+                  style={{
+                    width: 32, height: 32, flexShrink: 0,
+                    backgroundImage: `url(${fenceSprite})`,
+                    backgroundSize: '256px 32px',
+                    backgroundPosition: `${-frame * 32}px 0px`,
+                    imageRendering: 'pixelated',
+                  }}
+                />
+              );
+              return (
+                <>
+                  {/* Top edge: top-left corner, top horizontal × GRID_COLS, top-right corner */}
+                  <div style={{ position: 'absolute', top: '-32px', left: '-32px', display: 'flex', zIndex: 2, pointerEvents: 'none' }}>
+                    {fenceTile(3, 'tl')}
+                    {Array.from({ length: GRID_COLS }, (_, i) => fenceTile(4, i))}
+                    {fenceTile(5, 'tr')}
+                  </div>
+                  {/* Bottom edge: bottom-left corner, bottom horizontal × GRID_COLS, bottom-right corner */}
+                  <div style={{ position: 'absolute', top: `${GRID_ROWS * 32}px`, left: '-32px', display: 'flex', zIndex: 2, pointerEvents: 'none' }}>
+                    {fenceTile(0, 'bl')}
+                    {Array.from({ length: GRID_COLS }, (_, i) => fenceTile(1, i))}
+                    {fenceTile(2, 'br')}
+                  </div>
+                  {/* Left edge: left vertical */}
+                  <div style={{ position: 'absolute', top: '0px', left: '-32px', display: 'flex', flexDirection: 'column', zIndex: 2, pointerEvents: 'none' }}>
+                    {Array.from({ length: GRID_ROWS }, (_, i) => fenceTile(7, i))}
+                  </div>
+                  {/* Right edge: right vertical */}
+                  <div style={{ position: 'absolute', top: '0px', left: `${GRID_COLS * 32}px`, display: 'flex', flexDirection: 'column', zIndex: 2, pointerEvents: 'none' }}>
+                    {Array.from({ length: GRID_ROWS }, (_, i) => fenceTile(6, i))}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
 
