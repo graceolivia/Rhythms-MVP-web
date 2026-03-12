@@ -460,21 +460,6 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       placedAt: pf.placed_at,
     }));
 
-    const habitBlocks = (habitBlocksRes.data || []).map((hb: Record<string, unknown>) => ({
-      id: hb.id,
-      name: hb.name,
-      emoji: hb.emoji,
-      anchor: hb.anchor,
-      estimatedEndTime: hb.estimated_end_time,
-      deadline: hb.deadline,
-      deadlineLabel: hb.deadline_label,
-      items: hb.items,
-      recurrence: hb.recurrence,
-      daysOfWeek: hb.days_of_week,
-      isActive: hb.is_active,
-      color: hb.color,
-    }));
-
     return {
       data: {
         children,
@@ -486,7 +471,6 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
         careBlocks,
         flowers,
         placedFlowers,
-        habitBlocks,
       },
       error: null,
     };

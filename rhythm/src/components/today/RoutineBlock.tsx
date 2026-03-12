@@ -14,7 +14,6 @@ interface RoutineBlockProps {
   onTaskTap: (instance: TaskInstance) => void;
   onEdit: (task: Task) => void;
   fadingOut: Set<string>;
-  recentlyCompleted: Set<string>;
 }
 
 export function RoutineBlock({
@@ -24,7 +23,6 @@ export function RoutineBlock({
   onTaskTap,
   onEdit,
   fadingOut,
-  recentlyCompleted,
 }: RoutineBlockProps) {
   const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
   if (!template) return null;

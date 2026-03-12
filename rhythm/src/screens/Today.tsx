@@ -497,13 +497,13 @@ export function Today() {
       return true;
     });
 
-  // Build routine blocks from active daily-routine challenges
+  // Build grouped blocks from all active challenges that have seeded tasks
   const routineChallenges = useMemo(() => {
     return activeChallenges
-      .filter(c => c.status === 'growing')
+      .filter(c => c.status === 'growing' && (c.seededTaskIds?.length ?? 0) > 0)
       .map(c => {
         const template = CHALLENGE_TEMPLATES.find(t => t.id === c.templateId);
-        if (!template || template.type !== 'daily-routine') return null;
+        if (!template) return null;
         const items = (c.seededTaskIds ?? [])
           .map(taskId => tasksWithInstances.find(t => t.task.id === taskId))
           .filter((x): x is { task: Task; instance: TaskInstance } => !!x);
@@ -591,7 +591,6 @@ export function Today() {
             onTaskTap={handleTaskTap}
             onEdit={setEditingTask}
             fadingOut={fadingOut}
-            recentlyCompleted={recentlyCompleted}
           />
         ))}
 
