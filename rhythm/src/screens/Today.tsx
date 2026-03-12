@@ -1,14 +1,9 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import sunPng from '../assets/sky/sun2.png';
-import moonPng from '../assets/sky/16moon.png';
-import daySkyPng from '../assets/sky/sky2.png';
-import nightSkyPng from '../assets/sky/nightsky.png';
+import { useNavigate } from 'react-router-dom';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapState } from '../hooks/useNapState';
-import { useSunTimes } from '../hooks/useSunTimes';
 import { useAvailability } from '../hooks/useAvailability';
 import { ChildStatusBar } from '../components/care/ChildStatusBar';
 import { TransitionPrompts } from '../components/care/TransitionPrompts';
@@ -23,7 +18,7 @@ import { YourWindow } from '../components/today/YourWindow';
 import { ComingUp } from '../components/today/ComingUp';
 import { TaskCard } from '../components/today/TaskCard';
 import { TaskDetailSheet } from '../components/today/TaskDetailSheet';
-import { GrowingPlot } from '../components/today/GrowingPlot';
+import { GardenPreview } from '../components/today/GardenPreview';
 import { RoutineBlock } from '../components/today/RoutineBlock';
 import { HabitBlockCard } from '../components/today/HabitBlockCard';
 import { UpNextBlocks } from '../components/today/UpNextBlocks';
@@ -80,140 +75,6 @@ const TIER_CONFIG: Record<TaskTier, { label: string; subtitle: string; color: st
   'routine': { label: 'Routine', subtitle: 'Daily habits that don\'t need a clock', color: 'text-sage', bg: 'bg-sage/10' },
   'todo': { label: 'To-do', subtitle: 'Worth doing when you can', color: 'text-lavender', bg: 'bg-lavender/10' },
 };
-
-// ────────────────────────────────────────────────
-//  Sky Header (unchanged)
-// ────────────────────────────────────────────────
-
-type SkyStyle = { type: 'image'; src: string } | { type: 'gradient'; value: string };
-
-function getSkyStyle(dayProgress: number): SkyStyle {
-  // Night
-  if (dayProgress < -0.15) return { type: 'image', src: nightSkyPng };
-  // Dawn (gradient until sunrise art is added)
-  if (dayProgress < -0.02) return { type: 'gradient', value: 'linear-gradient(180deg, #1e1b4b 0%, #581c87 40%, #831843 70%, #1e1b4b 100%)' };
-  if (dayProgress < 0.08) return { type: 'gradient', value: 'linear-gradient(180deg, #fecdd3 0%, #fed7aa 40%, #bae6fd 80%, #FAF6F1 100%)' };
-  if (dayProgress < 0.2) return { type: 'gradient', value: 'linear-gradient(180deg, #7dd3fc 0%, #bae6fd 50%, #fef3c7 80%, #FAF6F1 100%)' };
-  // Day
-  if (dayProgress < 0.8) return { type: 'image', src: daySkyPng };
-  // Dusk (gradient until sunset art is added)
-  if (dayProgress < 0.92) return { type: 'gradient', value: 'linear-gradient(180deg, #7dd3fc 0%, #fdba74 45%, #fecdd3 75%, #FAF6F1 100%)' };
-  if (dayProgress < 1.02) return { type: 'gradient', value: 'linear-gradient(180deg, #f97316 0%, #ec4899 35%, #7c3aed 70%, #2e1065 100%)' };
-  if (dayProgress < 1.15) return { type: 'gradient', value: 'linear-gradient(180deg, #4c1d95 0%, #1e1b4b 60%, #0f172a 100%)' };
-  // Night
-  return { type: 'image', src: nightSkyPng };
-}
-
-function SkyHeader({ justBloomedId }: { justBloomedId?: string | null }) {
-  const { sunrise, sunset } = useSunTimes();
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const sunriseMs = sunrise.getTime();
-  const sunsetMs = sunset.getTime();
-  const nowMs = now.getTime();
-  const dayLength = sunsetMs - sunriseMs;
-  const dayProgress = (nowMs - sunriseMs) / dayLength;
-
-  // Header is 160px. Sun is 48px (3× of 16px art). Arc peak + sunHeight must stay ≤ 160.
-  // arcBase(80) + arcHeight(25) + sun(48) = 153 — 7px clearance at top.
-  const arcBasePx = 80;
-  const arcHeightPx = 25;
-
-  const snap = (n: number) => Math.round(n / 2) * 2;
-
-  const sunPosition = useMemo(() => {
-    const visible = dayProgress > -0.05 && dayProgress < 1.05;
-    const clamped = Math.max(0, Math.min(1, dayProgress));
-    const x = snap(2 + clamped * 96);
-    const arc = 4 * clamped * (1 - clamped);
-    const bottomPx = snap(arcBasePx + arc * arcHeightPx);
-    const opacity = dayProgress < 0
-      ? Math.max(0, 1 + dayProgress * 20)
-      : dayProgress > 1
-        ? Math.max(0, 1 - (dayProgress - 1) * 20)
-        : 1;
-    return { visible, x, bottomPx, opacity };
-  }, [dayProgress]);
-
-  const moonPosition = useMemo(() => {
-    const nightLength = 24 * 60 * 60 * 1000 - dayLength;
-    let nightProgress: number;
-    if (dayProgress > 1) {
-      nightProgress = (nowMs - sunsetMs) / nightLength;
-    } else if (dayProgress < 0) {
-      nightProgress = 1 - (sunriseMs - nowMs) / nightLength;
-    } else {
-      nightProgress = -1;
-    }
-    const visible = nightProgress > -0.05 && nightProgress < 1.05;
-    const clamped = Math.max(0, Math.min(1, nightProgress));
-    const x = snap(2 + clamped * 96);
-    const arc = 4 * clamped * (1 - clamped);
-    const bottomPx = snap(arcBasePx + arc * arcHeightPx);
-    const opacity = nightProgress < 0
-      ? Math.max(0, 1 + nightProgress * 20)
-      : nightProgress > 1
-        ? Math.max(0, 1 - (nightProgress - 1) * 20)
-        : 1;
-    return { visible, x, bottomPx, opacity };
-  }, [dayProgress, nowMs, sunriseMs, sunsetMs, dayLength]);
-
-  const skyStyle = getSkyStyle(dayProgress);
-  const isNight = dayProgress < -0.1 || dayProgress > 1.1;
-  const isDawnOrDusk = (dayProgress > -0.05 && dayProgress < 0.08) || (dayProgress > 0.92 && dayProgress < 1.05);
-
-  const headerStyle: React.CSSProperties = skyStyle.type === 'gradient'
-    ? { background: skyStyle.value, minHeight: '160px' }
-    : { minHeight: '160px' };
-
-  return (
-    <>
-    <header
-      className="-mx-4 -mt-4 px-4 pt-6 pb-0 mb-4 relative overflow-hidden flex flex-col"
-      style={headerStyle}
-    >
-      {/* Sky image — rendered as <img> tiles so imageRendering: pixelated is reliable */}
-      {skyStyle.type === 'image' && (
-        <div className="absolute bottom-0 left-0 flex pointer-events-none select-none" style={{ zIndex: 0 }}>
-          {[0, 1, 2, 3].map(i => (
-            <img key={i} src={skyStyle.src} alt=""
-              style={{ height: '160px', width: 'auto', imageRendering: 'pixelated', display: 'block', flexShrink: 0 }} />
-          ))}
-        </div>
-      )}
-      {sunPosition.visible && (
-        <img src={sunPng} alt="" className="absolute w-12 h-12 pointer-events-none select-none"
-          style={{ left: `${sunPosition.x}%`, bottom: `${sunPosition.bottomPx}px`, transform: 'translateX(-50%)', opacity: sunPosition.opacity, filter: isDawnOrDusk ? 'brightness(1.3) saturate(0.7)' : 'none', imageRendering: 'pixelated', zIndex: 1 }} />
-      )}
-      {moonPosition.visible && (
-        <img src={moonPng} alt="" className="absolute w-8 h-8 pointer-events-none select-none"
-          style={{ left: `${moonPosition.x}%`, bottom: `${moonPosition.bottomPx}px`, transform: 'translateX(-50%)', opacity: moonPosition.opacity, imageRendering: 'pixelated', zIndex: 1 }} />
-      )}
-      {/* Spacer so sun/moon arc has room */}
-      <div className="flex-1" />
-
-      {/* Growing plot at bottom of header */}
-      <div className="relative z-10">
-        <GrowingPlot isNight={isNight} justBloomedId={justBloomedId} />
-      </div>
-
-    </header>
-    <div className="flex items-center justify-between py-2">
-      <h1 className="font-display text-lg text-bark">
-        {format(now, 'MMMM d')} <span className="text-bark/50 font-body text-sm">- {format(now, 'EEEE')}</span>
-      </h1>
-      <p className="text-xs text-bark/50">
-        <span className="emoji-icon">☀️</span> {format(sunrise, 'h:mm a')}  ·  <span className="emoji-icon">🌙</span> {format(sunset, 'h:mm a')}
-      </p>
-    </div>
-  </>
-  );
-}
 
 // ────────────────────────────────────────────────
 //  All Tasks view (accessed via "See all tasks")
@@ -562,7 +423,10 @@ export function Today() {
   return (
     <div className="min-h-screen bg-parchment/30">
       <div className="max-w-lg mx-auto p-4">
-        <SkyHeader justBloomedId={justBloomedId} />
+        {/* Unified sky + garden tableau */}
+        <div className="-mx-4 -mt-4">
+          <GardenPreview justBloomedId={justBloomedId} />
+        </div>
 
         {/* Transition prompts (Phase 2) */}
         <TransitionPrompts napContext={Object.fromEntries(

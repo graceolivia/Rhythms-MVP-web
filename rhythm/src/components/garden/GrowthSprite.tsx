@@ -36,23 +36,26 @@ interface GrowthSpriteProps {
   sprites?: [string, string, string, string];
   /** Horizontal sprite sheet — frames 0-3 map to seed/sprout/budding/bloom */
   spriteSheet?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   animate?: 'idle' | 'grow' | 'bloom' | 'none';
 }
 
 const SIZE_CLASSES = {
+  xs: 'text-base',
   sm: 'text-lg',
   md: 'text-2xl',
   lg: 'text-3xl',
 };
 
 const IMG_SIZE_CLASSES = {
+  xs: 'w-8 h-8',
   sm: 'w-10 h-10',
   md: 'w-16 h-16',
   lg: 'w-20 h-20',
 };
 
-const SHEET_SCALE: Record<'sm' | 'md' | 'lg', number> = {
+const SHEET_SCALE: Record<'xs' | 'sm' | 'md' | 'lg', number> = {
+  xs: 2,    // 16 × 2   = 32px
   sm: 2.5,  // 16 × 2.5 = 40px
   md: 4,    // 16 × 4   = 64px
   lg: 5,    // 16 × 5   = 80px

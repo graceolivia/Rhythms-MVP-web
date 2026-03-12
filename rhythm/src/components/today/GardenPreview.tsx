@@ -1,0 +1,460 @@
+/**
+ * GardenPreview — unified sky + garden tableau for the Today screen.
+ *
+ * Layout (all values in unscaled px, then CSS-transformed to fit container):
+ *
+ *   y=0 ──────────── scene top / sky starts
+ *   y=8             cottage top
+ *   y=128 ─────────── HORIZON_Y: top fence = visual horizon, cottage base
+ *   y=160 ─────────── COTTAGE_PAD: grid starts
+ *   y=416           grid bottom
+ *   y=448 ─────────── FULL_H: bottom fence
+ *
+ * The cottage sits exactly at the horizon so the upper half is against sky
+ * and the lower half is in the garden, giving a natural "village" perspective.
+ */
+
+import { useRef, useLayoutEffect, useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { useSunTimes } from '../../hooks/useSunTimes';
+import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG } from '../../stores/useGardenStore';
+import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
+import { GrowthSprite } from '../garden/GrowthSprite';
+import { SpriteSheet } from '../garden/SpriteSheet';
+import sunPng from '../../assets/sky/sun2.png';
+import moonPng from '../../assets/sky/16moon.png';
+import daySkyPng from '../../assets/sky/sky2.png';
+import nightSkyPng from '../../assets/sky/nightsky.png';
+import cottageSprite from '../../assets/cottage_scene/cottage3_resize.png';
+import dirtTile from '../../assets/cottage_scene/dirt-tile.png';
+import steppingStonePath from '../../assets/cottage_scene/stepping-stone-path.png';
+import fenceSprite from '../../assets/cottage_scene/fence.png';
+import playerSheet from '../../assets/player character/Pixel Gnome DEMO recolor player character.png';
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+const CELL = 32;
+const FENCE = CELL;
+// COTTAGE_PAD=160 → cottage bottom (8+120=128) = HORIZON_Y (160-32=128) ✓
+const COTTAGE_PAD = 160;
+const HORIZON_Y = COTTAGE_PAD - FENCE; // 128 — top fence = visual horizon
+const GRID_W = GRID_COLS * CELL;       // 416
+const GRID_H = GRID_ROWS * CELL;       // 256
+const FULL_W = GRID_W + FENCE * 2;     // 480
+const FULL_H = COTTAGE_PAD + GRID_H + FENCE; // 448
+
+// ── Celestial arc ─────────────────────────────────────────────────────────────
+const SUN_SIZE = 32;
+const MOON_SIZE = 32;
+// Arc is measured from HORIZON_Y upward (positive = higher in scene = lower y)
+const ARC_BASE_PX = 18;   // px above horizon at dawn/dusk
+const ARC_HEIGHT_PX = 58; // additional rise at zenith
+
+// ── Growing plot positions (avoids path at col 7) ──────────────────────────────
+const PLOT_COLS = [2, 5, 9, 11];
+const PLOT_ROW = GRID_ROWS - 1;
+
+// ── Sky helpers ───────────────────────────────────────────────────────────────
+type SkyStyle = { type: 'image'; src: string } | { type: 'gradient'; value: string };
+
+function getSkyStyle(p: number): SkyStyle {
+  // Colors drawn from rhythms-sky-pack palette
+  if (p < -0.15) return { type: 'image', src: nightSkyPng };
+  // Pre-dawn: midnightInk → deepIndigo → plumNight → midnightInk
+  if (p < -0.02) return { type: 'gradient', value: 'linear-gradient(180deg,#141C26 0%,#2A2C4E 40%,#3F2F4F 70%,#141C26 100%)' };
+  // Dawn: dawnPink → apricotLight → powderSky → creamAnchor
+  if (p < 0.08)  return { type: 'gradient', value: 'linear-gradient(180deg,#F4D2E0 0%,#EBAA78 40%,#AACCE0 80%,#FEF6EC 100%)' };
+  // Early morning: mistBlue → paleSky → champagneCloud → creamAnchor
+  if (p < 0.2)   return { type: 'gradient', value: 'linear-gradient(180deg,#84A8C4 0%,#BCDCEC 50%,#FAECD6 80%,#FEF6EC 100%)' };
+  if (p < 0.8)   return { type: 'image', src: daySkyPng };
+  // Golden hour: softAegean → sunsetPeach → softPetal → creamAnchor
+  if (p < 0.92)  return { type: 'gradient', value: 'linear-gradient(180deg,#7094B1 0%,#D68A5C 45%,#E4ABC4 75%,#FEF6EC 100%)' };
+  // Sunset: spicedApricot → mauvePink → mauveViolet → deepIndigo
+  if (p < 1.02)  return { type: 'gradient', value: 'linear-gradient(180deg,#BA6A44 0%,#B06A8C 35%,#694F80 70%,#2A2C4E 100%)' };
+  // Dusk: mulberryShade → inkIndigo → midnightInk
+  if (p < 1.15)  return { type: 'gradient', value: 'linear-gradient(180deg,#523D64 0%,#383C64 60%,#141C26 100%)' };
+  return { type: 'image', src: nightSkyPng };
+}
+
+const snap = (n: number) => Math.round(n / 2) * 2;
+
+// ── Fence tile ────────────────────────────────────────────────────────────────
+function FenceTile({ frame }: { frame: number }) {
+  return (
+    <div style={{
+      width: CELL, height: CELL, flexShrink: 0,
+      backgroundImage: `url(${fenceSprite})`,
+      backgroundSize: `${CELL * 8}px ${CELL}px`,
+      backgroundPosition: `${-frame * CELL}px 0px`,
+      imageRendering: 'pixelated',
+    }} />
+  );
+}
+
+// ── Player character ──────────────────────────────────────────────────────────
+// Sheet: 66×29 — 3 frames of 22×29: [0]=right [1]=forward [2]=back
+const PLAYER_FRAME_W = 22;
+const PLAYER_FRAME_H = 29;
+const PLAYER_SCALE   = 2;
+// Grid-relative starting position: centered on col 7, bottom-aligned to row 4
+const PLAYER_START_X = 7 * CELL + CELL / 2 - (PLAYER_FRAME_W * PLAYER_SCALE) / 2; // 218
+const PLAYER_START_Y = 4 * CELL + CELL - PLAYER_FRAME_H * PLAYER_SCALE;            // 102
+const PLAYER_W = PLAYER_FRAME_W * PLAYER_SCALE; // 44
+const PLAYER_H = PLAYER_FRAME_H * PLAYER_SCALE; // 58
+const PLAYER_SPEED = 1.5; // px per frame (~90 px/s at 60 fps)
+// Frames — 0: right  1: forward  2: back
+type PlayerFrame = 0 | 1 | 2;
+
+function PlayerSprite({ frame = 1, flipped = false, x, y }: { frame?: PlayerFrame; flipped?: boolean; x: number; y: number }) {
+  return (
+    // Outer div: GPU-composited movement via translate (no repaint trails)
+    <div style={{
+      position: 'absolute', left: 0, top: 0,
+      transform: `translate(${x}px, ${y}px)`,
+      willChange: 'transform',
+      zIndex: 6, pointerEvents: 'none',
+    }}>
+      {/* Inner div: flip + sprite — isolated from the translate layer */}
+      <div style={{
+        width: PLAYER_W,
+        height: PLAYER_H,
+        backgroundImage: `url(${playerSheet})`,
+        backgroundSize: `${PLAYER_W * 3}px ${PLAYER_H}px`,
+        backgroundPosition: `${-frame * PLAYER_W}px 0`,
+        backgroundRepeat: 'no-repeat',
+        imageRendering: 'pixelated',
+        filter: 'drop-shadow(1px 2px 1px rgba(0,0,0,0.3))',
+        transform: flipped ? 'scaleX(-1)' : undefined,
+        transformOrigin: 'center',
+      }} />
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null }) {
+  const navigate = useNavigate();
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [now, setNow] = useState(() => new Date());
+  const [playerPos, setPlayerPos] = useState({ x: PLAYER_START_X, y: PLAYER_START_Y });
+  const [playerFrame, setPlayerFrame] = useState<PlayerFrame>(1);
+  const [playerFlipped, setPlayerFlipped] = useState(false);
+  const playerPosRef = useRef({ x: PLAYER_START_X, y: PLAYER_START_Y });
+  const keysRef = useRef<Set<string>>(new Set());
+  const rafRef = useRef(0);
+
+  // Track held arrow keys
+  useEffect(() => {
+    const ARROWS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+    const onDown = (e: KeyboardEvent) => {
+      if (ARROWS.has(e.key)) { e.preventDefault(); keysRef.current.add(e.key); }
+    };
+    const onUp = (e: KeyboardEvent) => keysRef.current.delete(e.key);
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, []);
+
+  // Game loop
+  useEffect(() => {
+    const loop = () => {
+      const keys = keysRef.current;
+      if (keys.size > 0) {
+        let { x, y } = playerPosRef.current;
+        let dx = 0, dy = 0;
+        if (keys.has('ArrowLeft'))  { dx -= PLAYER_SPEED; setPlayerFrame(0); setPlayerFlipped(true);  }
+        if (keys.has('ArrowRight')) { dx += PLAYER_SPEED; setPlayerFrame(0); setPlayerFlipped(false); }
+        if (keys.has('ArrowUp'))    { dy -= PLAYER_SPEED; setPlayerFrame(2); setPlayerFlipped(false); }
+        if (keys.has('ArrowDown'))  { dy += PLAYER_SPEED; setPlayerFrame(1); setPlayerFlipped(false); }
+        // Normalize diagonal so speed is consistent
+        if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
+        x = Math.max(0, Math.min(GRID_W - PLAYER_W, x + dx));
+        y = Math.max(-CELL, Math.min(GRID_H - PLAYER_H, y + dy));
+        playerPosRef.current = { x, y };
+        setPlayerPos({ x, y });
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
+
+  // Scale scene to container width
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => setScale(el.offsetWidth / FULL_W);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Clock tick for celestial bodies
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 15000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── Sun / moon arc math ────────────────────────────────────────────────────
+  const { sunrise, sunset } = useSunTimes();
+  const sunriseMs = sunrise.getTime();
+  const sunsetMs  = sunset.getTime();
+  const nowMs     = now.getTime();
+  const dayLength = sunsetMs - sunriseMs;
+  const dayProgress = (nowMs - sunriseMs) / dayLength;
+
+  const sunPosition = useMemo(() => {
+    const visible = dayProgress > -0.05 && dayProgress < 1.05;
+    const clamped = Math.max(0, Math.min(1, dayProgress));
+    const x = snap(4 + clamped * (FULL_W - SUN_SIZE - 8));
+    const rise = ARC_BASE_PX + 4 * clamped * (1 - clamped) * ARC_HEIGHT_PX;
+    const y = snap(HORIZON_Y - rise - SUN_SIZE);
+    const opacity = dayProgress < 0
+      ? Math.max(0, 1 + dayProgress * 20)
+      : dayProgress > 1 ? Math.max(0, 1 - (dayProgress - 1) * 20) : 1;
+    return { visible, x, y, opacity };
+  }, [dayProgress]);
+
+  const moonPosition = useMemo(() => {
+    const nightLength = 24 * 60 * 60 * 1000 - dayLength;
+    let nightProgress: number;
+    if (dayProgress > 1)      nightProgress = (nowMs - sunsetMs)  / nightLength;
+    else if (dayProgress < 0) nightProgress = 1 - (sunriseMs - nowMs) / nightLength;
+    else                      nightProgress = -1;
+    const visible = nightProgress > -0.05 && nightProgress < 1.05;
+    const clamped = Math.max(0, Math.min(1, nightProgress));
+    const x = snap(4 + clamped * (FULL_W - MOON_SIZE - 8));
+    const rise = ARC_BASE_PX + 4 * clamped * (1 - clamped) * ARC_HEIGHT_PX;
+    const y = snap(HORIZON_Y - rise - MOON_SIZE);
+    const opacity = nightProgress < 0
+      ? Math.max(0, 1 + nightProgress * 20)
+      : nightProgress > 1 ? Math.max(0, 1 - (nightProgress - 1) * 20) : 1;
+    return { visible, x, y, opacity };
+  }, [dayProgress, nowMs, sunriseMs, sunsetMs, dayLength]);
+
+  const skyStyle     = getSkyStyle(dayProgress);
+  const isNight      = dayProgress < -0.1  || dayProgress > 1.1;
+  const isDawnOrDusk = (dayProgress > -0.05 && dayProgress < 0.08) || (dayProgress > 0.92 && dayProgress < 1.05);
+  const textColor    = isNight ? 'rgba(255,255,255,0.8)' : 'rgba(93,78,55,0.85)';
+  const subtextColor = isNight ? 'rgba(255,255,255,0.45)' : 'rgba(93,78,55,0.45)';
+
+  // ── Garden data ────────────────────────────────────────────────────────────
+  const getFlowerAt     = useGardenStore(s => s.getFlowerAt);
+  const activeChallenges = useChallengeStore(s => s.activeChallenges);
+  const growing = activeChallenges.filter(
+    c => c.status === 'growing' || c.id === justBloomedId
+  );
+
+  const gridCells = [];
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const pf = getFlowerAt(col, row);
+      gridCells.push(
+        <div key={`${col},${row}`} style={{ width: CELL, height: CELL, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {pf && (() => {
+            const e = FLOWER_CATALOG[pf.flowerType];
+            return <SpriteSheet src={e.sheet ?? e.sprite} frame={e.sheetBloomFrame ?? 0} frameSize={16} scale={2} shadow />;
+          })()}
+        </div>
+      );
+    }
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <div ref={wrapRef} style={{ width: '100%', height: FULL_H * scale, overflow: 'hidden' }}>
+      <div
+        onClick={() => navigate('/garden')}
+        style={{
+          width: FULL_W, height: FULL_H,
+          transformOrigin: 'top left',
+          transform: `scale(${scale})`,
+          position: 'relative',
+          overflow: 'hidden',
+          cursor: 'pointer',
+        }}
+      >
+
+        {/* ── Sky (behind everything, top HORIZON_Y px) ── */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0,
+          width: FULL_W, height: HORIZON_Y,
+          overflow: 'hidden', zIndex: 0,
+          ...(skyStyle.type === 'gradient' ? { background: skyStyle.value } : {}),
+        }}>
+          {skyStyle.type === 'image' && (
+            <div style={{ display: 'flex', height: '100%' }}>
+              {[0, 1, 2, 3].map(i => (
+                <img key={i} src={skyStyle.src} alt=""
+                  style={{ height: '100%', width: 'auto', imageRendering: 'pixelated', display: 'block', flexShrink: 0 }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Sun ── */}
+        {sunPosition.visible && (
+          <img src={sunPng} alt="" style={{
+            position: 'absolute',
+            width: SUN_SIZE, height: SUN_SIZE,
+            left: sunPosition.x, top: sunPosition.y,
+            opacity: sunPosition.opacity,
+            imageRendering: 'pixelated',
+            filter: isDawnOrDusk ? 'brightness(1.3) saturate(0.7)' : 'none',
+            zIndex: 2, pointerEvents: 'none',
+          }} />
+        )}
+
+        {/* ── Moon ── */}
+        {moonPosition.visible && (
+          <img src={moonPng} alt="" style={{
+            position: 'absolute',
+            width: MOON_SIZE, height: MOON_SIZE,
+            left: moonPosition.x, top: moonPosition.y,
+            opacity: moonPosition.opacity,
+            imageRendering: 'pixelated',
+            zIndex: 2, pointerEvents: 'none',
+          }} />
+        )}
+
+        {/* ── Date chip (top-left of sky, stays out of sun path) ── */}
+        <div style={{
+          position: 'absolute', top: 10, left: 14,
+          zIndex: 5, pointerEvents: 'none',
+        }}>
+          <p style={{ fontSize: 20, lineHeight: 1.15, fontWeight: 600, color: textColor, fontFamily: 'Georgia, serif' }}>
+            {format(now, 'MMMM d')}
+          </p>
+          <p style={{ fontSize: 13, lineHeight: 1.2, color: subtextColor }}>
+            {format(now, 'EEEE')} &nbsp;·&nbsp; ☀ {format(sunrise, 'h:mm a')}
+          </p>
+        </div>
+
+        {/* ── Dirt tile (garden floor, from horizon down) ── */}
+        <div style={{
+          position: 'absolute', top: HORIZON_Y, left: 0,
+          width: FULL_W, height: FULL_H - HORIZON_Y,
+          backgroundImage: `url(${dirtTile})`,
+          backgroundSize: `${CELL}px ${CELL}px`,
+          imageRendering: 'pixelated',
+          zIndex: 1,
+        }} />
+
+        {/* ── Cottage (roof in sky, fence behind it, base near path) ── */}
+        <div style={{
+          position: 'absolute', top: HORIZON_Y - 56, left: FULL_W / 2 - 60,
+          zIndex: 4,
+        }}>
+          <img src={cottageSprite} alt="Cottage" width={120} height={120}
+            style={{ imageRendering: 'pixelated', filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))', display: 'block' }}
+          />
+        </div>
+
+        {/* ── Fence + grid (anchored at top: COTTAGE_PAD, left: FENCE) ── */}
+        <div style={{ position: 'absolute', top: COTTAGE_PAD, left: FENCE, zIndex: 3 }}>
+          <div style={{ position: 'relative' }}>
+
+            {/* Top fence */}
+            <div style={{ position: 'absolute', top: -FENCE, left: -FENCE, display: 'flex', zIndex: 2, pointerEvents: 'none' }}>
+              <FenceTile frame={3} />
+              {Array.from({ length: GRID_COLS }, (_, i) => <FenceTile key={i} frame={4} />)}
+              <FenceTile frame={5} />
+            </div>
+            {/* Bottom fence */}
+            <div style={{ position: 'absolute', top: GRID_H, left: -FENCE, display: 'flex', zIndex: 2, pointerEvents: 'none' }}>
+              <FenceTile frame={0} />
+              {Array.from({ length: GRID_COLS }, (_, i) => <FenceTile key={i} frame={1} />)}
+              <FenceTile frame={2} />
+            </div>
+            {/* Left fence */}
+            <div style={{ position: 'absolute', top: 0, left: -FENCE, display: 'flex', flexDirection: 'column', zIndex: 2, pointerEvents: 'none' }}>
+              {Array.from({ length: GRID_ROWS }, (_, i) => <FenceTile key={i} frame={7} />)}
+            </div>
+            {/* Right fence */}
+            <div style={{ position: 'absolute', top: 0, left: GRID_W, display: 'flex', flexDirection: 'column', zIndex: 2, pointerEvents: 'none' }}>
+              {Array.from({ length: GRID_ROWS }, (_, i) => <FenceTile key={i} frame={6} />)}
+            </div>
+
+            {/* Grid — clicks turn the player toward the tap position */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${GRID_COLS}, ${CELL}px)`,
+                gridTemplateRows: `repeat(${GRID_ROWS}, ${CELL}px)`,
+                position: 'relative',
+              }}
+              onClick={e => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                const cx = (e.clientX - rect.left) / scale;
+                const cy = (e.clientY - rect.top)  / scale;
+                const { x: px, y: py } = playerPosRef.current;
+                const dx = cx - (px + PLAYER_W / 2);
+                const dy = cy - (py + PLAYER_H / 2);
+                if (Math.abs(dx) >= Math.abs(dy)) {
+                  setPlayerFrame(0); setPlayerFlipped(dx < 0);
+                } else {
+                  setPlayerFrame(dy > 0 ? 1 : 2); setPlayerFlipped(false);
+                }
+              }}
+            >
+              {gridCells}
+
+              {/* Stepping stone path — col 7 */}
+              <div style={{
+                position: 'absolute', top: 0, left: 7 * CELL,
+                width: CELL, height: GRID_H,
+                backgroundImage: `url(${steppingStonePath})`,
+                backgroundRepeat: 'repeat-y',
+                backgroundSize: `${CELL}px ${CELL}px`,
+                zIndex: 1, pointerEvents: 'none',
+              }} />
+
+              {/* Growing challenge plants */}
+              {growing.map(challenge => {
+                const col = PLOT_COLS[challenge.plotIndex];
+                if (col === undefined) return null;
+                const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
+                const isBlooming = justBloomedId === challenge.id;
+                const animate = isBlooming ? 'bloom' : challenge.status === 'bloomed' ? 'none' : 'idle';
+                return (
+                  <div key={challenge.id} style={{
+                    position: 'absolute',
+                    left: col * CELL, top: PLOT_ROW * CELL,
+                    width: CELL, height: CELL,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 3,
+                  }}>
+                    <GrowthSprite
+                      stage={challenge.growthStage}
+                      flowerType={template?.flowerReward}
+                      sprites={template?.sprites}
+                      spriteSheet={template?.spriteSheet}
+                      size="xs"
+                      animate={animate}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Player — in scene root so zIndex beats the cottage (zIndex 4) */}
+        <PlayerSprite
+          frame={playerFrame}
+          flipped={playerFlipped}
+          x={FENCE + playerPos.x}
+          y={COTTAGE_PAD + playerPos.y}
+        />
+
+      </div>
+    </div>
+  );
+}
