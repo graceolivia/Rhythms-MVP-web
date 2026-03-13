@@ -141,6 +141,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const playerPosRef = useRef({ x: PLAYER_START_X, y: PLAYER_START_Y });
   const keysRef = useRef<Set<string>>(new Set());
   const rafRef = useRef(0);
+  const rustleRef = useRef<Map<string, number>>(new Map());
 
   // Track held arrow keys
   useEffect(() => {
@@ -270,6 +271,12 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const behindFlowers: React.ReactElement[] = [];
   const frontFlowers:  React.ReactElement[] = [];
 
+  const RUSTLE_DURATION = 500;
+  const RUSTLE_RADIUS = CELL * 0.5; // 16px — trigger when character center is nearly on the flower center
+  const renderTime = Date.now();
+  // Character center X relative to the FENCE left edge
+  const charCenterX = playerPos.x + PLAYER_CHAR_CX;
+
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
       const pf = getFlowerAt(col, row);
@@ -280,13 +287,31 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       const y     = COTTAGE_PAD + row * CELL;
       const src   = e.sheet ?? e.sprite;
       const frame = e.sheetBloomFrame ?? 0;
+
+      // Rustle: triggered when character's same row and within horizontal radius
+      const key = `${col}-${row}`;
+      const flowerCenterX = col * CELL + CELL / 2;
+      const isNear = row === charRow && Math.abs(charCenterX - flowerCenterX) < RUSTLE_RADIUS;
+      if (isNear && !rustleRef.current.has(key)) {
+        rustleRef.current.set(key, renderTime);
+      } else if (!isNear) {
+        rustleRef.current.delete(key); // clear so re-entry re-triggers
+      }
+      const rustleStart = rustleRef.current.get(key);
+      const isRustling = rustleStart !== undefined && (renderTime - rustleStart) < RUSTLE_DURATION;
+
       const el = (
         <div key={`f-${col}-${row}`} style={{
           position: 'absolute', left: x, top: y, width: CELL, height: CELL,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           pointerEvents: 'none',
         }}>
-          <SpriteSheet src={src} frame={frame} frameSize={16} scale={2} shadow />
+          <div style={isRustling ? {
+            animation: 'rustle 0.5s ease-in-out 1',
+            transformOrigin: 'bottom center',
+          } : undefined}>
+            <SpriteSheet src={src} frame={frame} frameSize={16} scale={2} shadow />
+          </div>
         </div>
       );
       if (row < charRow) behindFlowers.push(el);
@@ -311,6 +336,18 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           cursor: 'pointer',
         }}
       >
+
+        {/* ── Rustle keyframes ── */}
+        <style>{`
+          @keyframes rustle {
+            0%   { transform: rotate(0deg); }
+            20%  { transform: rotate(-9deg) translateX(-2px); }
+            40%  { transform: rotate(7deg)  translateX(2px);  }
+            60%  { transform: rotate(-5deg) translateX(-1px); }
+            80%  { transform: rotate(4deg)  translateX(1px);  }
+            100% { transform: rotate(0deg); }
+          }
+        `}</style>
 
         {/* ── Sky (behind everything, top HORIZON_Y px) ── */}
         <div style={{
