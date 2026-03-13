@@ -18,7 +18,7 @@ import { useRef, useLayoutEffect, useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useSunTimes } from '../../hooks/useSunTimes';
-import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG } from '../../stores/useGardenStore';
+import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_ROW } from '../../stores/useGardenStore';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
 import { GrowthSprite } from '../garden/GrowthSprite';
 import { SpriteSheet } from '../garden/SpriteSheet';
@@ -50,10 +50,6 @@ const MOON_SIZE = 32;
 // Arc is measured from HORIZON_Y upward (positive = higher in scene = lower y)
 const ARC_BASE_PX = 18;   // px above horizon at dawn/dusk
 const ARC_HEIGHT_PX = 58; // additional rise at zenith
-
-// ── Growing plot positions (avoids path at col 7) ──────────────────────────────
-const PLOT_COLS = [2, 5, 9, 11];
-const PLOT_ROW = GRID_ROWS - 1;
 
 // ── Sky helpers ───────────────────────────────────────────────────────────────
 type SkyStyle = { type: 'image'; src: string } | { type: 'gradient'; value: string };
@@ -118,8 +114,12 @@ const DIRECTION_ROW: Record<PlayerFrame, number> = {
 // Collision is tested at the character's feet center point.
 // To add a new blocker, just add a 'col,row' string and a comment explaining what it is.
 const WALK_BLOCKED = new Set<string>([
-  // Cottage — 120px wide centered on scene, covers cols 4–8 at the top of the garden
+  // Cottage — 120px wide, scene x 180–300, cols 4–8.
+  // Character head is ~60px above feet (at scale=2), so her head clips the cottage
+  // even when feet are 2 rows below it. Block rows 0–2 to keep her fully clear.
   '4,0', '5,0', '6,0', '7,0', '8,0',
+  '4,1', '5,1', '6,1', '7,1', '8,1',
+  '4,2', '5,2', '6,2', '7,2', '8,2',
 ]);
 
 // Returns whether the character's feet center would land in a walkable cell
@@ -253,26 +253,49 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const characterConfig = useCharacterStore(s => s.config);
 
   // ── Garden data ────────────────────────────────────────────────────────────
-  const getFlowerAt     = useGardenStore(s => s.getFlowerAt);
+  const getFlowerAt      = useGardenStore(s => s.getFlowerAt);
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const growing = activeChallenges.filter(
     c => c.status === 'growing' || c.id === justBloomedId
   );
 
-  const gridCells = [];
+  // Character's foot row within the grid.
+  const charRow = Math.max(0, Math.min(GRID_ROWS - 1,
+    Math.floor((playerPos.y + PLAYER_CHAR_FEET_Y) / CELL)
+  ));
+
+  // Depth-sorted flowers split into two arrays by charRow.
+  // These are rendered inside a single z:6 wrapper using DOM paint order — NOT z-index —
+  // so GPU compositing of the character layer can't override them.
+  const behindFlowers: React.ReactElement[] = [];
+  const frontFlowers:  React.ReactElement[] = [];
+
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
       const pf = getFlowerAt(col, row);
-      gridCells.push(
-        <div key={`${col},${row}`} style={{ width: CELL, height: CELL, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {pf && (() => {
-            const e = FLOWER_CATALOG[pf.flowerType];
-            return <SpriteSheet src={e.sheet ?? e.sprite} frame={e.sheetBloomFrame ?? 0} frameSize={16} scale={2} shadow />;
-          })()}
+      if (!pf) continue;
+      const e = FLOWER_CATALOG[pf.flowerType];
+      if (!e) continue;
+      const x     = FENCE + col * CELL;
+      const y     = COTTAGE_PAD + row * CELL;
+      const src   = e.sheet ?? e.sprite;
+      const frame = e.sheetBloomFrame ?? 0;
+      const el = (
+        <div key={`f-${col}-${row}`} style={{
+          position: 'absolute', left: x, top: y, width: CELL, height: CELL,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+        }}>
+          <SpriteSheet src={src} frame={frame} frameSize={16} scale={2} shadow />
         </div>
       );
+      if (row < charRow) behindFlowers.push(el);
+      else               frontFlowers.push(el);
     }
   }
+
+  // gridCells is empty — flowers are in behindFlowers/frontFlowers; grid kept for click handler.
+  const gridCells: React.ReactElement[] = [];
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -425,58 +448,84 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
                 zIndex: 1, pointerEvents: 'none',
               }} />
 
-              {/* Growing challenge plants */}
-              {growing.map(challenge => {
-                const col = PLOT_COLS[challenge.plotIndex];
-                if (col === undefined) return null;
-                const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
-                const isBlooming = justBloomedId === challenge.id;
-                const animate = isBlooming ? 'bloom' : challenge.status === 'bloomed' ? 'none' : 'idle';
-                return (
-                  <div key={challenge.id} style={{
-                    position: 'absolute',
-                    left: col * CELL, top: PLOT_ROW * CELL,
-                    width: CELL, height: CELL,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    zIndex: 3,
-                  }}>
-                    <GrowthSprite
-                      stage={challenge.growthStage}
-                      flowerType={template?.flowerReward}
-                      sprites={template?.sprites}
-                      spriteSheet={template?.spriteSheet}
-                      size="xs"
-                      animate={animate}
-                    />
-                  </div>
-                );
-              })}
             </div>
           </div>
         </div>
 
-        {/* Player — in scene root so zIndex beats the cottage (zIndex 4) */}
-        {characterConfig && (
-          <div style={{
-            position: 'absolute', left: 0, top: 0,
-            transform: `translate(${FENCE + playerPos.x}px, ${COTTAGE_PAD + playerPos.y}px)`,
-            willChange: 'transform',
-            zIndex: 6, pointerEvents: 'none',
-          }}>
+        {/* Depth layer — single z:6 wrapper; DOM paint order does the depth sorting.
+            No z-index on children so GPU compositing of the character can't override them:
+              1. behindFlowers  — painted first  → appear behind character
+              2. character      — painted second → appears over behindFlowers
+              3. frontFlowers   — painted last   → appear in front of character        */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none' }}>
+
+          {/* 1. Flowers above character's row */}
+          {behindFlowers}
+
+          {/* 1b. Growing challenge plants above character's row */}
+          {growing.map(challenge => {
+            const col = PLOT_COLS[challenge.plotIndex];
+            if (col === undefined || PLOT_ROW >= charRow) return null;
+            const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
+            const isBlooming = justBloomedId === challenge.id;
+            const animate = isBlooming ? 'bloom' : challenge.status === 'bloomed' ? 'none' : 'idle';
+            return (
+              <div key={`gb-${challenge.id}`} style={{
+                position: 'absolute',
+                left: FENCE + col * CELL, top: COTTAGE_PAD + PLOT_ROW * CELL,
+                width: CELL, height: CELL,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <GrowthSprite stage={challenge.growthStage} flowerType={template?.flowerReward}
+                  sprites={template?.sprites} spriteSheet={template?.spriteSheet}
+                  size="xs" animate={animate} />
+              </div>
+            );
+          })}
+
+          {/* 2. Character — no willChange so it stays in normal paint flow */}
+          {characterConfig && (
             <div style={{
-              filter: 'drop-shadow(1px 2px 1px rgba(0,0,0,0.3))',
-              transform: playerFlipped ? 'scaleX(-1)' : undefined,
-              transformOrigin: 'center',
+              position: 'absolute',
+              left: FENCE + playerPos.x,
+              top: COTTAGE_PAD + playerPos.y,
             }}>
-              <CharacterSprite
-                config={characterConfig}
-                scale={PLAYER_SCALE}
-                animate
-                row={DIRECTION_ROW[playerFrame]}
-              />
+              <div style={{
+                filter: 'drop-shadow(1px 2px 1px rgba(0,0,0,0.3))',
+                transform: playerFlipped ? 'scaleX(-1)' : undefined,
+                transformOrigin: 'center',
+              }}>
+                <CharacterSprite config={characterConfig} scale={PLAYER_SCALE}
+                  animate row={DIRECTION_ROW[playerFrame]} />
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* 3. Flowers at/below character's row */}
+          {frontFlowers}
+
+          {/* 3b. Growing challenge plants at/below character's row */}
+          {growing.map(challenge => {
+            const col = PLOT_COLS[challenge.plotIndex];
+            if (col === undefined || PLOT_ROW < charRow) return null;
+            const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
+            const isBlooming = justBloomedId === challenge.id;
+            const animate = isBlooming ? 'bloom' : challenge.status === 'bloomed' ? 'none' : 'idle';
+            return (
+              <div key={`gf-${challenge.id}`} style={{
+                position: 'absolute',
+                left: FENCE + col * CELL, top: COTTAGE_PAD + PLOT_ROW * CELL,
+                width: CELL, height: CELL,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <GrowthSprite stage={challenge.growthStage} flowerType={template?.flowerReward}
+                  sprites={template?.sprites} spriteSheet={template?.spriteSheet}
+                  size="xs" animate={animate} />
+              </div>
+            );
+          })}
+
+        </div>
 
       </div>
     </div>

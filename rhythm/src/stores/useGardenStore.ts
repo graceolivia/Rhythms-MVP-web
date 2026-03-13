@@ -17,6 +17,10 @@ import pinkroseSheet from '../assets/flowers/sheets/2_summer/pinkrose.png';
 export const GRID_COLS = 13;
 export const GRID_ROWS = 8;
 
+// Positions where growing challenge plants are displayed (avoids path at col 7)
+export const PLOT_COLS = [2, 5, 9, 11];
+export const PLOT_ROW  = GRID_ROWS - 1; // front row
+
 // Blocked cells where the cottage sits (top-center)
 export const BLOCKED_CELLS = new Set([
   // Cottage footprint — image only visually reaches into row 0 (cols 5–7, center of 13)
@@ -103,6 +107,7 @@ interface GardenState extends Garden {
   selectFlowerType: (type: FlowerType | null) => void;
   setMode: (mode: GardenMode) => void;
   placeFlower: (col: number, row: number) => boolean;
+  autoPlaceFlower: (flowerId: string, flowerType: FlowerType, col: number, row: number) => void;
   removeFlowerFromGrid: (placedId: string) => void;
   moveFlower: (placedId: string, newCol: number, newRow: number) => boolean;
   startMoving: (placedId: string) => void;
@@ -242,6 +247,22 @@ export const useGardenStore = create<GardenState>()(
         });
 
         return true;
+      },
+
+      autoPlaceFlower: (flowerId, flowerType, col, row) => {
+        const state = get();
+        // Skip if cell already occupied (e.g. a manual placement is already there)
+        if (state.placedFlowers.some(f => f.col === col && f.row === row)) return;
+        set({
+          placedFlowers: [...state.placedFlowers, {
+            id: `placed-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            flowerId,
+            flowerType,
+            col,
+            row,
+            placedAt: new Date().toISOString(),
+          }],
+        });
       },
 
       removeFlowerFromGrid: (placedId) => {

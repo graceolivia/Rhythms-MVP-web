@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
-import { useGardenStore } from './useGardenStore';
+import { useGardenStore, PLOT_COLS, PLOT_ROW } from './useGardenStore';
 import { useTaskStore } from './useTaskStore';
 import type { ChallengeTemplate, ActiveChallenge, GrowthStage } from '../types';
 
@@ -233,7 +233,12 @@ export const useChallengeStore = create<ChallengeState>()(
 
         if (isBlooming) {
           const bloomSprite = template.sprites?.[3];
-          useGardenStore.getState().earnFlower(template.flowerReward, challengeId, bloomSprite);
+          const gardenStore = useGardenStore.getState();
+          const flowerId = gardenStore.earnFlower(template.flowerReward, challengeId, bloomSprite);
+          const col = PLOT_COLS[challenge.plotIndex];
+          if (col !== undefined) {
+            gardenStore.autoPlaceFlower(flowerId, template.flowerReward, col, PLOT_ROW);
+          }
 
           if (challenge.seededTaskIds?.length) {
             const taskStore = useTaskStore.getState();
