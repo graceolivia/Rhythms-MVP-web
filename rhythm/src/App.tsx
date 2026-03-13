@@ -9,6 +9,7 @@ import { Garden } from './screens/Garden';
 import { Challenges } from './screens/Challenges';
 import { Settings } from './screens/Settings';
 import { Onboarding } from './screens/Onboarding';
+import { CharacterCreator } from './screens/CharacterCreator';
 import { BottomNav } from './components/common/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
 import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
@@ -17,6 +18,7 @@ import { useChildStore } from './stores/useChildStore';
 import { useNapStore } from './stores/useNapStore';
 import { useTaskStore } from './stores/useTaskStore';
 import { useGardenStore } from './stores/useGardenStore';
+import { useCharacterStore } from './stores/useCharacterStore';
 import { DEV_SKIP_ONBOARDING } from './config/devMode';
 
 function AppContent() {
@@ -41,8 +43,14 @@ function AppContent() {
 function App() {
   const [isReady, setIsReady] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [needsCharacter, setNeedsCharacter] = useState(false);
 
   useEffect(() => {
+    // Check character creator
+    if (!useCharacterStore.getState().config) {
+      setNeedsCharacter(true);
+    }
+
     // Check if user needs onboarding
     if (isFreshInstall()) {
       const skipSeedData = consumeSkipSeedDataOnce();
@@ -82,14 +90,30 @@ function App() {
     setNeedsOnboarding(false);
   };
 
+  const handleCharacterComplete = () => {
+    setNeedsCharacter(false);
+  };
+
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/onboarding" element={<Onboarding onComplete={handleOnboardingComplete} />} />
           <Route
+            path="/character"
+            element={<CharacterCreator onComplete={handleCharacterComplete} />}
+          />
+          <Route
             path="/*"
-            element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <AppContent />}
+            element={
+              needsOnboarding ? (
+                <Navigate to="/onboarding" replace />
+              ) : needsCharacter ? (
+                <Navigate to="/character" replace />
+              ) : (
+                <AppContent />
+              )
+            }
           />
         </Routes>
       </BrowserRouter>

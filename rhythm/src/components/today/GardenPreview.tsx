@@ -30,7 +30,8 @@ import cottageSprite from '../../assets/cottage_scene/cottage3_resize.png';
 import dirtTile from '../../assets/cottage_scene/dirt-tile.png';
 import steppingStonePath from '../../assets/cottage_scene/stepping-stone-path.png';
 import fenceSprite from '../../assets/cottage_scene/fence.png';
-import playerSheet from '../../assets/player character/Pixel Gnome DEMO recolor player character.png';
+import { CharacterSprite, ROW_IDLE_BOUNCE_FRONT, ROW_IDLE_BOUNCE_SIDE, ROW_IDLE_BOUNCE_BACK } from '../character/CharacterSprite';
+import { useCharacterStore } from '../../stores/useCharacterStore';
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 const CELL = 32;
@@ -92,43 +93,40 @@ function FenceTile({ frame }: { frame: number }) {
 }
 
 // ── Player character ──────────────────────────────────────────────────────────
-// Sheet: 66×29 — 3 frames of 22×29: [0]=right [1]=forward [2]=back
-const PLAYER_FRAME_W = 22;
-const PLAYER_FRAME_H = 29;
+// Rendered at scale=2: canvas 160×128, visible character ~40×55px.
+// Character is centered at canvas x≈80, feet at canvas y≈110.
+// Grid-relative start: center on col 7, feet at row 5.
 const PLAYER_SCALE   = 2;
-// Grid-relative starting position: centered on col 7, bottom-aligned to row 4
-const PLAYER_START_X = 7 * CELL + CELL / 2 - (PLAYER_FRAME_W * PLAYER_SCALE) / 2; // 218
-const PLAYER_START_Y = 4 * CELL + CELL - PLAYER_FRAME_H * PLAYER_SCALE;            // 102
-const PLAYER_W = PLAYER_FRAME_W * PLAYER_SCALE; // 44
-const PLAYER_H = PLAYER_FRAME_H * PLAYER_SCALE; // 58
-const PLAYER_SPEED = 1.5; // px per frame (~90 px/s at 60 fps)
-// Frames — 0: right  1: forward  2: back
+const PLAYER_W = 80 * PLAYER_SCALE;   // 160 — full canvas width
+const PLAYER_H = 64 * PLAYER_SCALE;   // 128 — full canvas height
+const PLAYER_CHAR_CX = 40 * PLAYER_SCALE; // 80 — visible char center-x within canvas
+const PLAYER_CHAR_FEET_Y = 55 * PLAYER_SCALE; // 110 — approx feet y within canvas
+const PLAYER_START_X = 7 * CELL + CELL / 2 - PLAYER_CHAR_CX; // 160
+const PLAYER_START_Y = 5 * CELL - PLAYER_CHAR_FEET_Y;         // 50
+const PLAYER_SPEED = 1.5;
+// Frames — 0: side  1: forward  2: back
 type PlayerFrame = 0 | 1 | 2;
 
-function PlayerSprite({ frame = 1, flipped = false, x, y }: { frame?: PlayerFrame; flipped?: boolean; x: number; y: number }) {
-  return (
-    // Outer div: GPU-composited movement via translate (no repaint trails)
-    <div style={{
-      position: 'absolute', left: 0, top: 0,
-      transform: `translate(${x}px, ${y}px)`,
-      willChange: 'transform',
-      zIndex: 6, pointerEvents: 'none',
-    }}>
-      {/* Inner div: flip + sprite — isolated from the translate layer */}
-      <div style={{
-        width: PLAYER_W,
-        height: PLAYER_H,
-        backgroundImage: `url(${playerSheet})`,
-        backgroundSize: `${PLAYER_W * 3}px ${PLAYER_H}px`,
-        backgroundPosition: `${-frame * PLAYER_W}px 0`,
-        backgroundRepeat: 'no-repeat',
-        imageRendering: 'pixelated',
-        filter: 'drop-shadow(1px 2px 1px rgba(0,0,0,0.3))',
-        transform: flipped ? 'scaleX(-1)' : undefined,
-        transformOrigin: 'center',
-      }} />
-    </div>
-  );
+const DIRECTION_ROW: Record<PlayerFrame, number> = {
+  0: ROW_IDLE_BOUNCE_SIDE,
+  1: ROW_IDLE_BOUNCE_FRONT,
+  2: ROW_IDLE_BOUNCE_BACK,
+};
+
+// ── Walkability map ───────────────────────────────────────────────────────────
+// Format: 'col,row'  —  col 0 = grid left, row 0 = grid top, negative = above grid.
+// Collision is tested at the character's feet center point.
+// To add a new blocker, just add a 'col,row' string and a comment explaining what it is.
+const WALK_BLOCKED = new Set<string>([
+  // Cottage — 120px wide centered on scene, covers cols 4–8 at the top of the garden
+  '4,0', '5,0', '6,0', '7,0', '8,0',
+]);
+
+// Returns whether the character's feet center would land in a walkable cell
+function isWalkable(px: number, py: number): boolean {
+  const col = Math.floor((px + PLAYER_CHAR_CX) / CELL);
+  const row = Math.floor((py + PLAYER_CHAR_FEET_Y) / CELL);
+  return !WALK_BLOCKED.has(`${col},${row}`);
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -172,8 +170,17 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         if (keys.has('ArrowDown'))  { dy += PLAYER_SPEED; setPlayerFrame(1); setPlayerFlipped(false); }
         // Normalize diagonal so speed is consistent
         if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
-        x = Math.max(0, Math.min(GRID_W - PLAYER_W, x + dx));
-        y = Math.max(-CELL, Math.min(GRID_H - PLAYER_H, y + dy));
+        // Clamp to scene bounds (uses visible character area, not full transparent canvas)
+        const nx = Math.max(-PLAYER_CHAR_CX, Math.min(GRID_W - PLAYER_CHAR_CX, x + dx));
+        const ny = Math.max(-CELL * 3,       Math.min(GRID_H - PLAYER_CHAR_FEET_Y, y + dy));
+        // Walkability check with wall-sliding
+        if (isWalkable(nx, ny)) {
+          x = nx; y = ny;
+        } else if (isWalkable(nx, y)) {
+          x = nx;           // slide horizontally
+        } else if (isWalkable(x, ny)) {
+          y = ny;           // slide vertically
+        }                   // else fully blocked — don't move
         playerPosRef.current = { x, y };
         setPlayerPos({ x, y });
       }
@@ -242,6 +249,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const isDawnOrDusk = (dayProgress > -0.05 && dayProgress < 0.08) || (dayProgress > 0.92 && dayProgress < 1.05);
   const textColor    = isNight ? 'rgba(255,255,255,0.8)' : 'rgba(93,78,55,0.85)';
   const subtextColor = isNight ? 'rgba(255,255,255,0.45)' : 'rgba(93,78,55,0.45)';
+
+  const characterConfig = useCharacterStore(s => s.config);
 
   // ── Garden data ────────────────────────────────────────────────────────────
   const getFlowerAt     = useGardenStore(s => s.getFlowerAt);
@@ -447,12 +456,27 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         </div>
 
         {/* Player — in scene root so zIndex beats the cottage (zIndex 4) */}
-        <PlayerSprite
-          frame={playerFrame}
-          flipped={playerFlipped}
-          x={FENCE + playerPos.x}
-          y={COTTAGE_PAD + playerPos.y}
-        />
+        {characterConfig && (
+          <div style={{
+            position: 'absolute', left: 0, top: 0,
+            transform: `translate(${FENCE + playerPos.x}px, ${COTTAGE_PAD + playerPos.y}px)`,
+            willChange: 'transform',
+            zIndex: 6, pointerEvents: 'none',
+          }}>
+            <div style={{
+              filter: 'drop-shadow(1px 2px 1px rgba(0,0,0,0.3))',
+              transform: playerFlipped ? 'scaleX(-1)' : undefined,
+              transformOrigin: 'center',
+            }}>
+              <CharacterSprite
+                config={characterConfig}
+                scale={PLAYER_SCALE}
+                animate
+                row={DIRECTION_ROW[playerFrame]}
+              />
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

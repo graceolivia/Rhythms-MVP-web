@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useNapStore } from '../stores/useNapStore';
@@ -46,6 +47,7 @@ const RECURRENCE_OPTIONS: { value: 'one-off' | RecurrenceRule; label: string }[]
 ];
 
 export function Settings() {
+  const navigate = useNavigate();
   const children = useChildStore((state) => state.children);
   const userWakeTime = useChildStore((state) => state.userWakeTime);
   const userBedtime = useChildStore((state) => state.userBedtime);
@@ -190,6 +192,25 @@ export function Settings() {
         <h1 className="font-display text-2xl text-bark">Settings</h1>
         <p className="text-bark/60 text-sm">Customize your rhythm</p>
       </header>
+
+      {/* Character Section */}
+      <section className="mb-8">
+        <h2 className="font-display text-lg text-bark mb-4">Your Gardener</h2>
+        <div className="bg-parchment rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-bark">Character</p>
+              <p className="text-xs text-bark/50 mt-0.5">Change your look</p>
+            </div>
+            <button
+              onClick={() => navigate('/character')}
+              className="px-4 py-2 bg-bark text-cream text-sm font-semibold rounded-xl hover:bg-bark/90 active:scale-95 transition-all duration-150"
+            >
+              Edit
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Your Schedule Section */}
       <section className="mb-8">
