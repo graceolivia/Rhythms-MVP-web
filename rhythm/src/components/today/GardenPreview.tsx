@@ -260,10 +260,14 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     c => c.status === 'growing' || c.id === justBloomedId
   );
 
-  // Character's foot row within the grid.
+  // Character's foot row within the grid (used for rustle proximity check).
   const charRow = Math.max(0, Math.min(GRID_ROWS - 1,
     Math.floor((playerPos.y + PLAYER_CHAR_FEET_Y) / CELL)
   ));
+  // Pixel-precise feet Y for depth sorting — fires swap when feet are 85% down the flower's
+  // cell so the bloom clears the character's lower body before she pops in front.
+  const feetY = playerPos.y + PLAYER_CHAR_FEET_Y;
+  const DEPTH_THRESHOLD = CELL * 1.5; // feet must reach halfway into the next row
 
   // Depth-sorted flowers split into two arrays by charRow.
   // These are rendered inside a single z:6 wrapper using DOM paint order — NOT z-index —
@@ -272,10 +276,15 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const frontFlowers:  React.ReactElement[] = [];
 
   const RUSTLE_DURATION = 500;
-  const RUSTLE_RADIUS = CELL * 0.5; // 16px — trigger when character center is nearly on the flower center
+  const RUSTLE_RADIUS = CELL * 0.6; // 19px — fires when close to flower center, still catches both when passing between them
+  const RUSTLE_DUAL_MARGIN = 4; // px from a row boundary where both adjacent rows rustle
   const renderTime = Date.now();
   // Character center X relative to the FENCE left edge
   const charCenterX = playerPos.x + PLAYER_CHAR_CX;
+  // Rustle row — shifted 3px up so the animation fires at the right visual moment
+  const rustleAdjFeet = feetY - 16;
+  const rustleRow = Math.floor(rustleAdjFeet / CELL);
+  const rustlePosInCell = rustleAdjFeet - rustleRow * CELL; // 0 = top of cell, CELL-1 = bottom
 
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
@@ -291,7 +300,11 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       // Rustle: triggered when character's same row and within horizontal radius
       const key = `${col}-${row}`;
       const flowerCenterX = col * CELL + CELL / 2;
-      const isNear = row === charRow && Math.abs(charCenterX - flowerCenterX) < RUSTLE_RADIUS;
+      const rowMatch =
+        rustleRow === row ||
+        (rustleRow === row - 1 && rustlePosInCell >= CELL - RUSTLE_DUAL_MARGIN) || // near boundary below
+        (rustleRow === row + 1 && rustlePosInCell <  RUSTLE_DUAL_MARGIN);          // near boundary above
+      const isNear = rowMatch && Math.abs(charCenterX - flowerCenterX) < RUSTLE_RADIUS;
       if (isNear && !rustleRef.current.has(key)) {
         rustleRef.current.set(key, renderTime);
       } else if (!isNear) {
@@ -314,8 +327,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           </div>
         </div>
       );
-      if (row < charRow) behindFlowers.push(el);
-      else               frontFlowers.push(el);
+      if (feetY > row * CELL + DEPTH_THRESHOLD) behindFlowers.push(el);
+      else                                       frontFlowers.push(el);
     }
   }
 
@@ -502,7 +515,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           {/* 1b. Growing challenge plants above character's row */}
           {growing.map(challenge => {
             const col = PLOT_COLS[challenge.plotIndex];
-            if (col === undefined || PLOT_ROW >= charRow) return null;
+            if (col === undefined || feetY <= PLOT_ROW * CELL + DEPTH_THRESHOLD) return null;
             const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
             const isBlooming = justBloomedId === challenge.id;
             const animate = isBlooming ? 'bloom' : challenge.status === 'bloomed' ? 'none' : 'idle';
@@ -544,7 +557,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           {/* 3b. Growing challenge plants at/below character's row */}
           {growing.map(challenge => {
             const col = PLOT_COLS[challenge.plotIndex];
-            if (col === undefined || PLOT_ROW < charRow) return null;
+            if (col === undefined || feetY > PLOT_ROW * CELL + DEPTH_THRESHOLD) return null;
             const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
             const isBlooming = justBloomedId === challenge.id;
             const animate = isBlooming ? 'bloom' : challenge.status === 'bloomed' ? 'none' : 'idle';
