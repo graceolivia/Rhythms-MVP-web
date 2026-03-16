@@ -422,7 +422,16 @@ export function Today() {
 
   return (
     <div className="min-h-screen bg-parchment/30">
-      <div className="max-w-lg mx-auto p-4">
+      {/* Child status bar — fixed above BottomNav (Phase 1) */}
+      <ChildStatusBar napPredictions={Object.fromEntries(
+        Object.entries(napPredictions).map(([id, p]) => [id, {
+          nextNapTime: p.nextNapTime ?? undefined,
+          probableWakeTime: p.probableWakeTime ?? undefined,
+          wakeWindowWarning: p.wakeWindowWarning ?? undefined,
+        }])
+      )} />
+
+      <div className="max-w-lg mx-auto px-4 pt-4 pb-14">
         {/* Unified sky + garden tableau */}
         <div className="-mx-4 -mt-4">
           <GardenPreview justBloomedId={justBloomedId} />
@@ -431,15 +440,6 @@ export function Today() {
         {/* Transition prompts (Phase 2) */}
         <TransitionPrompts napContext={Object.fromEntries(
           Object.entries(napPredictions).map(([id, p]) => [id, { wakeWindowText: p.wakeWindowText ?? undefined }])
-        )} />
-
-        {/* Child status bar (Phase 1) */}
-        <ChildStatusBar napPredictions={Object.fromEntries(
-          Object.entries(napPredictions).map(([id, p]) => [id, {
-            nextNapTime: p.nextNapTime ?? undefined,
-            probableWakeTime: p.probableWakeTime ?? undefined,
-            wakeWindowWarning: p.wakeWindowWarning ?? undefined,
-          }])
         )} />
 
         {/* Day overview — compact (current + 2 upcoming) */}
@@ -566,7 +566,7 @@ export function Today() {
       )}
 
       {/* Floating Add Button */}
-      <div className="fixed bottom-20 left-0 right-0 flex justify-center z-40 pointer-events-none">
+      <div className="fixed bottom-28 left-0 right-0 flex justify-center z-40 pointer-events-none">
         <div className="w-full max-w-lg px-4 flex justify-end pointer-events-auto">
           <button
             onClick={() => setShowQuickAdd(true)}
