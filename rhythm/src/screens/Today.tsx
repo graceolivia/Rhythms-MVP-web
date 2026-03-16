@@ -292,7 +292,7 @@ export function Today() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [editingTier, setEditingTier] = useState<TaskTier | null>(null);
-  const [showAllTasks, setShowAllTasks] = useState(false);
+  const [showAllTasks, setShowAllTasks] = useState(true);
   const [recentlyCompleted, setRecentlyCompleted] = useState<Set<string>>(new Set());
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
   const [expandedDoneSections, setExpandedDoneSections] = useState<Set<string>>(new Set());
@@ -442,8 +442,7 @@ export function Today() {
           Object.entries(napPredictions).map(([id, p]) => [id, { wakeWindowText: p.wakeWindowText ?? undefined }])
         )} />
 
-        {/* Day overview — compact (current + 2 upcoming) */}
-        <DayOverviewCompact />
+        {/* ── TASKS ── */}
 
         {/* Routine blocks — always shown when a daily-routine challenge is active */}
         {routineChallenges.map(({ challenge, items }) => (
@@ -471,7 +470,7 @@ export function Today() {
                 onClick={() => setShowAllTasks(false)}
                 className="text-xs text-sage hover:text-sage/80 font-medium"
               >
-                Back to focus view
+                Switch to suggested
               </button>
             </div>
             <AllTasksView
@@ -489,26 +488,36 @@ export function Today() {
           </>
         ) : (
           <>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide">Suggested</h2>
+              <button
+                onClick={() => setShowAllTasks(true)}
+                className="text-xs text-sage hover:text-sage/80 font-medium"
+              >
+                See all tasks
+              </button>
+            </div>
+
             {/* Active block view — shows when a habit block is currently active */}
             {activeBlock ? (
               <>
-              <HabitBlockCard
-                block={activeBlock}
-                onTaskTap={handleTaskTap}
-                onEdit={setEditingTask}
-                fadingOut={fadingOut}
-                recentlyCompleted={recentlyCompleted}
-              />
-              <SuggestedDuringBlock
-                activeBlock={activeBlock}
-                tasksWithInstances={tasksWithInstances}
-                onTaskTap={handleTaskTap}
-                onEdit={setEditingTask}
-                onDefer={handleDefer}
-                recentlyCompleted={recentlyCompleted}
-                fadingOut={fadingOut}
-                today={today}
-              />
+                <HabitBlockCard
+                  block={activeBlock}
+                  onTaskTap={handleTaskTap}
+                  onEdit={setEditingTask}
+                  fadingOut={fadingOut}
+                  recentlyCompleted={recentlyCompleted}
+                />
+                <SuggestedDuringBlock
+                  activeBlock={activeBlock}
+                  tasksWithInstances={tasksWithInstances}
+                  onTaskTap={handleTaskTap}
+                  onEdit={setEditingTask}
+                  onDefer={handleDefer}
+                  recentlyCompleted={recentlyCompleted}
+                  fadingOut={fadingOut}
+                  today={today}
+                />
               </>
             ) : (
               <>
@@ -526,27 +535,22 @@ export function Today() {
                   recentlyCompleted={recentlyCompleted}
                   fadingOut={fadingOut}
                 />
-
               </>
             )}
 
-            {/* Preview of next 1-2 upcoming blocks */}
-            <UpNextBlocks />
-
-            {/* Coming Up (Phase 5) */}
-            <ComingUp />
-
-            {/* See all tasks link */}
-            <div className="text-center mt-2 mb-4">
-              <button
-                onClick={() => setShowAllTasks(true)}
-                className="text-xs text-bark/40 hover:text-bark/60 underline underline-offset-2"
-              >
-                See all tasks by priority
-              </button>
-            </div>
           </>
         )}
+
+        {/* ── SCHEDULE ── */}
+
+        {/* Day overview — compact (current + 2 upcoming) */}
+        <DayOverviewCompact />
+
+        {/* Preview of next 1-2 upcoming blocks */}
+        <UpNextBlocks />
+
+        {/* Coming Up (Phase 5) */}
+        <ComingUp />
 
         {/* Bottom padding for mobile */}
         <div className="h-20" />
