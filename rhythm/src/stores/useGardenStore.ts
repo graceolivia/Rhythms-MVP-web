@@ -15,18 +15,18 @@ import pinkroseSheet from '../assets/flowers/sheets/2_summer/pinkrose.png';
 // ===========================================
 
 export const GRID_COLS = 13;
-export const GRID_ROWS = 8;
+export const GRID_ROWS = 6;
 
 // Positions where growing challenge plants are displayed (avoids path at col 7)
 export const PLOT_COLS = [2, 5, 9, 11];
-export const PLOT_ROW  = GRID_ROWS - 1; // front row
+export const PLOT_ROW  = GRID_ROWS - 1; // front row (row 5)
 
 // Blocked cells where the cottage sits (top-center)
 export const BLOCKED_CELLS = new Set([
   // Cottage footprint — image only visually reaches into row 0 (cols 5–7, center of 13)
   '5,0', '6,0', '7,0',
-  // Stepping stone path — full col 7 (rows 1–7; row 0 already covered above)
-  '7,1', '7,2', '7,3', '7,4', '7,5', '7,6', '7,7',
+  // Stepping stone path — col 7, rows 1–5
+  '7,1', '7,2', '7,3', '7,4', '7,5',
 ]);
 
 // ===========================================

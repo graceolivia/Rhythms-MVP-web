@@ -36,13 +36,15 @@ import { useCharacterStore } from '../../stores/useCharacterStore';
 // ── Layout ────────────────────────────────────────────────────────────────────
 const CELL = 32;
 const FENCE = CELL;
-// COTTAGE_PAD=160 → cottage bottom (8+120=128) = HORIZON_Y (160-32=128) ✓
-const COTTAGE_PAD = 160;
-const HORIZON_Y = COTTAGE_PAD - FENCE; // 128 — top fence = visual horizon
+// HORIZON_Y=112: sky is 16px shorter than before ("a hair lower")
+// COTTAGE_PAD=144: grid starts one FENCE below horizon (144-32=112) ✓
+// Cottage bottom sits flush with the top fence (HORIZON_Y), entirely in sky.
+const HORIZON_Y  = 112;
+const COTTAGE_PAD = HORIZON_Y + FENCE; // 144
 const GRID_W = GRID_COLS * CELL;       // 416
-const GRID_H = GRID_ROWS * CELL;       // 256
+const GRID_H = GRID_ROWS * CELL;       // 192 (6 rows × 32)
 const FULL_W = GRID_W + FENCE * 2;     // 480
-const FULL_H = COTTAGE_PAD + GRID_H + FENCE; // 448
+const FULL_H = COTTAGE_PAD + GRID_H + FENCE; // 368 (was 448)
 
 // ── Celestial arc ─────────────────────────────────────────────────────────────
 const SUN_SIZE = 32;
@@ -113,13 +115,11 @@ const DIRECTION_ROW: Record<PlayerFrame, number> = {
 // Format: 'col,row'  —  col 0 = grid left, row 0 = grid top, negative = above grid.
 // Collision is tested at the character's feet center point.
 // To add a new blocker, just add a 'col,row' string and a comment explaining what it is.
+// Cottage base just overlaps row 0 — block only that row so she can walk
+// freely in row 1 right in front of the door, but can't step into the building.
+// Left/right/top fence collision is handled by the position bounds.
 const WALK_BLOCKED = new Set<string>([
-  // Cottage — 120px wide, scene x 180–300, cols 4–8.
-  // Character head is ~60px above feet (at scale=2), so her head clips the cottage
-  // even when feet are 2 rows below it. Block rows 0–2 to keep her fully clear.
   '4,0', '5,0', '6,0', '7,0', '8,0',
-  '4,1', '5,1', '6,1', '7,1', '8,1',
-  '4,2', '5,2', '6,2', '7,2', '8,2',
 ]);
 
 // Returns whether the character's feet center would land in a walkable cell
@@ -173,7 +173,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
         // Clamp to scene bounds (uses visible character area, not full transparent canvas)
         const nx = Math.max(-PLAYER_CHAR_CX, Math.min(GRID_W - PLAYER_CHAR_CX, x + dx));
-        const ny = Math.max(-CELL * 3,       Math.min(GRID_H - PLAYER_CHAR_FEET_Y, y + dy));
+        const ny = Math.max(-CELL * 5,       Math.min(GRID_H - PLAYER_CHAR_FEET_Y, y + dy));
         // Walkability check with wall-sliding
         if (isWalkable(nx, ny)) {
           x = nx; y = ny;
@@ -428,9 +428,9 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           zIndex: 1,
         }} />
 
-        {/* ── Cottage (roof in sky, fence behind it, base near path) ── */}
+        {/* ── Cottage (bottom flush with bottom of top fence = COTTAGE_PAD) ── */}
         <div style={{
-          position: 'absolute', top: HORIZON_Y - 56, left: FULL_W / 2 - 60,
+          position: 'absolute', top: COTTAGE_PAD - 116, left: FULL_W / 2 - 60,
           zIndex: 4,
         }}>
           <img src={cottageSprite} alt="Cottage" width={120} height={120}
