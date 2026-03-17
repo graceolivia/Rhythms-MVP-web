@@ -30,6 +30,7 @@ import cottageSprite from '../../assets/cottage_scene/cottage3_resize.png';
 import dirtTile from '../../assets/cottage_scene/dirt-tile.png';
 import steppingStonePath from '../../assets/cottage_scene/stepping-stone-path.png';
 import fenceSprite from '../../assets/cottage_scene/fence.png';
+import fenceGateSprite from '../../assets/cottage_scene/fence-with-gate.png';
 import { CharacterSprite, ROW_IDLE_BOUNCE_FRONT, ROW_IDLE_BOUNCE_SIDE, ROW_IDLE_BOUNCE_BACK } from '../character/CharacterSprite';
 import { useCharacterStore } from '../../stores/useCharacterStore';
 
@@ -78,12 +79,12 @@ function getSkyStyle(p: number): SkyStyle {
 const snap = (n: number) => Math.round(n / 2) * 2;
 
 // ── Fence tile ────────────────────────────────────────────────────────────────
-function FenceTile({ frame }: { frame: number }) {
+function FenceTile({ frame, src = fenceSprite, sheetFrames = 8 }: { frame: number; src?: string; sheetFrames?: number }) {
   return (
     <div style={{
       width: CELL, height: CELL, flexShrink: 0,
-      backgroundImage: `url(${fenceSprite})`,
-      backgroundSize: `${CELL * 8}px ${CELL}px`,
+      backgroundImage: `url(${src})`,
+      backgroundSize: `${CELL * sheetFrames}px ${CELL}px`,
       backgroundPosition: `${-frame * CELL}px 0px`,
       imageRendering: 'pixelated',
     }} />
@@ -100,7 +101,7 @@ const PLAYER_H = 64 * PLAYER_SCALE;   // 128 — full canvas height
 const PLAYER_CHAR_CX = 40 * PLAYER_SCALE; // 80 — visible char center-x within canvas
 const PLAYER_CHAR_FEET_Y = 55 * PLAYER_SCALE; // 110 — approx feet y within canvas
 const PLAYER_START_X = 7 * CELL + CELL / 2 - PLAYER_CHAR_CX; // 160
-const PLAYER_START_Y = 5 * CELL - PLAYER_CHAR_FEET_Y;         // 50
+const PLAYER_START_Y = 3 * CELL - PLAYER_CHAR_FEET_Y;         // -14 — start mid-garden (row 3)
 const PLAYER_SPEED = 1.5;
 // Frames — 0: side  1: forward  2: back
 type PlayerFrame = 0 | 1 | 2;
@@ -128,6 +129,9 @@ function isWalkable(px: number, py: number): boolean {
   const row = Math.floor((py + PLAYER_CHAR_FEET_Y) / CELL);
   return !WALK_BLOCKED.has(`${col},${row}`);
 }
+
+// ── Debug ─────────────────────────────────────────────────────────────────────
+const SHOW_GRID_COORDS = true; // flip to false when done
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null }) {
@@ -173,7 +177,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
         // Clamp to scene bounds (uses visible character area, not full transparent canvas)
         const nx = Math.max(-PLAYER_CHAR_CX, Math.min(GRID_W - PLAYER_CHAR_CX, x + dx));
-        const ny = Math.max(-CELL * 5,       Math.min(GRID_H - PLAYER_CHAR_FEET_Y, y + dy));
+        const ny = Math.max(-CELL * 5,       Math.min(GRID_H + CELL - PLAYER_CHAR_FEET_Y, y + dy));
         // Walkability check with wall-sliding
         if (isWalkable(nx, ny)) {
           x = nx; y = ny;
@@ -332,8 +336,26 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     }
   }
 
-  // gridCells is empty — flowers are in behindFlowers/frontFlowers; grid kept for click handler.
+  // gridCells: normally empty (flowers rendered in depth layers); coord labels when debugging.
   const gridCells: React.ReactElement[] = [];
+  if (SHOW_GRID_COORDS) {
+    for (let row = 0; row < GRID_ROWS; row++) {
+      for (let col = 0; col < GRID_COLS; col++) {
+        gridCells.push(
+          <div key={`coord-${col}-${row}`} style={{
+            gridColumn: col + 1, gridRow: row + 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '1px solid rgba(255,255,255,0.25)',
+            pointerEvents: 'none',
+          }}>
+            <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace', lineHeight: 1 }}>
+              {col},{row}
+            </span>
+          </div>
+        );
+      }
+    }
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -448,12 +470,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
               {Array.from({ length: GRID_COLS }, (_, i) => <FenceTile key={i} frame={4} />)}
               <FenceTile frame={5} />
             </div>
-            {/* Bottom fence */}
-            <div style={{ position: 'absolute', top: GRID_H, left: -FENCE, display: 'flex', zIndex: 2, pointerEvents: 'none' }}>
-              <FenceTile frame={0} />
-              {Array.from({ length: GRID_COLS }, (_, i) => <FenceTile key={i} frame={1} />)}
-              <FenceTile frame={2} />
-            </div>
+            {/* Bottom fence rendered separately at z:7 — see below the depth layer */}
             {/* Left fence */}
             <div style={{ position: 'absolute', top: 0, left: -FENCE, display: 'flex', flexDirection: 'column', zIndex: 2, pointerEvents: 'none' }}>
               {Array.from({ length: GRID_ROWS }, (_, i) => <FenceTile key={i} frame={7} />)}
@@ -575,6 +592,22 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
             );
           })}
 
+        </div>
+
+        {/* Bottom fence — z:7, above the character layer so she walks behind it */}
+        <div style={{
+          position: 'absolute',
+          top: COTTAGE_PAD + GRID_H, left: 0,
+          display: 'flex', zIndex: 7, pointerEvents: 'none',
+        }}>
+          <FenceTile frame={0} />
+          {Array.from({ length: GRID_COLS }, (_, i) => {
+            if (i === 6) return <FenceTile key={i} frame={8}  src={fenceGateSprite} sheetFrames={11} />;
+            if (i === 7) return <FenceTile key={i} frame={9}  src={fenceGateSprite} sheetFrames={11} />;
+            if (i === 8) return <FenceTile key={i} frame={10} src={fenceGateSprite} sheetFrames={11} />;
+            return <FenceTile key={i} frame={1} />;
+          })}
+          <FenceTile frame={2} />
         </div>
 
       </div>
