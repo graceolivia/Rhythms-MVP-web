@@ -131,7 +131,7 @@ function isWalkable(px: number, py: number): boolean {
 }
 
 // ── Debug ─────────────────────────────────────────────────────────────────────
-const SHOW_GRID_COORDS = true; // flip to false when done
+const SHOW_GRID_COORDS = import.meta.env.DEV; // auto-off in production
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null }) {
