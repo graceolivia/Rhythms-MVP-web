@@ -51,7 +51,7 @@ const FULL_H = COTTAGE_PAD + GRID_H + FENCE; // 368 (was 448)
 const SUN_SIZE = 32;
 const MOON_SIZE = 32;
 // Arc is measured from HORIZON_Y upward (positive = higher in scene = lower y)
-const ARC_BASE_PX = 18;   // px above horizon at dawn/dusk
+const ARC_BASE_PX = 2;    // px above horizon at sunrise/sunset — sun peeks at the horizon
 const ARC_HEIGHT_PX = 58; // additional rise at zenith
 
 // ── Sky helpers ───────────────────────────────────────────────────────────────
@@ -221,13 +221,14 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const dayProgress = (nowMs - sunriseMs) / dayLength;
 
   const sunPosition = useMemo(() => {
-    const visible = dayProgress > -0.05 && dayProgress < 1.05;
+    const visible = dayProgress > 0 && dayProgress < 1.05;
     const clamped = Math.max(0, Math.min(1, dayProgress));
     const x = snap(4 + clamped * (FULL_W - SUN_SIZE - 8));
     const rise = ARC_BASE_PX + 4 * clamped * (1 - clamped) * ARC_HEIGHT_PX;
     const y = snap(HORIZON_Y - rise - SUN_SIZE);
-    const opacity = dayProgress < 0
-      ? Math.max(0, 1 + dayProgress * 20)
+    // Fade in over first ~3% of day (~20 min after sunrise); existing fade-out at sunset
+    const opacity = dayProgress <= 0.03
+      ? dayProgress / 0.03
       : dayProgress > 1 ? Math.max(0, 1 - (dayProgress - 1) * 20) : 1;
     return { visible, x, y, opacity };
   }, [dayProgress]);
@@ -264,10 +265,6 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     c => c.status === 'growing' || c.id === justBloomedId
   );
 
-  // Character's foot row within the grid (used for rustle proximity check).
-  const charRow = Math.max(0, Math.min(GRID_ROWS - 1,
-    Math.floor((playerPos.y + PLAYER_CHAR_FEET_Y) / CELL)
-  ));
   // Pixel-precise feet Y for depth sorting — fires swap when feet are 85% down the flower's
   // cell so the bloom clears the character's lower body before she pops in front.
   const feetY = playerPos.y + PLAYER_CHAR_FEET_Y;
