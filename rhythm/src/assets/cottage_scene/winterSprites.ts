@@ -92,6 +92,21 @@ export const snowPiles = [
   { col: 14, row: 18, sx: 224, sy: 288 },
 ];
 
+export const pine_tree = [
+  { col: 13, row: 5, sx: 208, sy: 80 },
+  { col: 14, row: 5, sx: 224, sy: 80 },
+  { col: 15, row: 5, sx: 240, sy: 80 },
+  { col: 15, row: 6, sx: 240, sy: 96 },
+  { col: 14, row: 6, sx: 224, sy: 96 },
+  { col: 13, row: 7, sx: 208, sy: 112 },
+  { col: 14, row: 7, sx: 224, sy: 112 },
+  { col: 15, row: 7, sx: 240, sy: 112 },
+  { col: 13, row: 6, sx: 208, sy: 96 },
+  { col: 13, row: 8, sx: 208, sy: 128 },
+  { col: 14, row: 8, sx: 224, sy: 128 },
+  { col: 15, row: 8, sx: 240, sy: 128 },
+];
+
 export const right_tree = [
   { col: 4, row: 13, sx: 64, sy: 208 },
   { col: 4, row: 11, sx: 64, sy: 176 },
