@@ -783,6 +783,18 @@ export function Settings() {
           Removes all stored data and restarts onboarding without seed data.
         </p>
       </section>
+
+      <section className="px-4 pb-10 pt-2 text-center">
+        <p className="text-xs text-bark/40 font-body leading-relaxed">
+          Art acknowledgements · Cottage &amp; environment tiles by{' '}
+          <a href="http://antarcticbees.itch.io" target="_blank" rel="noopener noreferrer"
+            className="underline hover:text-bark/60 transition-colors">antarcticbees</a>
+          {' '}· Character base by{' '}
+          <a href="https://pixelgnome.itch.io" target="_blank" rel="noopener noreferrer"
+            className="underline hover:text-bark/60 transition-colors">pixelgnome</a>
+          {' '}· Both modified &amp; recolored by me :)
+        </p>
+      </section>
       </div>
     </div>
   );

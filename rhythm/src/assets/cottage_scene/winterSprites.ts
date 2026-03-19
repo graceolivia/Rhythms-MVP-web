@@ -87,6 +87,11 @@ export const snowyPath = {
   bottomRight:  { sx: 336, sy: 176 },  // col 21, row 11
 };
 
+export const snowPiles = [
+  { col: 13, row: 18, sx: 208, sy: 288 },
+  { col: 14, row: 18, sx: 224, sy: 288 },
+];
+
 export const mailbox = [
   { col: 17, row: 14, sx: 272, sy: 224 },
   { col: 17, row: 13, sx: 272, sy: 208 },

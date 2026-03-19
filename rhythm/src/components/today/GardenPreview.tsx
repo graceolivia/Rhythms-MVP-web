@@ -26,8 +26,8 @@ import sunPng from '../../assets/sky/sun2.png';
 import moonPng from '../../assets/sky/16moon.png';
 import daySkyPng from '../../assets/sky/sky2.png';
 import nightSkyPng from '../../assets/sky/nightsky.png';
-import winterSheetPng from '../../assets/cottage_scene/farm_winter.png';
-import { winterGroundDark, house_small, fencePieces, fenceDoorOpening, snowyPath } from '../../assets/cottage_scene/winterSprites';
+import winterSheetPng from '../../assets/cottage_scene/farm_winter_recolor.png';
+import { winterGroundDark, house_small, fencePieces, fenceDoorOpening, snowyPath, snowPiles } from '../../assets/cottage_scene/winterSprites';
 import { CharacterSprite, ROW_IDLE_BOUNCE_FRONT, ROW_IDLE_BOUNCE_SIDE, ROW_IDLE_BOUNCE_BACK } from '../character/CharacterSprite';
 import { useCharacterStore } from '../../stores/useCharacterStore';
 
@@ -118,37 +118,39 @@ function isWalkable(px: number, py: number): boolean {
 }
 
 // ── Winter ground tiles ───────────────────────────────────────────────────────
-// 16×16 tiles from farm_winter.png, drawn at 1px = 1 scene-px (outer CSS scale handles display size).
-// Canvas covers y=HORIZON_Y → FULL_H, x=0 → FULL_W (30 cols × 16 rows at 16px/tile).
-const GROUND_TILE = 16;
+// 16×16 source tiles from farm_winter.png, drawn at 2× scale (32px dest) to match fence/path art.
+// Canvas covers y=HORIZON_Y → FULL_H, x=0 → FULL_W (15 cols × 8 rows at 32px/tile).
+const GROUND_TILE     = 16;  // source tile size in spritesheet
+const GROUND_TILE_DST = 32;  // destination tile size in scene (2× scale)
 // Derived at runtime once the layout constants above are defined:
-const GROUND_COLS = FULL_W / GROUND_TILE;                              // 30
-const GROUND_ROWS = (FULL_H - HORIZON_Y) / GROUND_TILE;               // 16
-const GARDEN_COL_START = 0;                                            // left border sits under fence
-const GARDEN_COL_END   = (FENCE + GRID_W) / GROUND_TILE - 1;          // 27
-const GARDEN_ROW_START = (COTTAGE_PAD - HORIZON_Y) / GROUND_TILE;     // 2
-// Path occupies garden grid cols 6–8 → ground tile cols 14–19
-const GROUND_PATH_COL_START = (FENCE + 6 * CELL) / GROUND_TILE;       // 14
-const GROUND_PATH_COL_END   = (FENCE + 9 * CELL) / GROUND_TILE - 1;   // 19
-const GARDEN_ROW_END   = (COTTAGE_PAD - HORIZON_Y + GRID_H) / GROUND_TILE;     // 14
+const GROUND_COLS = FULL_W / GROUND_TILE_DST;                              // 15
+const GROUND_ROWS = (FULL_H - HORIZON_Y) / GROUND_TILE_DST;               // 8
+const GARDEN_COL_START = 0;                                                // left border sits under fence
+const GARDEN_COL_END   = GROUND_COLS - 1;                                  // 14 — mirrors left, sits under right fence
+const GARDEN_ROW_START = (COTTAGE_PAD - HORIZON_Y) / GROUND_TILE_DST;     // 1
+// Path occupies garden grid cols 6–8 → ground tile cols 7–9
+const GROUND_PATH_COL_START = (FENCE + 6 * CELL) / GROUND_TILE_DST;       // 7
+const GROUND_PATH_COL_END   = (FENCE + 9 * CELL) / GROUND_TILE_DST - 1;   // 9
+const GARDEN_ROW_END   = (COTTAGE_PAD - HORIZON_Y + GRID_H) / GROUND_TILE_DST;  // 7
 
 function getGroundTile(col: number, row: number): { sx: number; sy: number } {
   const inCol = col >= GARDEN_COL_START && col <= GARDEN_COL_END;
   const inRow = row >= GARDEN_ROW_START && row <= GARDEN_ROW_END;
   if (!inCol || !inRow) return winterGroundDark.solidSnow;
-  const underLeftFence = col === 0; // leftmost ground tile only, under the left fence
+  const underLeftFence  = col === 0;                // leftmost tile, under left fence
+  const underRightFence = col === GROUND_COLS - 1;  // rightmost tile, under right fence
   if (row === GARDEN_ROW_START) {
-    if (underLeftFence)           return winterGroundDark.topLeft;
-    if (col === GARDEN_COL_END)   return winterGroundDark.topRight;
+    if (underLeftFence)  return winterGroundDark.topLeft;
+    if (underRightFence) return winterGroundDark.topRight;
     return winterGroundDark.topCenter;
   }
   if (row === GARDEN_ROW_END) {
-    if (underLeftFence)           return winterGroundDark.bottomLeft;
-    if (col === GARDEN_COL_END)   return winterGroundDark.bottomRight;
+    if (underLeftFence)  return winterGroundDark.bottomLeft;
+    if (underRightFence) return winterGroundDark.bottomRight;
     return winterGroundDark.bottomCenter;
   }
-  if (underLeftFence) return winterGroundDark.midLeft;
-  if (col === GARDEN_COL_END)   return winterGroundDark.midRight;
+  if (underLeftFence)  return winterGroundDark.midLeft;
+  if (underRightFence) return winterGroundDark.midRight;
   if (col >= GROUND_PATH_COL_START && col <= GROUND_PATH_COL_END) return winterGroundDark.dirt;
   return winterGroundDark.dirt;
 }
@@ -177,7 +179,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const keysRef = useRef<Set<string>>(new Set());
   const rafRef = useRef(0);
   const rustleRef = useRef<Map<string, number>>(new Map());
-  const groundCanvasRef = useRef<HTMLCanvasElement>(null);
+  const groundCanvasRef    = useRef<HTMLCanvasElement>(null);
+  const snowPilesCanvasRef = useRef<HTMLCanvasElement>(null);
   const houseCanvasRef = useRef<HTMLCanvasElement>(null);
   const pathCanvasRef  = useRef<HTMLCanvasElement>(null);
   const topFenceRef    = useRef<HTMLCanvasElement>(null);
@@ -198,7 +201,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         for (let col = 0; col < GROUND_COLS; col++) {
           const { sx, sy } = getGroundTile(col, row);
           ctx.drawImage(img, sx, sy, GROUND_TILE, GROUND_TILE,
-            col * GROUND_TILE, row * GROUND_TILE, GROUND_TILE, GROUND_TILE);
+            col * GROUND_TILE_DST, row * GROUND_TILE_DST, GROUND_TILE_DST, GROUND_TILE_DST);
         }
       }
     };
@@ -220,6 +223,25 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         const dy = (t.row - HOUSE_MIN_ROW) * HOUSE_TILE;
         ctx.drawImage(img, t.sx, t.sy, HOUSE_TILE, HOUSE_TILE, dx, dy, HOUSE_TILE, HOUSE_TILE);
       });
+    };
+    img.src = winterSheetPng;
+  }, []);
+
+  // Draw snow piles on their own canvas so they can sit above HORIZON_Y
+  useEffect(() => {
+    const canvas = snowPilesCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
+      for (let x = 0; x < FULL_W; x += snowPiles.length * GROUND_TILE_DST) {
+        snowPiles.forEach((t, i) => {
+          ctx.drawImage(img, t.sx, t.sy, GROUND_TILE, GROUND_TILE,
+            x + i * GROUND_TILE_DST, 0, GROUND_TILE_DST, GROUND_TILE_DST);
+        });
+      }
     };
     img.src = winterSheetPng;
   }, []);
@@ -583,6 +605,13 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
             {format(now, 'EEEE')} &nbsp;·&nbsp; ☀ {format(sunrise, 'h:mm a')}
           </p>
         </div>
+
+        {/* ── Snow piles — tiled just above the horizon ── */}
+        <canvas
+          ref={snowPilesCanvasRef}
+          width={FULL_W} height={GROUND_TILE_DST}
+          style={{ position: 'absolute', top: HORIZON_Y - 32, left: 0, width: FULL_W, height: GROUND_TILE_DST, imageRendering: 'pixelated', zIndex: 2, pointerEvents: 'none' }}
+        />
 
         {/* ── Winter ground (snow perimeter + dirt garden interior) ── */}
         <canvas
