@@ -47,10 +47,9 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
   },
   {
     id: 'morning-close',
-    title: 'Morning Close',
+    title: 'Morning Routine',
     description: 'Complete your morning routine from start to finish — a calm, intentional start to the day.',
     type: 'daily-routine',
-    groupTitle: 'Morning Routine',
     targetCount: 1,
     flowerReward: 'daily-daisy',
     category: 'other',
@@ -119,13 +118,18 @@ export function getGrowthStage(progress: number, target: number): GrowthStage {
 interface ChallengeState {
   activeChallenges: ActiveChallenge[];
   completedChallengeIds: string[];
+  savedStepsByTemplate: Record<string, string[]>;
 
-  plantChallenge: (templateId: string, plotIndex: number, customStepTitles?: string[]) => string | null;
+  plantChallenge: (templateId: string, plotIndex: number, customStepTitles?: string[], repeatInterval?: 'daily' | 'weekly') => string | null;
   recordProgress: (challengeId: string) => 'progressed' | 'bloomed' | 'already-recorded' | 'not-found';
   abandonChallenge: (challengeId: string) => void;
   getActiveByPlot: (plotIndex: number) => ActiveChallenge | undefined;
   getTemplate: (templateId: string) => ChallengeTemplate | undefined;
   clearChallengeState: () => void;
+  saveStepsForTemplate: (templateId: string, steps: string[]) => void;
+  addSeededTask: (challengeId: string, title: string) => void;
+  removeSeededTask: (challengeId: string, taskId: string) => void;
+  processRepeatChallenges: () => void;
 }
 
 export const useChallengeStore = create<ChallengeState>()(
@@ -133,8 +137,9 @@ export const useChallengeStore = create<ChallengeState>()(
     (set, get) => ({
       activeChallenges: [],
       completedChallengeIds: [],
+      savedStepsByTemplate: {},
 
-      plantChallenge: (templateId, plotIndex, customStepTitles?) => {
+      plantChallenge: (templateId, plotIndex, customStepTitles?, repeatInterval?) => {
         const state = get();
         const template = CHALLENGE_TEMPLATES.find(t => t.id === templateId);
         if (!template) return null;
@@ -197,10 +202,14 @@ export const useChallengeStore = create<ChallengeState>()(
           dailyRoutineTarget: template.type === 'daily-routine'
             ? (seededTaskIds.length || template.targetCount)
             : undefined,
+          repeatInterval,
         };
 
         set((s) => ({
           activeChallenges: [...s.activeChallenges, challenge],
+          ...(customStepTitles?.length
+            ? { savedStepsByTemplate: { ...s.savedStepsByTemplate, [templateId]: customStepTitles } }
+            : {}),
         }));
 
         return id;
@@ -299,6 +308,107 @@ export const useChallengeStore = create<ChallengeState>()(
 
       clearChallengeState: () => {
         set({ activeChallenges: [], completedChallengeIds: [] });
+      },
+
+      saveStepsForTemplate: (templateId, steps) => {
+        set(s => ({
+          savedStepsByTemplate: { ...s.savedStepsByTemplate, [templateId]: steps },
+        }));
+      },
+
+      addSeededTask: (challengeId, title) => {
+        const state = get();
+        const challenge = state.activeChallenges.find(c => c.id === challengeId);
+        if (!challenge) return;
+        const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
+        if (!template) return;
+
+        const taskStore = useTaskStore.getState();
+        const taskId = taskStore.addTask({
+          type: 'standard',
+          title,
+          tier: 'todo',
+          scheduledTime: null,
+          recurrence: 'daily',
+          napContext: null,
+          isActive: true,
+          category: template.category,
+          triggeredBy: null,
+        });
+        taskStore.generateDailyInstances(new Date());
+
+        const newSeededTaskIds = [...(challenge.seededTaskIds ?? []), taskId];
+        set(s => ({
+          activeChallenges: s.activeChallenges.map(c =>
+            c.id === challengeId
+              ? {
+                  ...c,
+                  seededTaskIds: newSeededTaskIds,
+                  dailyRoutineTarget: template.type === 'daily-routine'
+                    ? newSeededTaskIds.length
+                    : c.dailyRoutineTarget,
+                }
+              : c
+          ),
+        }));
+      },
+
+      removeSeededTask: (challengeId, taskId) => {
+        const state = get();
+        const challenge = state.activeChallenges.find(c => c.id === challengeId);
+        if (!challenge) return;
+        const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
+
+        useTaskStore.getState().updateTask(taskId, { isActive: false });
+
+        const newSeededTaskIds = (challenge.seededTaskIds ?? []).filter(id => id !== taskId);
+        set(s => ({
+          activeChallenges: s.activeChallenges.map(c =>
+            c.id === challengeId
+              ? {
+                  ...c,
+                  seededTaskIds: newSeededTaskIds,
+                  dailyRoutineTarget: template?.type === 'daily-routine'
+                    ? newSeededTaskIds.length
+                    : c.dailyRoutineTarget,
+                }
+              : c
+          ),
+        }));
+      },
+
+      processRepeatChallenges: () => {
+        const state = get();
+        const today = format(new Date(), 'yyyy-MM-dd');
+
+        // Group bloomed challenges by templateId — only consider the most recently bloomed
+        const bloomedByTemplate = new Map<string, ActiveChallenge>();
+        for (const c of state.activeChallenges) {
+          if (c.status !== 'bloomed' || !c.repeatInterval || !c.bloomedDate) continue;
+          const existing = bloomedByTemplate.get(c.templateId);
+          if (!existing || c.bloomedDate > existing.bloomedDate!) {
+            bloomedByTemplate.set(c.templateId, c);
+          }
+        }
+
+        for (const [templateId, c] of bloomedByTemplate) {
+          // Skip if already has a growing version
+          if (state.activeChallenges.some(a => a.templateId === templateId && a.status === 'growing')) continue;
+
+          let shouldReplant = false;
+          if (c.repeatInterval === 'daily') {
+            shouldReplant = c.bloomedDate! < today;
+          } else if (c.repeatInterval === 'weekly') {
+            const bloomDate = new Date(c.bloomedDate!);
+            const daysSince = Math.floor((Date.now() - bloomDate.getTime()) / (1000 * 60 * 60 * 24));
+            shouldReplant = daysSince >= 7;
+          }
+
+          if (shouldReplant) {
+            const savedSteps = state.savedStepsByTemplate[templateId];
+            get().plantChallenge(templateId, c.plotIndex, savedSteps, c.repeatInterval);
+          }
+        }
       },
     }),
     {

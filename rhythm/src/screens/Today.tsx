@@ -25,6 +25,7 @@ import { UpNextBlocks } from '../components/today/UpNextBlocks';
 import { ChoreQueueBanner } from '../components/today/ChoreQueueBanner';
 import { useActiveBlock } from '../hooks/useActiveBlock';
 import { useAutoComplete } from '../hooks/useAutoComplete';
+import { useRepeatChallenges } from '../hooks/useRepeatChallenges';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../stores/useChallengeStore';
 import type { Task, TaskInstance, TaskTier, NapContext, CareContext } from '../types';
@@ -319,6 +320,9 @@ export function Today() {
 
   // Auto-complete past fixed-schedule tasks
   useAutoComplete();
+
+  // Auto-replant challenges with a repeat interval
+  useRepeatChallenges();
 
   // Generate today's instances on mount
   useEffect(() => {

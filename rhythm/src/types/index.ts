@@ -304,6 +304,8 @@ export interface ActiveChallenge {
   seededTaskIds?: string[];
   /** For daily-routine: effective target = number of seeded tasks at plant time */
   dailyRoutineTarget?: number;
+  /** Auto-replant interval after blooming */
+  repeatInterval?: 'daily' | 'weekly';
 }
 
 // Garden

@@ -41,17 +41,20 @@ function ChallengeDetailModal({
   noSlotsAvailable,
 }: {
   template: ChallengeTemplate;
-  onPlant: (customStepTitles?: string[]) => void;
+  onPlant: (customStepTitles?: string[], repeatInterval?: 'daily' | 'weekly') => void;
   onClose: () => void;
   alreadyActive: boolean;
   noSlotsAvailable: boolean;
 }) {
+  const savedStepsByTemplate = useChallengeStore(s => s.savedStepsByTemplate);
   const diff = DIFFICULTY_STYLE[template.difficulty];
   const flowerInfo = FLOWER_CATALOG[template.flowerReward];
   const hasSteps = template.seedTasks && template.seedTasks.length > 0;
-  const [steps, setSteps] = useState<string[]>(
-    () => template.seedTasks?.map(s => s.title) ?? []
-  );
+  const [steps, setSteps] = useState<string[]>(() => {
+    const saved = savedStepsByTemplate[template.id];
+    return saved?.length ? saved : (template.seedTasks?.map(s => s.title) ?? []);
+  });
+  const [repeatInterval, setRepeatInterval] = useState<'daily' | 'weekly' | null>(null);
 
   const updateStep = (i: number, value: string) =>
     setSteps(prev => prev.map((s, idx) => idx === i ? value : s));
@@ -124,6 +127,27 @@ function ChallengeDetailModal({
           </div>
         )}
 
+        {/* Repeat interval */}
+        <div className="mb-4">
+          <p className="text-xs text-bark/50 mb-2">Repeat after blooming</p>
+          <div className="flex gap-2">
+            {(['none', 'daily', 'weekly'] as const).map(opt => (
+              <button
+                key={opt}
+                onClick={() => setRepeatInterval(opt === 'none' ? null : opt)}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  (opt === 'none' && repeatInterval === null) ||
+                  (opt !== 'none' && repeatInterval === opt)
+                    ? 'bg-sage/15 border-sage/40 text-sage'
+                    : 'bg-parchment/60 border-bark/10 text-bark/40 hover:text-bark/60'
+                }`}
+              >
+                {opt === 'none' ? 'No repeat' : opt === 'daily' ? 'Daily' : 'Weekly'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Reward preview */}
         <div className="bg-parchment/60 rounded-lg p-3 mb-5 flex items-center gap-3">
           <SpriteSheet
@@ -145,7 +169,10 @@ function ChallengeDetailModal({
           <p className="text-center text-sm text-bark/50">All 4 plots are full — complete or abandon a challenge first</p>
         ) : (
           <button
-            onClick={() => onPlant(hasSteps ? steps.filter(s => s.trim()) : undefined)}
+            onClick={() => onPlant(
+              hasSteps ? steps.filter(s => s.trim()) : undefined,
+              repeatInterval ?? undefined,
+            )}
             disabled={hasSteps && steps.filter(s => s.trim()).length === 0}
             className="w-full py-3 bg-sage text-cream rounded-xl font-medium text-sm hover:bg-sage/90 transition-colors disabled:opacity-40"
           >
@@ -161,6 +188,8 @@ function ChallengeDetailModal({
 // Active Challenge Card
 // ===========================================
 
+type StepEntry = { taskId?: string; title: string };
+
 function EditStepsModal({
   challenge,
   onClose,
@@ -170,22 +199,49 @@ function EditStepsModal({
 }) {
   const tasks = useTaskStore(s => s.tasks);
   const updateTask = useTaskStore(s => s.updateTask);
+  const addSeededTask = useChallengeStore(s => s.addSeededTask);
+  const removeSeededTask = useChallengeStore(s => s.removeSeededTask);
+  const saveStepsForTemplate = useChallengeStore(s => s.saveStepsForTemplate);
 
   const seededTasks = (challenge.seededTaskIds ?? [])
     .map(id => tasks.find(t => t.id === id))
     .filter((t): t is NonNullable<typeof t> => !!t);
 
-  const [steps, setSteps] = useState<string[]>(() => seededTasks.map(t => t.title));
+  const [entries, setEntries] = useState<StepEntry[]>(
+    () => seededTasks.map(t => ({ taskId: t.id, title: t.title }))
+  );
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
 
-  const updateStep = (i: number, value: string) =>
-    setSteps(prev => prev.map((s, idx) => idx === i ? value : s));
+  const updateEntry = (i: number, value: string) =>
+    setEntries(prev => prev.map((e, idx) => idx === i ? { ...e, title: value } : e));
+
+  const removeEntry = (i: number) => {
+    const entry = entries[i];
+    if (entry.taskId) setRemovedIds(prev => [...prev, entry.taskId!]);
+    setEntries(prev => prev.filter((_, idx) => idx !== i));
+  };
+
+  const addEntry = () => setEntries(prev => [...prev, { title: '' }]);
 
   const handleSave = () => {
-    seededTasks.forEach((task, i) => {
-      if (steps[i] !== undefined && steps[i].trim() && steps[i] !== task.title) {
-        updateTask(task.id, { title: steps[i].trim() });
+    // Update existing task titles
+    entries.forEach(entry => {
+      if (entry.taskId) {
+        const orig = seededTasks.find(t => t.id === entry.taskId);
+        if (orig && entry.title.trim() && entry.title.trim() !== orig.title) {
+          updateTask(entry.taskId, { title: entry.title.trim() });
+        }
       }
     });
+    // Remove deselected tasks
+    removedIds.forEach(id => removeSeededTask(challenge.id, id));
+    // Add new tasks
+    entries.filter(e => !e.taskId && e.title.trim()).forEach(e => {
+      addSeededTask(challenge.id, e.title.trim());
+    });
+    // Persist for next planting
+    const finalTitles = entries.filter(e => e.title.trim()).map(e => e.title.trim());
+    saveStepsForTemplate(challenge.templateId, finalTitles);
     onClose();
   };
 
@@ -202,24 +258,43 @@ function EditStepsModal({
         <h2 className="font-display text-lg text-bark mb-1">Edit steps</h2>
         <p className="text-xs text-bark/50 mb-4">Changes take effect on your Today list</p>
 
-        <div className="space-y-2 mb-5">
-          {steps.map((step, i) => (
+        <div className="space-y-2 mb-3">
+          {entries.map((entry, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="text-xs text-bark/30 w-4 text-right shrink-0">{i + 1}</span>
               <input
                 type="text"
-                value={step}
-                onChange={e => updateStep(i, e.target.value)}
+                value={entry.title}
+                onChange={e => updateEntry(i, e.target.value)}
                 placeholder={`Step ${i + 1}`}
                 className="flex-1 bg-parchment/60 border border-bark/10 rounded-lg px-3 py-2 text-sm text-bark placeholder-bark/30 focus:outline-none focus:border-sage/50"
               />
+              {entries.length > 1 && (
+                <button
+                  onClick={() => removeEntry(i)}
+                  className="shrink-0 text-bark/25 hover:text-terracotta/60 transition-colors"
+                  aria-label="Remove step"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
             </div>
           ))}
         </div>
 
         <button
+          onClick={addEntry}
+          className="w-full mb-5 py-1.5 border border-dashed border-bark/20 rounded-lg text-xs text-bark/40 hover:text-bark/60 hover:border-bark/30 transition-colors"
+        >
+          + Add a step
+        </button>
+
+        <button
           onClick={handleSave}
-          className="w-full py-3 bg-sage text-cream rounded-xl font-medium text-sm hover:bg-sage/90 transition-colors"
+          disabled={entries.filter(e => e.title.trim()).length === 0}
+          className="w-full py-3 bg-sage text-cream rounded-xl font-medium text-sm hover:bg-sage/90 transition-colors disabled:opacity-40"
         >
           Save
         </button>
@@ -252,7 +327,14 @@ function ActiveChallengeCard({ challenge }: { challenge: ActiveChallenge }) {
           animate={challenge.status === 'bloomed' ? 'none' : 'idle'}
         />
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm text-bark truncate">{template.title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-sm text-bark truncate">{template.title}</h3>
+            {challenge.repeatInterval && (
+              <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-sage/10 text-sage/70">
+                {challenge.repeatInterval}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-bark/50">
             {challenge.totalProgress}/{template.targetCount}
             {template.type === 'streak' ? ' days' : ' done'}
@@ -413,12 +495,12 @@ export function Challenges() {
   // Group available by category
   const categories = Array.from(new Set(available.map(t => t.category)));
 
-  const handlePlant = (template: ChallengeTemplate, customStepTitles?: string[]) => {
+  const handlePlant = (template: ChallengeTemplate, customStepTitles?: string[], repeatInterval?: 'daily' | 'weekly') => {
     // Find first available plot
     const nextPlot = [0, 1, 2, 3].find(i => !usedPlots.includes(i));
     if (nextPlot === undefined) return;
 
-    plantChallenge(template.id, nextPlot, customStepTitles);
+    plantChallenge(template.id, nextPlot, customStepTitles, repeatInterval);
     setSelectedTemplate(null);
     navigate('/');
   };
@@ -552,7 +634,7 @@ export function Challenges() {
       {selectedTemplate && (
         <ChallengeDetailModal
           template={selectedTemplate}
-          onPlant={(customStepTitles) => handlePlant(selectedTemplate, customStepTitles)}
+          onPlant={(customStepTitles, repeatInterval) => handlePlant(selectedTemplate, customStepTitles, repeatInterval)}
           onClose={() => setSelectedTemplate(null)}
           alreadyActive={activeTemplateIds.has(selectedTemplate.id)}
           noSlotsAvailable={noSlotsAvailable}
