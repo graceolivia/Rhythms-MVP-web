@@ -124,7 +124,7 @@ const GROUND_TILE = 16;
 // Derived at runtime once the layout constants above are defined:
 const GROUND_COLS = FULL_W / GROUND_TILE;                              // 30
 const GROUND_ROWS = (FULL_H - HORIZON_Y) / GROUND_TILE;               // 16
-const GARDEN_COL_START = FENCE / GROUND_TILE;                          // 2
+const GARDEN_COL_START = 0;                                            // left border sits under fence
 const GARDEN_COL_END   = (FENCE + GRID_W) / GROUND_TILE - 1;          // 27
 const GARDEN_ROW_START = (COTTAGE_PAD - HORIZON_Y) / GROUND_TILE;     // 2
 // Path occupies garden grid cols 6–8 → ground tile cols 14–19
@@ -136,17 +136,18 @@ function getGroundTile(col: number, row: number): { sx: number; sy: number } {
   const inCol = col >= GARDEN_COL_START && col <= GARDEN_COL_END;
   const inRow = row >= GARDEN_ROW_START && row <= GARDEN_ROW_END;
   if (!inCol || !inRow) return winterGroundDark.solidSnow;
+  const underLeftFence = col === 0; // leftmost ground tile only, under the left fence
   if (row === GARDEN_ROW_START) {
-    if (col === GARDEN_COL_START) return winterGroundDark.topLeft;
+    if (underLeftFence)           return winterGroundDark.topLeft;
     if (col === GARDEN_COL_END)   return winterGroundDark.topRight;
     return winterGroundDark.topCenter;
   }
   if (row === GARDEN_ROW_END) {
-    if (col === GARDEN_COL_START) return winterGroundDark.bottomLeft;
+    if (underLeftFence)           return winterGroundDark.bottomLeft;
     if (col === GARDEN_COL_END)   return winterGroundDark.bottomRight;
     return winterGroundDark.bottomCenter;
   }
-  if (col === GARDEN_COL_START) return winterGroundDark.midLeft;
+  if (underLeftFence) return winterGroundDark.midLeft;
   if (col === GARDEN_COL_END)   return winterGroundDark.midRight;
   if (col >= GROUND_PATH_COL_START && col <= GROUND_PATH_COL_END) return winterGroundDark.dirt;
   return winterGroundDark.dirt;
