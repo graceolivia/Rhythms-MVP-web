@@ -708,7 +708,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           width={5 * HOUSE_TILE} height={5 * HOUSE_TILE}
           style={{
             position: 'absolute',
-            left: FENCE + 11 * CELL + 2 * HOUSE_TILE - 3 * CELL,
+            left: FENCE + 11 * CELL + 2 * HOUSE_TILE - 3 * CELL - HOUSE_TILE,
             top: COTTAGE_PAD - 3 * CELL - 4 * HOUSE_TILE + 3 * CELL - 2 * CELL - HOUSE_TILE,
             width: 5 * CELL, height: 5 * CELL,
             imageRendering: 'pixelated',
