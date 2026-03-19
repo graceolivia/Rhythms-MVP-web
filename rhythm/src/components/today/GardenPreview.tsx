@@ -26,7 +26,7 @@ import sunPng from '../../assets/sky/sun2.png';
 import moonPng from '../../assets/sky/16moon.png';
 import daySkyPng from '../../assets/sky/sky2.png';
 import nightSkyPng from '../../assets/sky/nightsky.png';
-import cottageSprite from '../../assets/cottage_scene/cottage3_resize.png';
+import cottageSprite from '../../assets/cottage_scene/arcticbees-new-house.png';
 import dirtTile from '../../assets/cottage_scene/dirt-tile.png';
 import steppingStonePath from '../../assets/cottage_scene/stepping-stone-path.png';
 import fenceSprite from '../../assets/cottage_scene/fence.png';
@@ -116,11 +116,10 @@ const DIRECTION_ROW: Record<PlayerFrame, number> = {
 // Format: 'col,row'  —  col 0 = grid left, row 0 = grid top, negative = above grid.
 // Collision is tested at the character's feet center point.
 // To add a new blocker, just add a 'col,row' string and a comment explaining what it is.
-// Cottage base just overlaps row 0 — block only that row so she can walk
-// freely in row 1 right in front of the door, but can't step into the building.
-// Left/right/top fence collision is handled by the position bounds.
+// House is 91×95px at 2× scale = 182×190px, left edge at col 6, bottom at COTTAGE_PAD.
+// Block row 0 for cols 6–11 (house footprint).
 const WALK_BLOCKED = new Set<string>([
-  '4,0', '5,0', '6,0', '7,0', '8,0',
+  '6,0', '7,0', '8,0', '9,0', '10,0', '11,0',
 ]);
 
 // Returns whether the character's feet center would land in a walkable cell
@@ -447,12 +446,12 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           zIndex: 1,
         }} />
 
-        {/* ── Cottage (bottom flush with bottom of top fence = COTTAGE_PAD) ── */}
+        {/* ── House — 2× scale (182×190px), left at col 6, bottom at grid top) ── */}
         <div style={{
-          position: 'absolute', top: COTTAGE_PAD - 116, left: FULL_W / 2 - 60,
+          position: 'absolute', top: COTTAGE_PAD - 126, left: FENCE + 5 * CELL,
           zIndex: 4,
         }}>
-          <img src={cottageSprite} alt="Cottage" width={120} height={120}
+          <img src={cottageSprite} alt="House" width={182} height={190}
             style={{ imageRendering: 'pixelated', filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))', display: 'block' }}
           />
         </div>

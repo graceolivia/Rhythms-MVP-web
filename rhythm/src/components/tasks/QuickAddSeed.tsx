@@ -1,45 +1,29 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { useTaskStore } from '../../stores/useTaskStore';
-import type { AvailabilityState, NapContext } from '../../types';
+import type { AvailabilityState, NapContext, TimeBlock } from '../../types';
 
 type FocusLevel = 'flexible' | 'can-with-awake' | 'must-with-awake' | 'needs-focus';
+type ActivePicker = 'focus' | 'timeblock' | 'overflow' | null;
 
-const FOCUS_OPTIONS: { value: FocusLevel; label: string; description: string }[] = [
-  {
-    value: 'flexible',
-    label: 'Flexible',
-    description: 'Can be done anytime',
-  },
-  {
-    value: 'can-with-awake',
-    label: 'Can Be Done With Children Awake',
-    description: 'Doesn\'t require nap time',
-  },
-  {
-    value: 'must-with-awake',
-    label: 'Must Be Done With Children Awake',
-    description: 'Needs the kids involved or awake',
-  },
-  {
-    value: 'needs-focus',
-    label: 'Needs Focus Time',
-    description: 'Must be done with children occupied or asleep',
-  },
+const FOCUS_OPTIONS: { value: FocusLevel; label: string; shortLabel: string }[] = [
+  { value: 'flexible', label: 'Flexible', shortLabel: 'Flexible' },
+  { value: 'can-with-awake', label: 'Can Be Done With Children Awake', shortLabel: 'Can w/ kids' },
+  { value: 'must-with-awake', label: 'Must Be Done With Children Awake', shortLabel: 'Must w/ kids' },
+  { value: 'needs-focus', label: 'Needs Focus Time', shortLabel: 'Needs focus' },
 ];
 
-function focusLevelToNapContext(level: FocusLevel): NapContext {
-  switch (level) {
-    case 'must-with-awake':
-      return 'both-awake';
-    case 'needs-focus':
-      return 'both-asleep';
-    case 'can-with-awake':
-      return 'any';
-    case 'flexible':
-    default:
-      return 'any';
-  }
+const TIME_BLOCK_OPTIONS: { value: TimeBlock; label: string }[] = [
+  { value: 'morning', label: 'Morning' },
+  { value: 'midday', label: 'Midday' },
+  { value: 'afternoon', label: 'Afternoon' },
+  { value: 'evening', label: 'Evening' },
+];
+
+function focusLevelToNapContext(level: FocusLevel | null): NapContext {
+  if (level === 'must-with-awake') return 'both-awake';
+  if (level === 'needs-focus') return 'both-asleep';
+  return 'any';
 }
 
 interface QuickAddSeedProps {
@@ -48,195 +32,228 @@ interface QuickAddSeedProps {
 }
 
 export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
-  const addSeed = useTaskStore((state) => state.addSeed);
-  const updateTask = useTaskStore((state) => state.updateTask);
-  const [title, setTitle] = useState('');
-  const [focusLevel, setFocusLevel] = useState<FocusLevel>('flexible');
-  const [goalTime, setGoalTime] = useState<string>('');
-  const [showTime, setShowTime] = useState(false);
-  const [isChoreQueue, setIsChoreQueue] = useState(false);
-  const [dueDate, setDueDate] = useState<string>('');
-  const [showDate, setShowDate] = useState(false);
+  const addSeed = useTaskStore((s) => s.addSeed);
+  const updateTask = useTaskStore((s) => s.updateTask);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const [title, setTitle] = useState('');
+  const [forToday, setForToday] = useState(false);
+  const [focusLevel, setFocusLevel] = useState<FocusLevel | null>(null);
+  const [timeBlock, setTimeBlock] = useState<TimeBlock | null>(null);
+  const [activePicker, setActivePicker] = useState<ActivePicker>(null);
+  // Overflow fields
+  const [customDate, setCustomDate] = useState('');
+  const [goalTime, setGoalTime] = useState('');
+  const [isChoreQueue, setIsChoreQueue] = useState(false);
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  const handleSubmit = () => {
     if (!title.trim()) return;
 
     const napContext = focusLevelToNapContext(focusLevel);
     const bestWhen: AvailabilityState[] | undefined =
       focusLevel === 'needs-focus' ? ['free', 'quiet'] : undefined;
     const trimmedTitle = title.trim();
-    addSeed(trimmedTitle, napContext, undefined, bestWhen, goalTime || null, dueDate || null);
+    const dueDate = forToday ? today : customDate || null;
 
-    // If marked as chore queue, find the just-created task and flag it
-    if (isChoreQueue) {
-      // addSeed creates a task synchronously, find it by title
-      const newTask = useTaskStore.getState().tasks.find(
-        (t) => t.title === trimmedTitle
-      );
+    addSeed(trimmedTitle, napContext, undefined, bestWhen, goalTime || null, dueDate);
+
+    if (timeBlock || isChoreQueue) {
+      const newTask = useTaskStore.getState().tasks.find((t) => t.title === trimmedTitle);
       if (newTask) {
-        updateTask(newTask.id, { isChoreQueue: true });
+        updateTask(newTask.id, {
+          ...(timeBlock ? { preferredTimeBlock: timeBlock } : {}),
+          ...(isChoreQueue ? { isChoreQueue: true } : {}),
+        });
       }
     }
 
-    // Reset form
     setTitle('');
-    setFocusLevel('flexible');
+    setForToday(false);
+    setFocusLevel(null);
+    setTimeBlock(null);
+    setActivePicker(null);
+    setCustomDate('');
     setGoalTime('');
-    setShowTime(false);
     setIsChoreQueue(false);
-    setDueDate('');
-    setShowDate(false);
     onClose();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleSubmit();
+  };
+
+  const togglePicker = (picker: ActivePicker) => {
+    setActivePicker((prev) => (prev === picker ? null : picker));
   };
 
   if (!isOpen) return null;
 
+  const chip = (active: boolean) =>
+    `inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+      active
+        ? 'bg-sage text-cream'
+        : 'bg-parchment text-bark/60 border border-bark/15'
+    }`;
+
+  const overflowActive = activePicker === 'overflow' || !!customDate || !!goalTime || isChoreQueue;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-bark/40"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-bark/40" onClick={onClose} />
 
-      {/* Modal */}
-      <div className="relative w-full max-w-lg bg-cream rounded-t-2xl p-6 pb-8 animate-slide-up">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-xl text-bark">Add to Seeds</h2>
+      <div className="relative w-full max-w-lg bg-cream rounded-t-2xl px-5 pt-5 pb-8 animate-slide-up">
+        {/* Zone 1: Text input */}
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="What needs doing?"
+          className="w-full text-lg text-bark placeholder-bark/30 bg-transparent border-none outline-none mb-4"
+          autoFocus
+        />
+
+        {/* Zone 2: Chip row */}
+        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1">
+          <button type="button" onClick={() => setForToday(!forToday)} className={chip(forToday)}>
+            today
+          </button>
+
           <button
-            onClick={onClose}
-            className="text-bark/40 hover:text-bark p-1"
+            type="button"
+            onClick={() => togglePicker('focus')}
+            className={chip(focusLevel !== null || activePicker === 'focus')}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            {focusLevel ? FOCUS_OPTIONS.find((o) => o.value === focusLevel)!.shortLabel : 'focus level'}
+            <span className="opacity-50 text-xs">▾</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => togglePicker('timeblock')}
+            className={chip(timeBlock !== null || activePicker === 'timeblock')}
+          >
+            {timeBlock ? TIME_BLOCK_OPTIONS.find((o) => o.value === timeBlock)!.label : 'time block'}
+            <span className="opacity-50 text-xs">▾</span>
+          </button>
+
+          <button type="button" onClick={() => togglePicker('overflow')} className={chip(overflowActive)}>
+            ···
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {/* Task title */}
-          <div className="mb-4">
-            <label className="block text-sm text-bark/70 mb-1">What needs doing?</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Clean out garage"
-              className="w-full px-4 py-3 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark"
-              autoFocus
-            />
-          </div>
-
-          {/* Due date (optional) */}
-          <div className="mb-4">
-            {!showDate ? (
+        {/* Focus picker */}
+        {activePicker === 'focus' && (
+          <div className="flex flex-wrap gap-2 mb-3 p-3 bg-parchment rounded-xl">
+            {FOCUS_OPTIONS.map((opt) => (
               <button
+                key={opt.value}
                 type="button"
-                onClick={() => { setShowDate(true); setDueDate(format(new Date(), 'yyyy-MM-dd')); }}
-                className="text-sm text-sage hover:text-sage/80 transition-colors"
+                onClick={() => {
+                  setFocusLevel(focusLevel === opt.value ? null : opt.value);
+                  setActivePicker(null);
+                }}
+                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                  focusLevel === opt.value
+                    ? 'bg-sage text-cream'
+                    : 'bg-cream text-bark/70 border border-bark/15'
+                }`}
               >
-                + Add a date
+                {opt.shortLabel}
               </button>
-            ) : (
-              <div className="flex items-center gap-3">
-                <label className="text-sm text-bark/70 shrink-0">Do on</label>
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="flex-1 px-4 py-2 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark text-sm"
-                />
+            ))}
+          </div>
+        )}
+
+        {/* Time block picker */}
+        {activePicker === 'timeblock' && (
+          <div className="flex flex-wrap gap-2 mb-3 p-3 bg-parchment rounded-xl">
+            {TIME_BLOCK_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  setTimeBlock(timeBlock === opt.value ? null : opt.value);
+                  setActivePicker(null);
+                }}
+                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                  timeBlock === opt.value
+                    ? 'bg-sage text-cream'
+                    : 'bg-cream text-bark/70 border border-bark/15'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Overflow panel */}
+        {activePicker === 'overflow' && (
+          <div className="mb-3 p-3 bg-parchment rounded-xl space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-bark/60 w-20 shrink-0">Due date</span>
+              <input
+                type="date"
+                value={customDate}
+                onChange={(e) => {
+                  setCustomDate(e.target.value);
+                  if (e.target.value) setForToday(false);
+                }}
+                className="flex-1 text-sm bg-cream px-3 py-1.5 rounded-lg border border-bark/15 text-bark focus:outline-none focus:border-sage"
+              />
+              {customDate && (
                 <button
                   type="button"
-                  onClick={() => { setShowDate(false); setDueDate(''); }}
+                  onClick={() => setCustomDate('')}
                   className="text-bark/40 hover:text-bark text-sm"
                 >
-                  Remove
+                  ×
                 </button>
-              </div>
-            )}
-          </div>
-
-          {/* Goal time (optional) */}
-          <div className="mb-4">
-            {!showTime ? (
-              <button
-                type="button"
-                onClick={() => setShowTime(true)}
-                className="text-sm text-sage hover:text-sage/80 transition-colors"
-              >
-                + Add a goal time
-              </button>
-            ) : (
-              <div className="flex items-center gap-3">
-                <label className="text-sm text-bark/70 shrink-0">By</label>
-                <input
-                  type="time"
-                  value={goalTime}
-                  onChange={(e) => setGoalTime(e.target.value)}
-                  className="flex-1 px-4 py-2 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => { setShowTime(false); setGoalTime(''); }}
-                  className="text-bark/40 hover:text-bark text-sm"
-                >
-                  Remove
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Focus level */}
-          <div className="mb-6">
-            <label className="block text-sm text-bark/70 mb-2">Focus level</label>
-            <div className="space-y-2">
-              {FOCUS_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setFocusLevel(option.value)}
-                  className={`w-full text-left p-3 rounded-xl transition-colors ${
-                    focusLevel === option.value
-                      ? 'bg-sage/20 border-2 border-sage'
-                      : 'bg-parchment border-2 border-transparent'
-                  }`}
-                >
-                  <p className="font-medium text-bark text-sm">{option.label}</p>
-                  <p className="text-xs text-bark/50">{option.description}</p>
-                </button>
-              ))}
+              )}
             </div>
-          </div>
-
-          {/* Chore Queue Toggle */}
-          <div className="mb-6">
-            <label className="flex items-center gap-3 p-3 rounded-xl bg-parchment cursor-pointer">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-bark/60 w-20 shrink-0">Goal time</span>
+              <input
+                type="time"
+                value={goalTime}
+                onChange={(e) => setGoalTime(e.target.value)}
+                className="flex-1 text-sm bg-cream px-3 py-1.5 rounded-lg border border-bark/15 text-bark focus:outline-none focus:border-sage"
+              />
+              {goalTime && (
+                <button
+                  type="button"
+                  onClick={() => setGoalTime('')}
+                  className="text-bark/40 hover:text-bark text-sm"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={isChoreQueue}
                 onChange={(e) => setIsChoreQueue(e.target.checked)}
                 className="rounded border-bark/20"
               />
-              <div>
-                <p className="font-medium text-bark text-sm">Add to chore queue</p>
-                <p className="text-xs text-bark/50">
-                  One random chore from the queue is picked daily
-                </p>
-              </div>
+              <span className="text-sm text-bark/70">Add to chore queue</span>
             </label>
           </div>
+        )}
 
-          {/* Submit */}
+        {/* Zone 3: Action button */}
+        <div className="flex justify-end pt-1">
           <button
-            type="submit"
+            type="button"
+            onClick={handleSubmit}
             disabled={!title.trim()}
-            className="w-full py-3 bg-sage text-cream rounded-xl font-medium hover:bg-sage/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 bg-sage text-cream rounded-xl font-medium text-sm hover:bg-sage/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Add Seed
+            {forToday ? 'Plant for today' : 'Save to tray'}
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );
