@@ -27,7 +27,7 @@ import moonPng from '../../assets/sky/16moon.png';
 import daySkyPng from '../../assets/sky/sky2.png';
 import nightSkyPng from '../../assets/sky/nightsky.png';
 import winterSheetPng from '../../assets/cottage_scene/farm_winter_recolor.png';
-import { winterGroundDark, house_small, fencePieces, fenceDoorOpening, snowyPath, snowPiles, right_tree, pine_tree } from '../../assets/cottage_scene/winterSprites';
+import { winterGroundDark, house_small, fencePieces, fenceDoorOpening, snowyPath, snowPiles, right_tree, pine_tree, mailbox } from '../../assets/cottage_scene/winterSprites';
 import { CharacterSprite, ROW_IDLE_BOUNCE_FRONT, ROW_IDLE_BOUNCE_SIDE, ROW_IDLE_BOUNCE_BACK } from '../character/CharacterSprite';
 import { useCharacterStore } from '../../stores/useCharacterStore';
 
@@ -104,16 +104,16 @@ const DIRECTION_ROW: Record<PlayerFrame, number> = {
 // Format: 'col,row'  —  col 0 = grid left, row 0 = grid top, negative = above grid.
 // Collision is tested at the character's feet center point.
 // To add a new blocker, just add a 'col,row' string and a comment explaining what it is.
-// House is 91×95px at 2× scale = 182×190px, left edge at col 6, bottom at COTTAGE_PAD.
-// Block row 0 for cols 6–11 (house footprint).
+// Pine tree occupies (0,0)–(2,0). House porch occupies row 0 cols 5–7, 9–10.
+// Row -1 and above is blocked via y-clamp in the game loop.
 const WALK_BLOCKED = new Set<string>([
-  '6,0', '7,0', '8,0', '9,0', '10,0', '11,0',
+  '5,0', '6,0', '7,0', '8,0', '9,0', '10,0', // house porch
 ]);
 
 // Returns whether the character's feet center would land in a walkable cell
 function isWalkable(px: number, py: number): boolean {
   const col = Math.floor((px + PLAYER_CHAR_CX) / CELL);
-  const row = Math.floor((py + PLAYER_CHAR_FEET_Y) / CELL);
+  const row = Math.floor((py + PLAYER_CHAR_FEET_Y - HOUSE_TILE) / CELL);
   return !WALK_BLOCKED.has(`${col},${row}`);
 }
 
@@ -189,6 +189,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const bottomFenceRef = useRef<HTMLCanvasElement>(null);
   const rightTreeRef   = useRef<HTMLCanvasElement>(null);
   const pineTreeRef    = useRef<HTMLCanvasElement>(null);
+  const mailboxRef     = useRef<HTMLCanvasElement>(null);
 
   // Draw winter ground tiles (snow perimeter + dirt garden interior)
   useEffect(() => {
@@ -244,6 +245,24 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       right_tree.forEach(t => {
         ctx.drawImage(img, t.sx, t.sy, S, S,
           (t.col - minCol) * D, (t.row - minRow) * D, D, D);
+      });
+    };
+    img.src = winterSheetPng;
+  }, []);
+
+  // Draw mailbox (1×2 tiles at 1× draw / 2× CSS display)
+  useEffect(() => {
+    const canvas = mailboxRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
+      const S = 16, D = HOUSE_TILE;
+      const minRow = Math.min(...mailbox.map(t => t.row));
+      mailbox.forEach(t => {
+        ctx.drawImage(img, t.sx, t.sy, S, S, 0, (t.row - minRow) * D, D, D);
       });
     };
     img.src = winterSheetPng;
@@ -388,7 +407,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
         // Clamp to scene bounds (uses visible character area, not full transparent canvas)
         const nx = Math.max(-PLAYER_CHAR_CX, Math.min(GRID_W - PLAYER_CHAR_CX, x + dx));
-        const ny = Math.max(-CELL * 5,       Math.min(GRID_H + CELL - PLAYER_CHAR_FEET_Y, y + dy));
+        const ny = Math.max(-PLAYER_CHAR_FEET_Y + HOUSE_TILE, Math.min(GRID_H + CELL - PLAYER_CHAR_FEET_Y, y + dy));
         // Walkability check with wall-sliding
         if (isWalkable(nx, ny)) {
           x = nx; y = ny;
@@ -544,26 +563,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     }
   }
 
-  // gridCells: normally empty (flowers rendered in depth layers); coord labels when debugging.
+  // gridCells: empty — coord overlay is now a full-scene absolute overlay below.
   const gridCells: React.ReactElement[] = [];
-  if (SHOW_GRID_COORDS) {
-    for (let row = 0; row < GRID_ROWS; row++) {
-      for (let col = 0; col < GRID_COLS; col++) {
-        gridCells.push(
-          <div key={`coord-${col}-${row}`} style={{
-            gridColumn: col + 1, gridRow: row + 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '1px solid rgba(255,255,255,0.25)',
-            pointerEvents: 'none',
-          }}>
-            <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace', lineHeight: 1 }}>
-              {col},{row}
-            </span>
-          </div>
-        );
-      }
-    }
-  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -668,6 +669,21 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           }}
         />
 
+        {/* ── Mailbox — 1×2 tiles at 2× CSS, overlapping bottom-left fence corner ── */}
+        <canvas
+          ref={mailboxRef}
+          width={HOUSE_TILE} height={2 * HOUSE_TILE}
+          style={{
+            position: 'absolute',
+            left: FENCE + 5 * CELL,
+            top: COTTAGE_PAD + 4 * CELL + HOUSE_TILE * 3,
+            width: CELL, height: 2 * CELL,
+            imageRendering: 'pixelated',
+            zIndex: 8,
+            pointerEvents: 'none',
+          }}
+        />
+
         {/* ── Pine tree — 3×4 tiles at 2× CSS, center-bottom at garden cell (1,0) ── */}
         <canvas
           ref={pineTreeRef}
@@ -675,7 +691,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           style={{
             position: 'absolute',
             left: FENCE,
-            top: COTTAGE_PAD - 3 * CELL,
+            top: COTTAGE_PAD - 3 * CELL - Math.round(CELL * 2 / 3),
             width: 3 * CELL, height: 4 * CELL,
             imageRendering: 'pixelated',
             zIndex: 4,
@@ -853,6 +869,39 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           width={FULL_W} height={FENCE}
           style={{ position: 'absolute', top: COTTAGE_PAD + GRID_H, left: 0, width: FULL_W, height: FENCE, imageRendering: 'pixelated', zIndex: 7, pointerEvents: 'none' }}
         />
+
+        {/* ── Full-scene coordinate overlay (dev only) ── */}
+        {SHOW_GRID_COORDS && (() => {
+          const cells = [];
+          // Cols -1..13: col -1 = left fence, cols 0-12 = garden, col 13 = right fence
+          // Rows -4..6: rows < 0 = sky, rows 0-5 = garden, row 6 = bottom fence strip
+          for (let row = -4; row <= 6; row++) {
+            for (let col = -1; col <= 13; col++) {
+              const inGarden = col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS;
+              cells.push(
+                <div key={`sg-${col}-${row}`} style={{
+                  position: 'absolute',
+                  left: FENCE + col * CELL,
+                  top: COTTAGE_PAD + row * CELL,
+                  width: CELL, height: CELL,
+                  border: `1px solid ${inGarden ? 'rgba(255,255,255,0.3)' : 'rgba(160,200,255,0.2)'}`,
+                  boxSizing: 'border-box',
+                  pointerEvents: 'none',
+                  zIndex: 20,
+                }}>
+                  <span style={{
+                    position: 'absolute', top: 2, left: 2,
+                    fontSize: 7, fontFamily: 'monospace', lineHeight: 1,
+                    color: inGarden ? 'rgba(255,255,255,0.8)' : 'rgba(180,210,255,0.7)',
+                  }}>
+                    {col},{row}
+                  </span>
+                </div>
+              );
+            }
+          }
+          return cells;
+        })()}
 
       </div>
     </div>

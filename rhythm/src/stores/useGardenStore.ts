@@ -21,11 +21,11 @@ export const GRID_ROWS = 6;
 export const PLOT_COLS = [2, 5, 9, 11];
 export const PLOT_ROW  = GRID_ROWS - 1; // front row (row 5)
 
-// Blocked cells where the cottage sits (top-center)
+// Blocked cells — not plantable
 export const BLOCKED_CELLS = new Set([
-  // Cottage footprint — image only visually reaches into row 0 (cols 5–7, center of 13)
-  '5,0', '6,0', '7,0',
-  // Stepping stone path — col 7, rows 1–5
+  // House porch — row 0, cols 5–7, 9–10
+  '5,0', '6,0', '7,0', '9,0', '10,0',
+  // Snowy path — col 7, all rows
   '7,1', '7,2', '7,3', '7,4', '7,5',
 ]);
 
