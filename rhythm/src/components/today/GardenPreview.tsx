@@ -27,9 +27,7 @@ import moonPng from '../../assets/sky/16moon.png';
 import daySkyPng from '../../assets/sky/sky2.png';
 import nightSkyPng from '../../assets/sky/nightsky.png';
 import winterSheetPng from '../../assets/cottage_scene/farm_winter.png';
-import steppingStonePath from '../../assets/cottage_scene/stepping-stone-path.png';
-import fenceSprite from '../../assets/cottage_scene/fence.png';
-import fenceGateSprite from '../../assets/cottage_scene/fence-with-gate.png';
+import { winterGroundDark, house_small, fencePieces, fenceDoorOpening, snowyPath } from '../../assets/cottage_scene/winterSprites';
 import { CharacterSprite, ROW_IDLE_BOUNCE_FRONT, ROW_IDLE_BOUNCE_SIDE, ROW_IDLE_BOUNCE_BACK } from '../character/CharacterSprite';
 import { useCharacterStore } from '../../stores/useCharacterStore';
 
@@ -77,18 +75,9 @@ function getSkyStyle(p: number): SkyStyle {
 
 const snap = (n: number) => Math.round(n / 2) * 2;
 
-// ── Fence tile ────────────────────────────────────────────────────────────────
-function FenceTile({ frame, src = fenceSprite, sheetFrames = 8 }: { frame: number; src?: string; sheetFrames?: number }) {
-  return (
-    <div style={{
-      width: CELL, height: CELL, flexShrink: 0,
-      backgroundImage: `url(${src})`,
-      backgroundSize: `${CELL * sheetFrames}px ${CELL}px`,
-      backgroundPosition: `${-frame * CELL}px 0px`,
-      imageRendering: 'pixelated',
-    }} />
-  );
-}
+// ── Fence tile constants ───────────────────────────────────────────────────────
+const FENCE_TILE_SRC = 16; // source px in spritesheet
+const FENCE_TILE_DST = CELL; // dest px in scene (2× scale)
 
 // ── Player character ──────────────────────────────────────────────────────────
 // Rendered at scale=2: canvas 160×128, visible character ~40×55px.
@@ -138,85 +127,38 @@ const GROUND_ROWS = (FULL_H - HORIZON_Y) / GROUND_TILE;               // 16
 const GARDEN_COL_START = FENCE / GROUND_TILE;                          // 2
 const GARDEN_COL_END   = (FENCE + GRID_W) / GROUND_TILE - 1;          // 27
 const GARDEN_ROW_START = (COTTAGE_PAD - HORIZON_Y) / GROUND_TILE;     // 2
+// Path occupies garden grid cols 6–8 → ground tile cols 14–19
+const GROUND_PATH_COL_START = (FENCE + 6 * CELL) / GROUND_TILE;       // 14
+const GROUND_PATH_COL_END   = (FENCE + 9 * CELL) / GROUND_TILE - 1;   // 19
 const GARDEN_ROW_END   = (COTTAGE_PAD - HORIZON_Y + GRID_H) / GROUND_TILE;     // 14
-
-const winterGround = {
-  solidSnow:    { sx: 448, sy: 208 },
-  topLeft:      { sx: 432, sy: 336 },
-  topCenter:    { sx: 448, sy: 336 },
-  topRight:     { sx: 464, sy: 336 },
-  midLeft:      { sx: 432, sy: 352 },
-  dirt:         { sx: 448, sy: 352 },
-  midRight:     { sx: 464, sy: 352 },
-  bottomLeft:   { sx: 432, sy: 368 },
-  bottomCenter: { sx: 448, sy: 368 },
-  bottomRight:  { sx: 464, sy: 368 },
-};
 
 function getGroundTile(col: number, row: number): { sx: number; sy: number } {
   const inCol = col >= GARDEN_COL_START && col <= GARDEN_COL_END;
   const inRow = row >= GARDEN_ROW_START && row <= GARDEN_ROW_END;
-  if (!inCol || !inRow) return winterGround.solidSnow;
+  if (!inCol || !inRow) return winterGroundDark.solidSnow;
   if (row === GARDEN_ROW_START) {
-    if (col === GARDEN_COL_START) return winterGround.topLeft;
-    if (col === GARDEN_COL_END)   return winterGround.topRight;
-    return winterGround.topCenter;
+    if (col === GARDEN_COL_START) return winterGroundDark.topLeft;
+    if (col === GARDEN_COL_END)   return winterGroundDark.topRight;
+    return winterGroundDark.topCenter;
   }
   if (row === GARDEN_ROW_END) {
-    if (col === GARDEN_COL_START) return winterGround.bottomLeft;
-    if (col === GARDEN_COL_END)   return winterGround.bottomRight;
-    return winterGround.bottomCenter;
+    if (col === GARDEN_COL_START) return winterGroundDark.bottomLeft;
+    if (col === GARDEN_COL_END)   return winterGroundDark.bottomRight;
+    return winterGroundDark.bottomCenter;
   }
-  if (col === GARDEN_COL_START) return winterGround.midLeft;
-  if (col === GARDEN_COL_END)   return winterGround.midRight;
-  return winterGround.dirt;
+  if (col === GARDEN_COL_START) return winterGroundDark.midLeft;
+  if (col === GARDEN_COL_END)   return winterGroundDark.midRight;
+  if (col >= GROUND_PATH_COL_START && col <= GROUND_PATH_COL_END) return winterGroundDark.dirt;
+  return winterGroundDark.dirt;
 }
 
 // ── House sprite ──────────────────────────────────────────────────────────────
+// house_small tile data imported from winterSprites.ts
 const HOUSE_MIN_COL = 44;
 const HOUSE_MIN_ROW = 23;
 const HOUSE_TILE = 16;
 const HOUSE_COLS = 6; // cols 44–49
 const HOUSE_ROWS = 6; // rows 23–28
-
-const house_small = [
-  { col: 46, row: 28, sx: 736, sy: 448 },
-  { col: 45, row: 28, sx: 720, sy: 448 },
-  { col: 44, row: 28, sx: 704, sy: 448 },
-  { col: 44, row: 27, sx: 704, sy: 432 },
-  { col: 45, row: 27, sx: 720, sy: 432 },
-  { col: 46, row: 27, sx: 736, sy: 432 },
-  { col: 47, row: 27, sx: 752, sy: 432 },
-  { col: 48, row: 27, sx: 768, sy: 432 },
-  { col: 48, row: 28, sx: 768, sy: 448 },
-  { col: 49, row: 28, sx: 784, sy: 448 },
-  { col: 49, row: 27, sx: 784, sy: 432 },
-  { col: 49, row: 26, sx: 784, sy: 416 },
-  { col: 48, row: 26, sx: 768, sy: 416 },
-  { col: 47, row: 26, sx: 752, sy: 416 },
-  { col: 45, row: 26, sx: 720, sy: 416 },
-  { col: 44, row: 26, sx: 704, sy: 416 },
-  { col: 49, row: 25, sx: 784, sy: 400 },
-  { col: 48, row: 25, sx: 768, sy: 400 },
-  { col: 47, row: 25, sx: 752, sy: 400 },
-  { col: 46, row: 25, sx: 736, sy: 400 },
-  { col: 46, row: 26, sx: 736, sy: 416 },
-  { col: 45, row: 25, sx: 720, sy: 400 },
-  { col: 44, row: 25, sx: 704, sy: 400 },
-  { col: 44, row: 24, sx: 704, sy: 384 },
-  { col: 45, row: 24, sx: 720, sy: 384 },
-  { col: 46, row: 24, sx: 736, sy: 384 },
-  { col: 48, row: 24, sx: 768, sy: 384 },
-  { col: 47, row: 24, sx: 752, sy: 384 },
-  { col: 47, row: 23, sx: 752, sy: 368 },
-  { col: 46, row: 23, sx: 736, sy: 368 },
-  { col: 45, row: 23, sx: 720, sy: 368 },
-  { col: 44, row: 23, sx: 704, sy: 368 },
-  { col: 49, row: 24, sx: 784, sy: 384 },
-  { col: 49, row: 23, sx: 784, sy: 368 },
-  { col: 48, row: 23, sx: 768, sy: 368 },
-  { col: 47, row: 28, sx: 752, sy: 448 },
-];
 
 // ── Debug ─────────────────────────────────────────────────────────────────────
 const SHOW_GRID_COORDS = import.meta.env.DEV; // auto-off in production
@@ -236,6 +178,11 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const rustleRef = useRef<Map<string, number>>(new Map());
   const groundCanvasRef = useRef<HTMLCanvasElement>(null);
   const houseCanvasRef = useRef<HTMLCanvasElement>(null);
+  const pathCanvasRef  = useRef<HTMLCanvasElement>(null);
+  const topFenceRef    = useRef<HTMLCanvasElement>(null);
+  const leftFenceRef   = useRef<HTMLCanvasElement>(null);
+  const rightFenceRef  = useRef<HTMLCanvasElement>(null);
+  const bottomFenceRef = useRef<HTMLCanvasElement>(null);
 
   // Draw winter ground tiles (snow perimeter + dirt garden interior)
   useEffect(() => {
@@ -272,6 +219,76 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         const dy = (t.row - HOUSE_MIN_ROW) * HOUSE_TILE;
         ctx.drawImage(img, t.sx, t.sy, HOUSE_TILE, HOUSE_TILE, dx, dy, HOUSE_TILE, HOUSE_TILE);
       });
+    };
+    img.src = winterSheetPng;
+  }, []);
+
+  // Draw snowy path tiles (3 cols wide × GRID_ROWS tall, 2× scale)
+  useEffect(() => {
+    const canvas = pathCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
+      const S = 16, D = CELL; // 16px source → 32px dest (2×)
+      const sp = snowyPath;
+      const cols = [sp.topLeft,    sp.topCenter,    sp.topRight,
+                    sp.midLeft,    sp.midCenter,    sp.midRight,
+                    sp.bottomLeft, sp.bottomCenter, sp.bottomRight];
+      for (let row = 0; row <= GRID_ROWS; row++) {
+        const tiles = row === 0 ? cols.slice(0, 3)
+                    : row === GRID_ROWS ? cols.slice(6, 9)
+                    : cols.slice(3, 6);
+        tiles.forEach((t, ci) => {
+          ctx.drawImage(img, t.sx, t.sy, S, S, ci * D, row * D, D, D);
+        });
+      }
+    };
+    img.src = winterSheetPng;
+  }, []);
+
+  // Draw winter fence tiles from spritesheet onto the four fence canvases
+  useEffect(() => {
+    const canvases = [topFenceRef.current, leftFenceRef.current, rightFenceRef.current, bottomFenceRef.current];
+    if (canvases.some(c => !c)) return;
+    const img = new Image();
+    img.onload = () => {
+      const S = FENCE_TILE_SRC, D = FENCE_TILE_DST;
+      const fp = fencePieces;
+
+      const blit = (ctx: CanvasRenderingContext2D, tile: { sx: number; sy: number }, dx: number, dy: number) => {
+        ctx.drawImage(img, tile.sx, tile.sy, S, S, dx, dy, D, D);
+      };
+
+      // Top fence — topLeft + topCenter×GRID_COLS + topRight
+      const topCtx = topFenceRef.current!.getContext('2d')!;
+      topCtx.imageSmoothingEnabled = false;
+      blit(topCtx, fp.topLeft, 0, 0);
+      for (let i = 0; i < GRID_COLS; i++) blit(topCtx, fp.topCenter, (1 + i) * D, 0);
+      blit(topCtx, fp.topRight, (1 + GRID_COLS) * D, 0);
+
+      // Left fence — midLeft × GRID_ROWS (vertical)
+      const leftCtx = leftFenceRef.current!.getContext('2d')!;
+      leftCtx.imageSmoothingEnabled = false;
+      for (let i = 0; i < GRID_ROWS; i++) blit(leftCtx, fp.midLeft, 0, i * D);
+
+      // Right fence — midRight × GRID_ROWS (vertical)
+      const rightCtx = rightFenceRef.current!.getContext('2d')!;
+      rightCtx.imageSmoothingEnabled = false;
+      for (let i = 0; i < GRID_ROWS; i++) blit(rightCtx, fp.midRight, 0, i * D);
+
+      // Bottom fence — bottomLeft + bottomCenter×6 + leftmostDoor×1 + bottomCenter×6 + bottomRight
+      const btmCtx = bottomFenceRef.current!.getContext('2d')!;
+      btmCtx.imageSmoothingEnabled = false;
+      const leftDoor = [...fenceDoorOpening].sort((a, b) => a.col - b.col)[0];
+      let bx = 0;
+      blit(btmCtx, fp.bottomLeft, bx, 0);   bx += D;
+      for (let i = 0; i < 7; i++) { blit(btmCtx, fp.bottomCenter, bx, 0); bx += D; }
+      btmCtx.drawImage(img, leftDoor.sx, leftDoor.sy, S, S, bx, 0, D, D); bx += D;
+      for (let i = 0; i < 5; i++) { blit(btmCtx, fp.bottomCenter, bx, 0); bx += D; }
+      blit(btmCtx, fp.bottomRight, bx, 0);
     };
     img.src = winterSheetPng;
   }, []);
@@ -581,7 +598,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
 
         {/* ── House — 2× scale (96×96 tiles → 192×192px), left at col 5, bottom ~64px into garden ── */}
         <div style={{
-          position: 'absolute', top: COTTAGE_PAD - 128, left: FENCE + 5 * CELL,
+          position: 'absolute', top: COTTAGE_PAD - 144, left: FENCE + 5 * CELL,
           zIndex: 4,
         }}>
           <canvas
@@ -603,20 +620,21 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           <div style={{ position: 'relative' }}>
 
             {/* Top fence */}
-            <div style={{ position: 'absolute', top: -FENCE, left: -FENCE, display: 'flex', zIndex: 2, pointerEvents: 'none' }}>
-              <FenceTile frame={3} />
-              {Array.from({ length: GRID_COLS }, (_, i) => <FenceTile key={i} frame={4} />)}
-              <FenceTile frame={5} />
-            </div>
+            <canvas ref={topFenceRef}
+              width={FULL_W} height={FENCE}
+              style={{ position: 'absolute', top: -FENCE, left: -FENCE, width: FULL_W, height: FENCE, imageRendering: 'pixelated', zIndex: 2, pointerEvents: 'none' }}
+            />
             {/* Bottom fence rendered separately at z:7 — see below the depth layer */}
             {/* Left fence */}
-            <div style={{ position: 'absolute', top: 0, left: -FENCE, display: 'flex', flexDirection: 'column', zIndex: 2, pointerEvents: 'none' }}>
-              {Array.from({ length: GRID_ROWS }, (_, i) => <FenceTile key={i} frame={7} />)}
-            </div>
+            <canvas ref={leftFenceRef}
+              width={FENCE} height={GRID_H}
+              style={{ position: 'absolute', top: 0, left: -FENCE, width: FENCE, height: GRID_H, imageRendering: 'pixelated', zIndex: 2, pointerEvents: 'none' }}
+            />
             {/* Right fence */}
-            <div style={{ position: 'absolute', top: 0, left: GRID_W, display: 'flex', flexDirection: 'column', zIndex: 2, pointerEvents: 'none' }}>
-              {Array.from({ length: GRID_ROWS }, (_, i) => <FenceTile key={i} frame={6} />)}
-            </div>
+            <canvas ref={rightFenceRef}
+              width={FENCE} height={GRID_H}
+              style={{ position: 'absolute', top: 0, left: GRID_W, width: FENCE, height: GRID_H, imageRendering: 'pixelated', zIndex: 2, pointerEvents: 'none' }}
+            />
 
             {/* Grid — clicks turn the player toward the tap position */}
             <div
@@ -643,15 +661,11 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
             >
               {gridCells}
 
-              {/* Stepping stone path — col 7 */}
-              <div style={{
-                position: 'absolute', top: 0, left: 7 * CELL,
-                width: CELL, height: GRID_H,
-                backgroundImage: `url(${steppingStonePath})`,
-                backgroundRepeat: 'repeat-y',
-                backgroundSize: `${CELL}px ${CELL}px`,
-                zIndex: 1, pointerEvents: 'none',
-              }} />
+              {/* Snowy path — cols 6–8, 3×CELL wide */}
+              <canvas ref={pathCanvasRef}
+                width={3 * CELL} height={GRID_H + CELL}
+                style={{ position: 'absolute', top: 0, left: 6 * CELL, width: 3 * CELL, height: GRID_H + CELL, imageRendering: 'pixelated', zIndex: 1, pointerEvents: 'none' }}
+              />
 
             </div>
           </div>
@@ -733,20 +747,10 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         </div>
 
         {/* Bottom fence — z:7, above the character layer so she walks behind it */}
-        <div style={{
-          position: 'absolute',
-          top: COTTAGE_PAD + GRID_H, left: 0,
-          display: 'flex', zIndex: 7, pointerEvents: 'none',
-        }}>
-          <FenceTile frame={0} />
-          {Array.from({ length: GRID_COLS }, (_, i) => {
-            if (i === 6) return <FenceTile key={i} frame={8}  src={fenceGateSprite} sheetFrames={11} />;
-            if (i === 7) return <FenceTile key={i} frame={9}  src={fenceGateSprite} sheetFrames={11} />;
-            if (i === 8) return <FenceTile key={i} frame={10} src={fenceGateSprite} sheetFrames={11} />;
-            return <FenceTile key={i} frame={1} />;
-          })}
-          <FenceTile frame={2} />
-        </div>
+        <canvas ref={bottomFenceRef}
+          width={FULL_W} height={FENCE}
+          style={{ position: 'absolute', top: COTTAGE_PAD + GRID_H, left: 0, width: FULL_W, height: FENCE, imageRendering: 'pixelated', zIndex: 7, pointerEvents: 'none' }}
+        />
 
       </div>
     </div>
