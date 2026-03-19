@@ -172,6 +172,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [now, setNow] = useState(() => new Date());
+  const [simProgress, setSimProgress] = useState<number | null>(null); // dev-only time scrubber
   const [playerPos, setPlayerPos] = useState({ x: PLAYER_START_X, y: PLAYER_START_Y });
   const [playerFrame, setPlayerFrame] = useState<PlayerFrame>(1);
   const [playerFlipped, setPlayerFlipped] = useState(false);
@@ -446,9 +447,11 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const { sunrise, sunset } = useSunTimes();
   const sunriseMs = sunrise.getTime();
   const sunsetMs  = sunset.getTime();
-  const nowMs     = now.getTime();
   const dayLength = sunsetMs - sunriseMs;
-  const dayProgress = (nowMs - sunriseMs) / dayLength;
+  const effectiveNowMs = simProgress !== null
+    ? (() => { const m = new Date(now); m.setHours(0,0,0,0); return m.getTime() + simProgress * 24 * 60 * 60 * 1000; })()
+    : now.getTime();
+  const dayProgress = (effectiveNowMs - sunriseMs) / dayLength;
 
   const sunPosition = useMemo(() => {
     const visible = dayProgress > 0 && dayProgress < 1.05;
@@ -466,8 +469,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const moonPosition = useMemo(() => {
     const nightLength = 24 * 60 * 60 * 1000 - dayLength;
     let nightProgress: number;
-    if (dayProgress > 1)      nightProgress = (nowMs - sunsetMs)  / nightLength;
-    else if (dayProgress < 0) nightProgress = 1 - (sunriseMs - nowMs) / nightLength;
+    if (dayProgress > 1)      nightProgress = (effectiveNowMs - sunsetMs)  / nightLength;
+    else if (dayProgress < 0) nightProgress = 1 - (sunriseMs - effectiveNowMs) / nightLength;
     else                      nightProgress = -1;
     const visible = nightProgress > -0.05 && nightProgress < 1.05;
     const clamped = Math.max(0, Math.min(1, nightProgress));
@@ -478,7 +481,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       ? Math.max(0, 1 + nightProgress * 20)
       : nightProgress > 1 ? Math.max(0, 1 - (nightProgress - 1) * 20) : 1;
     return { visible, x, y, opacity };
-  }, [dayProgress, nowMs, sunriseMs, sunsetMs, dayLength]);
+  }, [dayProgress, effectiveNowMs, sunriseMs, sunsetMs, dayLength]);
 
   const skyStyle     = getSkyStyle(dayProgress);
   const isNight      = dayProgress < -0.1  || dayProgress > 1.1;
@@ -869,6 +872,57 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           width={FULL_W} height={FENCE}
           style={{ position: 'absolute', top: COTTAGE_PAD + GRID_H, left: 0, width: FULL_W, height: FENCE, imageRendering: 'pixelated', zIndex: 7, pointerEvents: 'none' }}
         />
+
+        {/* ── Day/night time scrubber (dev only) ── */}
+        {import.meta.env.DEV && (() => {
+          const displayMs = simProgress !== null
+            ? (() => { const m = new Date(now); m.setHours(0,0,0,0); return m.getTime() + simProgress * 24 * 60 * 60 * 1000; })()
+            : now.getTime();
+          const displayTime = new Date(displayMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const srMs = sunriseMs - new Date(now).setHours(0,0,0,0);
+          const ssMs = sunsetMs  - new Date(now).setHours(0,0,0,0);
+          const srPct = (srMs / (24*60*60*1000)) * 100;
+          const ssPct = (ssMs / (24*60*60*1000)) * 100;
+          return (
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                position: 'absolute', bottom: 8, left: 8, right: 8, zIndex: 25,
+                background: 'rgba(0,0,0,0.55)', borderRadius: 8, padding: '6px 10px',
+                display: 'flex', flexDirection: 'column', gap: 4,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.7)' }}>
+                  🌅 {format(new Date(sunriseMs), 'h:mma')} &nbsp; 🌇 {format(new Date(sunsetMs), 'h:mma')}
+                </span>
+                <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'white', fontWeight: 600 }}>
+                  {displayTime}
+                </span>
+                {simProgress !== null && (
+                  <button
+                    onClick={() => setSimProgress(null)}
+                    style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.6)',
+                      background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >
+                    reset
+                  </button>
+                )}
+              </div>
+              <div style={{ position: 'relative' }}>
+                {/* sunrise/sunset tick marks */}
+                <div style={{ position: 'absolute', left: `${srPct}%`, top: -3, width: 1, height: 6, background: 'rgba(255,200,50,0.7)', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', left: `${ssPct}%`, top: -3, width: 1, height: 6, background: 'rgba(255,130,50,0.7)', pointerEvents: 'none' }} />
+                <input
+                  type="range" min={0} max={1} step={0.001}
+                  value={simProgress ?? (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400}
+                  onChange={e => setSimProgress(parseFloat(e.target.value))}
+                  style={{ width: '100%', cursor: 'pointer', accentColor: '#9CAF88' }}
+                />
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Full-scene coordinate overlay (dev only) ── */}
         {SHOW_GRID_COORDS && (() => {
