@@ -489,6 +489,14 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const textColor    = isNight ? 'rgba(255,255,255,0.8)' : 'rgba(93,78,55,0.85)';
   const subtextColor = isNight ? 'rgba(255,255,255,0.45)' : 'rgba(93,78,55,0.45)';
 
+  // Ambient darkness overlay — fades in at dusk, peaks at night, lifts at dawn
+  const ambientOpacity = (() => {
+    if (dayProgress >= 0.12 && dayProgress <= 0.88) return 0;          // full daylight
+    if (dayProgress <= -0.25 || dayProgress >= 1.25) return 0.3;       // deep night
+    if (dayProgress < 0.12)  return (0.12 - dayProgress) / (0.12 + 0.25) * 0.3;  // dawn lift
+    return (dayProgress - 0.88) / (1.25 - 0.88) * 0.3;                // dusk fade-in
+  })();
+
   const characterConfig = useCharacterStore(s => s.config);
 
   // ── Garden data ────────────────────────────────────────────────────────────
@@ -872,6 +880,16 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           width={FULL_W} height={FENCE}
           style={{ position: 'absolute', top: COTTAGE_PAD + GRID_H, left: 0, width: FULL_W, height: FENCE, imageRendering: 'pixelated', zIndex: 7, pointerEvents: 'none' }}
         />
+
+        {/* ── Ambient darkness overlay — night/dusk/dawn tint over all tiles ── */}
+        {ambientOpacity > 0 && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, width: FULL_W, height: FULL_H,
+            background: `rgba(5, 8, 28, ${ambientOpacity})`,
+            zIndex: 9, pointerEvents: 'none',
+            transition: 'opacity 0.5s ease',
+          }} />
+        )}
 
         {/* ── Day/night time scrubber (dev only) ── */}
         {import.meta.env.DEV && (() => {
