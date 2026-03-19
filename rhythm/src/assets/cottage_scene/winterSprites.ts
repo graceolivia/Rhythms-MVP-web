@@ -92,6 +92,34 @@ export const snowPiles = [
   { col: 14, row: 18, sx: 224, sy: 288 },
 ];
 
+export const right_tree = [
+  { col: 4, row: 13, sx: 64, sy: 208 },
+  { col: 4, row: 11, sx: 64, sy: 176 },
+  { col: 4, row: 10, sx: 64, sy: 160 },
+  { col: 4, row: 12, sx: 64, sy: 192 },
+  { col: 3, row: 13, sx: 48, sy: 208 },
+  { col: 3, row: 12, sx: 48, sy: 192 },
+  { col: 3, row: 11, sx: 48, sy: 176 },
+  { col: 3, row: 10, sx: 48, sy: 160 },
+  { col: 3, row: 9, sx: 48, sy: 144 },
+  { col: 4, row: 9, sx: 64, sy: 144 },
+  { col: 2, row: 9, sx: 32, sy: 144 },
+  { col: 1, row: 9, sx: 16, sy: 144 },
+  { col: 0, row: 9, sx: 0, sy: 144 },
+  { col: 0, row: 10, sx: 0, sy: 160 },
+  { col: 1, row: 10, sx: 16, sy: 160 },
+  { col: 2, row: 10, sx: 32, sy: 160 },
+  { col: 2, row: 11, sx: 32, sy: 176 },
+  { col: 1, row: 11, sx: 16, sy: 176 },
+  { col: 0, row: 11, sx: 0, sy: 176 },
+  { col: 0, row: 12, sx: 0, sy: 192 },
+  { col: 1, row: 12, sx: 16, sy: 192 },
+  { col: 2, row: 12, sx: 32, sy: 192 },
+  { col: 2, row: 13, sx: 32, sy: 208 },
+  { col: 1, row: 13, sx: 16, sy: 208 },
+  { col: 0, row: 13, sx: 0, sy: 208 },
+];
+
 export const mailbox = [
   { col: 17, row: 14, sx: 272, sy: 224 },
   { col: 17, row: 13, sx: 272, sy: 208 },

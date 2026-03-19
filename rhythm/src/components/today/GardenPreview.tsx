@@ -27,7 +27,7 @@ import moonPng from '../../assets/sky/16moon.png';
 import daySkyPng from '../../assets/sky/sky2.png';
 import nightSkyPng from '../../assets/sky/nightsky.png';
 import winterSheetPng from '../../assets/cottage_scene/farm_winter_recolor.png';
-import { winterGroundDark, house_small, fencePieces, fenceDoorOpening, snowyPath, snowPiles } from '../../assets/cottage_scene/winterSprites';
+import { winterGroundDark, house_small, fencePieces, fenceDoorOpening, snowyPath, snowPiles, right_tree } from '../../assets/cottage_scene/winterSprites';
 import { CharacterSprite, ROW_IDLE_BOUNCE_FRONT, ROW_IDLE_BOUNCE_SIDE, ROW_IDLE_BOUNCE_BACK } from '../character/CharacterSprite';
 import { useCharacterStore } from '../../stores/useCharacterStore';
 
@@ -164,8 +164,8 @@ const HOUSE_COLS = 6; // cols 44–49
 const HOUSE_ROWS = 6; // rows 23–28
 
 // ── Debug ─────────────────────────────────────────────────────────────────────
-const SHOW_GRID_COORDS = import.meta.env.DEV; // auto-off in production
-
+// const SHOW_GRID_COORDS = import.meta.env.DEV; // auto-off in production
+const SHOW_GRID_COORDS = false; 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null }) {
   const navigate = useNavigate();
@@ -187,6 +187,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const leftFenceRef   = useRef<HTMLCanvasElement>(null);
   const rightFenceRef  = useRef<HTMLCanvasElement>(null);
   const bottomFenceRef = useRef<HTMLCanvasElement>(null);
+  const rightTreeRef   = useRef<HTMLCanvasElement>(null);
 
   // Draw winter ground tiles (snow perimeter + dirt garden interior)
   useEffect(() => {
@@ -222,6 +223,26 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         const dx = (t.col - HOUSE_MIN_COL) * HOUSE_TILE;
         const dy = (t.row - HOUSE_MIN_ROW) * HOUSE_TILE;
         ctx.drawImage(img, t.sx, t.sy, HOUSE_TILE, HOUSE_TILE, dx, dy, HOUSE_TILE, HOUSE_TILE);
+      });
+    };
+    img.src = winterSheetPng;
+  }, []);
+
+  // Draw right tree (5×5 tiles at 1× scale, to the right of the house)
+  useEffect(() => {
+    const canvas = rightTreeRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
+      const S = 16, D = HOUSE_TILE; // 1× scale — source and dest both 16px
+      const minCol = Math.min(...right_tree.map(t => t.col));
+      const minRow = Math.min(...right_tree.map(t => t.row));
+      right_tree.forEach(t => {
+        ctx.drawImage(img, t.sx, t.sy, S, S,
+          (t.col - minCol) * D, (t.row - minRow) * D, D, D);
       });
     };
     img.src = winterSheetPng;
@@ -623,6 +644,21 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
             width: FULL_W, height: FULL_H - HORIZON_Y,
             imageRendering: 'pixelated',
             zIndex: 1,
+          }}
+        />
+
+        {/* ── Right tree — 5×5 tiles at 1× scale, right of house ── */}
+        <canvas
+          ref={rightTreeRef}
+          width={5 * HOUSE_TILE} height={5 * HOUSE_TILE}
+          style={{
+            position: 'absolute',
+            left: FENCE + 11 * CELL + 2 * HOUSE_TILE - 3 * CELL,
+            top: COTTAGE_PAD - 3 * CELL - 4 * HOUSE_TILE + 3 * CELL - 2 * CELL - HOUSE_TILE,
+            width: 5 * CELL, height: 5 * CELL,
+            imageRendering: 'pixelated',
+            zIndex: 4,
+            pointerEvents: 'none',
           }}
         />
 
