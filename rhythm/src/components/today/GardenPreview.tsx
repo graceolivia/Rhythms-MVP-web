@@ -26,8 +26,7 @@ import sunPng from '../../assets/sky/sun2.png';
 import moonPng from '../../assets/sky/16moon.png';
 import daySkyPng from '../../assets/sky/sky2.png';
 import nightSkyPng from '../../assets/sky/nightsky.png';
-import cottageSprite from '../../assets/cottage_scene/arcticbees-new-house.png';
-import dirtTile from '../../assets/cottage_scene/dirt-tile.png';
+import winterSheetPng from '../../assets/cottage_scene/farm_winter.png';
 import steppingStonePath from '../../assets/cottage_scene/stepping-stone-path.png';
 import fenceSprite from '../../assets/cottage_scene/fence.png';
 import fenceGateSprite from '../../assets/cottage_scene/fence-with-gate.png';
@@ -129,6 +128,96 @@ function isWalkable(px: number, py: number): boolean {
   return !WALK_BLOCKED.has(`${col},${row}`);
 }
 
+// ── Winter ground tiles ───────────────────────────────────────────────────────
+// 16×16 tiles from farm_winter.png, drawn at 1px = 1 scene-px (outer CSS scale handles display size).
+// Canvas covers y=HORIZON_Y → FULL_H, x=0 → FULL_W (30 cols × 16 rows at 16px/tile).
+const GROUND_TILE = 16;
+// Derived at runtime once the layout constants above are defined:
+const GROUND_COLS = FULL_W / GROUND_TILE;                              // 30
+const GROUND_ROWS = (FULL_H - HORIZON_Y) / GROUND_TILE;               // 16
+const GARDEN_COL_START = FENCE / GROUND_TILE;                          // 2
+const GARDEN_COL_END   = (FENCE + GRID_W) / GROUND_TILE - 1;          // 27
+const GARDEN_ROW_START = (COTTAGE_PAD - HORIZON_Y) / GROUND_TILE;     // 2
+const GARDEN_ROW_END   = (COTTAGE_PAD - HORIZON_Y + GRID_H) / GROUND_TILE;     // 14
+
+const winterGround = {
+  solidSnow:    { sx: 448, sy: 208 },
+  topLeft:      { sx: 432, sy: 336 },
+  topCenter:    { sx: 448, sy: 336 },
+  topRight:     { sx: 464, sy: 336 },
+  midLeft:      { sx: 432, sy: 352 },
+  dirt:         { sx: 448, sy: 352 },
+  midRight:     { sx: 464, sy: 352 },
+  bottomLeft:   { sx: 432, sy: 368 },
+  bottomCenter: { sx: 448, sy: 368 },
+  bottomRight:  { sx: 464, sy: 368 },
+};
+
+function getGroundTile(col: number, row: number): { sx: number; sy: number } {
+  const inCol = col >= GARDEN_COL_START && col <= GARDEN_COL_END;
+  const inRow = row >= GARDEN_ROW_START && row <= GARDEN_ROW_END;
+  if (!inCol || !inRow) return winterGround.solidSnow;
+  if (row === GARDEN_ROW_START) {
+    if (col === GARDEN_COL_START) return winterGround.topLeft;
+    if (col === GARDEN_COL_END)   return winterGround.topRight;
+    return winterGround.topCenter;
+  }
+  if (row === GARDEN_ROW_END) {
+    if (col === GARDEN_COL_START) return winterGround.bottomLeft;
+    if (col === GARDEN_COL_END)   return winterGround.bottomRight;
+    return winterGround.bottomCenter;
+  }
+  if (col === GARDEN_COL_START) return winterGround.midLeft;
+  if (col === GARDEN_COL_END)   return winterGround.midRight;
+  return winterGround.dirt;
+}
+
+// ── House sprite ──────────────────────────────────────────────────────────────
+const HOUSE_MIN_COL = 44;
+const HOUSE_MIN_ROW = 23;
+const HOUSE_TILE = 16;
+const HOUSE_COLS = 6; // cols 44–49
+const HOUSE_ROWS = 6; // rows 23–28
+
+const house_small = [
+  { col: 46, row: 28, sx: 736, sy: 448 },
+  { col: 45, row: 28, sx: 720, sy: 448 },
+  { col: 44, row: 28, sx: 704, sy: 448 },
+  { col: 44, row: 27, sx: 704, sy: 432 },
+  { col: 45, row: 27, sx: 720, sy: 432 },
+  { col: 46, row: 27, sx: 736, sy: 432 },
+  { col: 47, row: 27, sx: 752, sy: 432 },
+  { col: 48, row: 27, sx: 768, sy: 432 },
+  { col: 48, row: 28, sx: 768, sy: 448 },
+  { col: 49, row: 28, sx: 784, sy: 448 },
+  { col: 49, row: 27, sx: 784, sy: 432 },
+  { col: 49, row: 26, sx: 784, sy: 416 },
+  { col: 48, row: 26, sx: 768, sy: 416 },
+  { col: 47, row: 26, sx: 752, sy: 416 },
+  { col: 45, row: 26, sx: 720, sy: 416 },
+  { col: 44, row: 26, sx: 704, sy: 416 },
+  { col: 49, row: 25, sx: 784, sy: 400 },
+  { col: 48, row: 25, sx: 768, sy: 400 },
+  { col: 47, row: 25, sx: 752, sy: 400 },
+  { col: 46, row: 25, sx: 736, sy: 400 },
+  { col: 46, row: 26, sx: 736, sy: 416 },
+  { col: 45, row: 25, sx: 720, sy: 400 },
+  { col: 44, row: 25, sx: 704, sy: 400 },
+  { col: 44, row: 24, sx: 704, sy: 384 },
+  { col: 45, row: 24, sx: 720, sy: 384 },
+  { col: 46, row: 24, sx: 736, sy: 384 },
+  { col: 48, row: 24, sx: 768, sy: 384 },
+  { col: 47, row: 24, sx: 752, sy: 384 },
+  { col: 47, row: 23, sx: 752, sy: 368 },
+  { col: 46, row: 23, sx: 736, sy: 368 },
+  { col: 45, row: 23, sx: 720, sy: 368 },
+  { col: 44, row: 23, sx: 704, sy: 368 },
+  { col: 49, row: 24, sx: 784, sy: 384 },
+  { col: 49, row: 23, sx: 784, sy: 368 },
+  { col: 48, row: 23, sx: 768, sy: 368 },
+  { col: 47, row: 28, sx: 752, sy: 448 },
+];
+
 // ── Debug ─────────────────────────────────────────────────────────────────────
 const SHOW_GRID_COORDS = import.meta.env.DEV; // auto-off in production
 
@@ -145,6 +234,47 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const keysRef = useRef<Set<string>>(new Set());
   const rafRef = useRef(0);
   const rustleRef = useRef<Map<string, number>>(new Map());
+  const groundCanvasRef = useRef<HTMLCanvasElement>(null);
+  const houseCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Draw winter ground tiles (snow perimeter + dirt garden interior)
+  useEffect(() => {
+    const canvas = groundCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
+      for (let row = 0; row < GROUND_ROWS; row++) {
+        for (let col = 0; col < GROUND_COLS; col++) {
+          const { sx, sy } = getGroundTile(col, row);
+          ctx.drawImage(img, sx, sy, GROUND_TILE, GROUND_TILE,
+            col * GROUND_TILE, row * GROUND_TILE, GROUND_TILE, GROUND_TILE);
+        }
+      }
+    };
+    img.src = winterSheetPng;
+  }, []);
+
+  // Draw house_small tiles from winter spritesheet onto the house canvas
+  useEffect(() => {
+    const canvas = houseCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = false;
+      house_small.forEach(t => {
+        const dx = (t.col - HOUSE_MIN_COL) * HOUSE_TILE;
+        const dy = (t.row - HOUSE_MIN_ROW) * HOUSE_TILE;
+        ctx.drawImage(img, t.sx, t.sy, HOUSE_TILE, HOUSE_TILE, dx, dy, HOUSE_TILE, HOUSE_TILE);
+      });
+    };
+    img.src = winterSheetPng;
+  }, []);
 
   // Track held arrow keys
   useEffect(() => {
@@ -436,23 +566,35 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           </p>
         </div>
 
-        {/* ── Dirt tile (garden floor, from horizon down) ── */}
-        <div style={{
-          position: 'absolute', top: HORIZON_Y, left: 0,
-          width: FULL_W, height: FULL_H - HORIZON_Y,
-          backgroundImage: `url(${dirtTile})`,
-          backgroundSize: `${CELL}px ${CELL}px`,
-          imageRendering: 'pixelated',
-          zIndex: 1,
-        }} />
+        {/* ── Winter ground (snow perimeter + dirt garden interior) ── */}
+        <canvas
+          ref={groundCanvasRef}
+          width={FULL_W}
+          height={FULL_H - HORIZON_Y}
+          style={{
+            position: 'absolute', top: HORIZON_Y, left: 0,
+            width: FULL_W, height: FULL_H - HORIZON_Y,
+            imageRendering: 'pixelated',
+            zIndex: 1,
+          }}
+        />
 
-        {/* ── House — 2× scale (182×190px), left at col 6, bottom at grid top) ── */}
+        {/* ── House — 2× scale (96×96 tiles → 192×192px), left at col 5, bottom ~64px into garden ── */}
         <div style={{
-          position: 'absolute', top: COTTAGE_PAD - 126, left: FENCE + 5 * CELL,
+          position: 'absolute', top: COTTAGE_PAD - 128, left: FENCE + 5 * CELL,
           zIndex: 4,
         }}>
-          <img src={cottageSprite} alt="House" width={182} height={190}
-            style={{ imageRendering: 'pixelated', filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))', display: 'block' }}
+          <canvas
+            ref={houseCanvasRef}
+            width={HOUSE_COLS * HOUSE_TILE}
+            height={HOUSE_ROWS * HOUSE_TILE}
+            style={{
+              width: HOUSE_COLS * HOUSE_TILE * 2,
+              height: HOUSE_ROWS * HOUSE_TILE * 2,
+              imageRendering: 'pixelated',
+              filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))',
+              display: 'block',
+            }}
           />
         </div>
 
