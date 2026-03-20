@@ -164,7 +164,9 @@ const HOUSE_COLS = 6; // cols 44–49
 const HOUSE_ROWS = 6; // rows 23–28
 
 // ── Debug ─────────────────────────────────────────────────────────────────────
-const SHOW_GRID_COORDS = import.meta.env.DEV; // auto-off in production
+// Run `VITE_HIDE_DEV_OVERLAY=1 npm run dev` to hide all dev overlays
+const DEV_OVERLAY = import.meta.env.DEV && !import.meta.env.VITE_HIDE_DEV_OVERLAY;
+const SHOW_GRID_COORDS = DEV_OVERLAY;
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null }) {
@@ -892,7 +894,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         )}
 
         {/* ── Day/night time scrubber (dev only) ── */}
-        {import.meta.env.DEV && (() => {
+        {DEV_OVERLAY && (() => {
           const displayMs = simProgress !== null
             ? (() => { const m = new Date(now); m.setHours(0,0,0,0); return m.getTime() + simProgress * 24 * 60 * 60 * 1000; })()
             : now.getTime();
