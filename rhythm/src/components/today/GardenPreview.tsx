@@ -506,6 +506,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editToast, setEditToast] = useState<string | null>(null);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
+  const [draggingGridId, setDraggingGridId] = useState<string | null>(null);
 
   // ── Garden data ────────────────────────────────────────────────────────────
   const getFlowerAt        = useGardenStore(s => s.getFlowerAt);
@@ -516,6 +517,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const selectFlowerType   = useGardenStore(s => s.selectFlowerType);
   const placeFlower        = useGardenStore(s => s.placeFlower);
   const removeFlowerFromGrid = useGardenStore(s => s.removeFlowerFromGrid);
+  const moveFlower         = useGardenStore(s => s.moveFlower);
   const setMode            = useGardenStore(s => s.setMode);
   const clearGarden        = useGardenStore(s => s.clearGarden);
   const getUnplacedByType  = useGardenStore(s => s.getUnplacedByType);
@@ -596,6 +598,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           position: 'absolute', left: x, top: y, width: CELL, height: CELL,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           pointerEvents: 'none',
+          opacity: isEditOpen ? 0 : 1,
         }}>
           <div style={isRustling ? {
             animation: 'rustle 0.5s ease-in-out 1',
@@ -642,7 +645,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     e.preventDefault();
     const data = e.dataTransfer.getData('text/plain');
     const key = `${col},${row}`;
-    if (BLOCKED_CELLS.has(key)) { showEditToast("Can't plant there! 🏠"); setDragOverCell(null); return; }
+    if (BLOCKED_CELLS.has(key)) { showEditToast("Can't plant there! 🏠"); setDragOverCell(null); setDraggingGridId(null); return; }
     if (data.startsWith('palette:')) {
       const flowerType = data.slice('palette:'.length) as FlowerType;
       if (getFlowerAt(col, row)) { showEditToast('Spot occupied!'); }
@@ -652,9 +655,14 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         if (useGardenStore.getState().placeFlower(col, row))
           showEditToast(`Planted ${FLOWER_CATALOG[flowerType].label}! 🌸`);
       }
+    } else {
+      const existingAtDest = getFlowerAt(col, row);
+      if (existingAtDest && existingAtDest.id !== data) { showEditToast('Spot occupied!'); }
+      else if (moveFlower(data, col, row)) { showEditToast('Moved! ✨'); }
     }
     setDragOverCell(null);
-  }, [getFlowerAt, showEditToast]);
+    setDraggingGridId(null);
+  }, [getFlowerAt, moveFlower, showEditToast]);
 
   const handleClear = useCallback(() => {
     if (placedFlowers.length === 0) { showEditToast('Garden is already empty!'); return; }
@@ -1079,20 +1087,40 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
                 const row = Math.floor(i / GRID_COLS);
                 const key = `${col},${row}`;
                 const isBlocked = BLOCKED_CELLS.has(key);
-                const isDragTarget = dragOverCell === key && !isBlocked;
+                const pf = getFlowerAt(col, row);
+                const isDraggingThis = pf?.id === draggingGridId;
+                const isDragTarget = dragOverCell === key && !isBlocked && !isDraggingThis;
+                const canDrag = !!pf && !isBlocked && editMode !== 'remove';
                 return (
                   <div
                     key={key}
+                    draggable={canDrag}
+                    onDragStart={canDrag ? e => {
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', pf!.id);
+                      setDraggingGridId(pf!.id);
+                    } : undefined}
+                    onDragEnd={() => { setDraggingGridId(null); setDragOverCell(null); }}
                     onClick={() => !isBlocked && handleCellClick(col, row)}
                     onDragOver={e => handleDragOver(e, col, row)}
                     onDrop={e => handleDrop(e, col, row)}
                     style={{
-                      cursor: isBlocked ? 'default' : editMode === 'remove' ? 'crosshair' : 'cell',
+                      cursor: isBlocked ? 'default' : pf ? (editMode === 'remove' ? 'crosshair' : 'grab') : 'cell',
                       background: isDragTarget ? 'rgba(156,175,136,0.4)' : 'transparent',
                       outline: isDragTarget ? '2px solid rgba(156,175,136,0.8)' : undefined,
                       outlineOffset: '-2px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      opacity: isDraggingThis ? 0.35 : 1,
                     }}
-                  />
+                  >
+                    {pf && (
+                      <SpriteSheet
+                        src={FLOWER_CATALOG[pf.flowerType].sheet ?? FLOWER_CATALOG[pf.flowerType].sprite}
+                        frame={FLOWER_CATALOG[pf.flowerType].sheetBloomFrame ?? 0}
+                        frameSize={16} scale={2} shadow
+                      />
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -1118,7 +1146,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       )}
 
       {/* ── Edit tray (below scene, animates open/close) ── */}
-      <div style={{ maxHeight: isEditOpen ? 300 : 0, overflow: 'hidden', transition: 'max-height 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: isEditOpen ? 260 : 0, overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
       <div style={{ background: '#FEF6EC', borderTop: '1px solid rgba(93,78,55,0.1)' }}>
 
         {/* Header */}
@@ -1142,8 +1170,12 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           </span>
         </div>
 
-        {/* Flower grid */}
-        <div style={{ padding: '4px 16px 20px', overflowY: 'auto', maxHeight: 170 }}>
+        {/* Flower grid — also a drop zone to return placed flowers to palette */}
+        <div
+          style={{ padding: '4px 16px 12px', overflowY: 'auto', maxHeight: 120 }}
+          onDragOver={e => { if (draggingGridId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
+          onDrop={e => { e.preventDefault(); if (draggingGridId) { removeFlowerFromGrid(draggingGridId); showEditToast('Returned to palette!'); setDraggingGridId(null); setDragOverCell(null); } }}
+        >
           {totalAvailable === 0 ? (
             <p style={{ textAlign: 'center', color: 'rgba(93,78,55,0.45)', fontSize: 13, padding: '12px 0' }}>Complete challenges to earn flowers!</p>
           ) : (
