@@ -14,11 +14,12 @@
  * and the lower half is in the garden, giving a natural "village" perspective.
  */
 
-import { useRef, useLayoutEffect, useState, useMemo, useEffect } from 'react';
+import { useRef, useLayoutEffect, useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useSunTimes } from '../../hooks/useSunTimes';
-import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_ROW } from '../../stores/useGardenStore';
+import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_ROW, BLOCKED_CELLS } from '../../stores/useGardenStore';
+import type { FlowerType } from '../../types';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
 import { GrowthSprite } from '../garden/GrowthSprite';
 import { SpriteSheet } from '../garden/SpriteSheet';
@@ -501,8 +502,41 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
 
   const characterConfig = useCharacterStore(s => s.config);
 
+  // ── Edit garden state ──────────────────────────────────────────────────────
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editToast, setEditToast] = useState<string | null>(null);
+  const [dragOverCell, setDragOverCell] = useState<string | null>(null);
+
   // ── Garden data ────────────────────────────────────────────────────────────
-  const getFlowerAt      = useGardenStore(s => s.getFlowerAt);
+  const getFlowerAt        = useGardenStore(s => s.getFlowerAt);
+  const selectedFlowerType = useGardenStore(s => s.selectedFlowerType);
+  const editMode           = useGardenStore(s => s.mode);
+  const flowers            = useGardenStore(s => s.flowers);
+  const placedFlowers      = useGardenStore(s => s.placedFlowers);
+  const selectFlowerType   = useGardenStore(s => s.selectFlowerType);
+  const placeFlower        = useGardenStore(s => s.placeFlower);
+  const removeFlowerFromGrid = useGardenStore(s => s.removeFlowerFromGrid);
+  const setMode            = useGardenStore(s => s.setMode);
+  const clearGarden        = useGardenStore(s => s.clearGarden);
+  const getUnplacedByType  = useGardenStore(s => s.getUnplacedByType);
+
+  // Available-by-type counts for palette
+  const placedFlowerIds = useMemo(
+    () => new Set(placedFlowers.map(p => p.flowerId)),
+    [placedFlowers]
+  );
+  const availableByType = useMemo(() => {
+    const counts: Partial<Record<FlowerType, number>> = {};
+    flowers.forEach(f => {
+      if (!placedFlowerIds.has(f.id)) counts[f.type] = (counts[f.type] || 0) + 1;
+    });
+    return counts;
+  }, [flowers, placedFlowerIds]);
+  const totalAvailable = useMemo(
+    () => Object.values(availableByType).reduce((a, b) => a + b, 0),
+    [availableByType]
+  );
+
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const growing = activeChallenges.filter(
     c => c.status === 'growing' || c.id === justBloomedId
@@ -576,21 +610,74 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     }
   }
 
+  // ── Edit handlers ──────────────────────────────────────────────────────────
+  const showEditToast = useCallback((msg: string) => {
+    setEditToast(msg);
+    setTimeout(() => setEditToast(null), 2000);
+  }, []);
+
+  const handleCellClick = useCallback((col: number, row: number) => {
+    const key = `${col},${row}`;
+    if (BLOCKED_CELLS.has(key)) return;
+    const existingFlower = getFlowerAt(col, row);
+    if (editMode === 'remove') {
+      if (!existingFlower) { showEditToast('No flower there!'); return; }
+      removeFlowerFromGrid(existingFlower.id);
+      showEditToast(`${FLOWER_CATALOG[existingFlower.flowerType].label} removed`);
+    } else {
+      if (existingFlower) { showEditToast('Already planted there!'); return; }
+      if (!selectedFlowerType) { showEditToast('Select a flower first! 🌸'); return; }
+      if (getUnplacedByType(selectedFlowerType).length === 0) { showEditToast('No more of that type!'); return; }
+      if (placeFlower(col, row)) showEditToast(`Planted ${FLOWER_CATALOG[selectedFlowerType].label}! 🌸`);
+    }
+  }, [editMode, selectedFlowerType, getFlowerAt, removeFlowerFromGrid, placeFlower, getUnplacedByType, showEditToast]);
+
+  const handleDragOver = useCallback((e: React.DragEvent, col: number, row: number) => {
+    e.preventDefault();
+    const key = `${col},${row}`;
+    if (!BLOCKED_CELLS.has(key)) { e.dataTransfer.dropEffect = 'copy'; setDragOverCell(key); }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, col: number, row: number) => {
+    e.preventDefault();
+    const data = e.dataTransfer.getData('text/plain');
+    const key = `${col},${row}`;
+    if (BLOCKED_CELLS.has(key)) { showEditToast("Can't plant there! 🏠"); setDragOverCell(null); return; }
+    if (data.startsWith('palette:')) {
+      const flowerType = data.slice('palette:'.length) as FlowerType;
+      if (getFlowerAt(col, row)) { showEditToast('Spot occupied!'); }
+      else {
+        useGardenStore.getState().selectFlowerType(flowerType);
+        useGardenStore.getState().setMode('place');
+        if (useGardenStore.getState().placeFlower(col, row))
+          showEditToast(`Planted ${FLOWER_CATALOG[flowerType].label}! 🌸`);
+      }
+    }
+    setDragOverCell(null);
+  }, [getFlowerAt, showEditToast]);
+
+  const handleClear = useCallback(() => {
+    if (placedFlowers.length === 0) { showEditToast('Garden is already empty!'); return; }
+    clearGarden();
+    showEditToast('Garden cleared! 🔄');
+  }, [placedFlowers.length, clearGarden, showEditToast]);
+
   // gridCells: empty — coord overlay is now a full-scene absolute overlay below.
   const gridCells: React.ReactElement[] = [];
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div ref={wrapRef} style={{ width: '100%', height: FULL_H * scale, overflow: 'hidden' }}>
+    <div ref={wrapRef} style={{ width: '100%', position: 'relative' }}>
+      <div style={{ width: '100%', height: FULL_H * scale, overflow: 'hidden' }}>
       <div
-        onClick={() => navigate('/garden')}
+        onClick={isEditOpen ? undefined : () => navigate('/garden')}
         style={{
           width: FULL_W, height: FULL_H,
           transformOrigin: 'top left',
           transform: `scale(${scale})`,
           position: 'relative',
           overflow: 'hidden',
-          cursor: 'pointer',
+          cursor: isEditOpen ? 'default' : 'pointer',
         }}
       >
 
@@ -977,7 +1064,115 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           return cells;
         })()}
 
+        {/* ── Edit mode grid overlay ── */}
+        {isEditOpen && (
+          <>
+            {editMode === 'remove' && (
+              <div style={{ position: 'absolute', top: COTTAGE_PAD, left: FENCE, width: GRID_W, height: GRID_H, background: 'rgba(196,113,90,0.08)', zIndex: 14, pointerEvents: 'none' }} />
+            )}
+            <div
+              style={{ position: 'absolute', top: COTTAGE_PAD, left: FENCE, width: GRID_W, height: GRID_H, display: 'grid', gridTemplateColumns: `repeat(${GRID_COLS}, ${CELL}px)`, gridTemplateRows: `repeat(${GRID_ROWS}, ${CELL}px)`, zIndex: 15 }}
+              onClick={e => e.stopPropagation()}
+            >
+              {Array.from({ length: GRID_ROWS * GRID_COLS }, (_, i) => {
+                const col = i % GRID_COLS;
+                const row = Math.floor(i / GRID_COLS);
+                const key = `${col},${row}`;
+                const isBlocked = BLOCKED_CELLS.has(key);
+                const isDragTarget = dragOverCell === key && !isBlocked;
+                return (
+                  <div
+                    key={key}
+                    onClick={() => !isBlocked && handleCellClick(col, row)}
+                    onDragOver={e => handleDragOver(e, col, row)}
+                    onDrop={e => handleDrop(e, col, row)}
+                    style={{
+                      cursor: isBlocked ? 'default' : editMode === 'remove' ? 'crosshair' : 'cell',
+                      background: isDragTarget ? 'rgba(156,175,136,0.4)' : 'transparent',
+                      outline: isDragTarget ? '2px solid rgba(156,175,136,0.8)' : undefined,
+                      outlineOffset: '-2px',
+                    }}
+                  />
+                );
+              })}
+            </div>
+            {editToast && (
+              <div style={{ position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'rgba(93,78,55,0.92)', color: '#FEF6EC', padding: '7px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', zIndex: 20, pointerEvents: 'none' }}>
+                {editToast}
+              </div>
+            )}
+          </>
+        )}
+
       </div>
+      </div>
+
+      {/* ── Edit garden button (overlaid, hidden when tray open) ── */}
+      {!isEditOpen && (
+        <button
+          onClick={e => { e.stopPropagation(); setIsEditOpen(true); setMode('place'); }}
+          style={{ position: 'absolute', bottom: 10, right: 10, zIndex: 10, background: 'rgba(254,246,236,0.88)', backdropFilter: 'blur(4px)', border: 'none', borderRadius: 20, padding: '4px 12px', fontSize: 11, fontWeight: 600, color: 'rgba(93,78,55,0.65)', cursor: 'pointer', letterSpacing: '0.01em' }}
+        >
+          edit garden
+        </button>
+      )}
+
+      {/* ── Edit tray (below scene, animates open/close) ── */}
+      <div style={{ maxHeight: isEditOpen ? 300 : 0, overflow: 'hidden', transition: 'max-height 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ background: '#FEF6EC', borderTop: '1px solid rgba(93,78,55,0.1)' }}>
+
+        {/* Header */}
+        <div style={{ padding: '12px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(93,78,55,0.08)' }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#5D4E37', fontFamily: 'Georgia, serif' }}>Flower Palette</div>
+            <div style={{ fontSize: 11, color: 'rgba(93,78,55,0.5)', marginTop: 2 }}>{totalAvailable} flowers to place</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={() => setMode(editMode === 'remove' ? 'place' : 'remove')} style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', background: editMode === 'remove' ? '#C4715A' : 'rgba(93,78,55,0.08)', transition: 'background 0.2s', flexShrink: 0 }} title="Remove mode">🗑️</button>
+            <button onClick={handleClear} style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(93,78,55,0.08)', flexShrink: 0 }} title="Clear all">🔄</button>
+            <button onClick={() => { setIsEditOpen(false); setMode('place'); }} style={{ padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#FEF6EC', background: '#9CAF88', flexShrink: 0 }}>Done</button>
+          </div>
+        </div>
+
+        {/* Mode label */}
+        <div style={{ padding: '6px 16px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: editMode === 'remove' ? '#C4715A' : '#9CAF88' }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: editMode === 'remove' ? '#C4715A' : '#9CAF88' }}>
+            {editMode === 'remove' ? 'Tap a flower to remove it' : 'Tap a spot · Drag from palette'}
+          </span>
+        </div>
+
+        {/* Flower grid */}
+        <div style={{ padding: '4px 16px 20px', overflowY: 'auto', maxHeight: 170 }}>
+          {totalAvailable === 0 ? (
+            <p style={{ textAlign: 'center', color: 'rgba(93,78,55,0.45)', fontSize: 13, padding: '12px 0' }}>Complete challenges to earn flowers!</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+              {(Object.keys(FLOWER_CATALOG) as FlowerType[]).map(type => {
+                const count = availableByType[type] || 0;
+                if (count === 0) return null;
+                const isSelected = selectedFlowerType === type && editMode !== 'remove';
+                return (
+                  <button
+                    key={type}
+                    draggable
+                    onDragStart={e => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', `palette:${type}`); selectFlowerType(type); setMode('place'); }}
+                    onClick={() => { selectFlowerType(type); setMode('place'); }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 12, padding: '6px 4px', border: `2px solid ${isSelected ? '#9CAF88' : 'transparent'}`, background: isSelected ? 'rgba(156,175,136,0.2)' : 'rgba(93,78,55,0.06)', cursor: 'pointer', transition: 'all 0.15s', transform: isSelected ? 'scale(1.05)' : undefined }}
+                  >
+                    <SpriteSheet src={FLOWER_CATALOG[type].sheet ?? FLOWER_CATALOG[type].sprite} frame={FLOWER_CATALOG[type].sheetBloomFrame ?? 0} frameSize={16} scale={2} shadow />
+                    <span style={{ fontSize: 9, color: 'rgba(93,78,55,0.6)', fontWeight: 600, marginTop: 2 }}>×{count}</span>
+                    <span style={{ fontSize: 8, color: 'rgba(93,78,55,0.4)', marginTop: 1, textAlign: 'center', lineHeight: 1.2 }}>{FLOWER_CATALOG[type].label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+      </div>
+      </div>
+
     </div>
   );
 }
