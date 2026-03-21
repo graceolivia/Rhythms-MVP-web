@@ -15,7 +15,7 @@
  */
 
 import { useRef, useLayoutEffect, useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { format } from 'date-fns';
 import { useSunTimes } from '../../hooks/useSunTimes';
 import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_ROW, BLOCKED_CELLS } from '../../stores/useGardenStore';
@@ -171,7 +171,7 @@ const SHOW_GRID_COORDS = DEV_OVERLAY;
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null }) {
-  const navigate = useNavigate();
+
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [now, setNow] = useState(() => new Date());
@@ -678,14 +678,13 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     <div ref={wrapRef} style={{ width: '100%', position: 'relative' }}>
       <div style={{ width: '100%', height: FULL_H * scale, overflow: 'hidden' }}>
       <div
-        onClick={isEditOpen ? undefined : () => navigate('/garden')}
         style={{
           width: FULL_W, height: FULL_H,
           transformOrigin: 'top left',
           transform: `scale(${scale})`,
           position: 'relative',
           overflow: 'hidden',
-          cursor: isEditOpen ? 'default' : 'pointer',
+          cursor: 'default',
         }}
       >
 
