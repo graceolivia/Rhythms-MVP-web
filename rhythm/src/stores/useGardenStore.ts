@@ -49,13 +49,14 @@ export const FLOWER_CATALOG: Record<FlowerType, {
   sheet?: string;
   sheetBloomFrame?: number;
   sheetFrameCount?: number;
+  season: Season;
 }> = {
-  'daily-daisy':        sheet(snowdropSheet,    'Snowdrop',     '❄️'),
-  'rhythm-rose':        sheet(pinkroseSheet,    'Pink Rose',    '🌸'),
-  'golden-hour-lily':   sheet(winterPansySheet, 'Winter Pansy', '🌸'),
-  'self-care-sunflower':sheet(heliotropeSheet,  'Heliotrope',   '💜'),
-  'challenge-bloom':    sheet(winterPansySheet, 'Winter Pansy', '🌸'),
-  'heliotrope':         sheet(heliotropeSheet,  'Heliotrope',   '💜'),
+  'daily-daisy':        { ...sheet(snowdropSheet,    'Snowdrop',     '❄️'), season: 'winter' },
+  'rhythm-rose':        { ...sheet(pinkroseSheet,    'Pink Rose',    '🌸'), season: 'summer' },
+  'golden-hour-lily':   { ...sheet(winterPansySheet, 'Winter Pansy', '🌸'), season: 'winter' },
+  'self-care-sunflower':{ ...sheet(heliotropeSheet,  'Heliotrope',   '💜'), season: 'winter' },
+  'challenge-bloom':    { ...sheet(winterPansySheet, 'Winter Pansy', '🌸'), season: 'winter' },
+  'heliotrope':         { ...sheet(heliotropeSheet,  'Heliotrope',   '💜'), season: 'winter' },
 };
 
 // ===========================================

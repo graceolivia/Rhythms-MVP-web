@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { useGardenStore, FLOWER_CATALOG } from '../stores/useGardenStore';
 import { SpriteSheet } from '../components/garden/SpriteSheet';
-import type { FlowerType } from '../types';
+import type { FlowerType, Season } from '../types';
 
 // ── Stamp border ──────────────────────────────────────────────────────────────
 // Uses the classic CSS stamp mask trick:
@@ -131,6 +131,14 @@ function StampCard({ type, count, firstEarned, index }: {
 }
 
 // ── Collections screen ────────────────────────────────────────────────────────
+const SEASON_ORDER: Season[] = ['spring', 'summer', 'fall', 'winter'];
+const SEASON_LABELS: Record<Season, string> = {
+  spring: 'Spring',
+  summer: 'Summer',
+  fall:   'Fall',
+  winter: 'Winter',
+};
+
 export function Collections() {
   const flowers = useGardenStore(s => s.flowers);
 
@@ -151,6 +159,18 @@ export function Collections() {
   const types = Object.keys(FLOWER_CATALOG) as FlowerType[];
   const typesEarned = types.filter(t => stats[t].count > 0).length;
 
+  const bySeason = useMemo(() => {
+    const groups = {} as Record<Season, FlowerType[]>;
+    SEASON_ORDER.forEach(s => { groups[s] = []; });
+    types.forEach(type => {
+      groups[FLOWER_CATALOG[type].season].push(type);
+    });
+    return groups;
+  }, [types]);
+
+  // Global index for tilt cycling across all stamps
+  let stampIndex = 0;
+
   return (
     <div className="min-h-screen" style={{ background: '#D9D0C7' }}>
       <div className="max-w-lg mx-auto pb-24">
@@ -161,17 +181,27 @@ export function Collections() {
           </p>
         </header>
 
-        <div className="px-5 py-5 grid grid-cols-2 gap-8">
-          {types.map((type, i) => (
-            <StampCard
-              key={type}
-              type={type}
-              count={stats[type].count}
-              firstEarned={stats[type].firstEarned}
-              index={i}
-            />
-          ))}
-        </div>
+        {SEASON_ORDER.filter(s => bySeason[s].length > 0).map(season => (
+          <div key={season}>
+            <div className="px-5 pt-5 pb-1 flex items-center gap-3">
+              <span className="font-display text-sm tracking-widest uppercase text-bark/40">
+                {SEASON_LABELS[season]}
+              </span>
+              <div className="flex-1 h-px" style={{ background: 'rgba(93,78,55,0.15)' }} />
+            </div>
+            <div className="px-5 py-4 grid grid-cols-2 gap-8">
+              {bySeason[season].map(type => (
+                <StampCard
+                  key={type}
+                  type={type}
+                  count={stats[type].count}
+                  firstEarned={stats[type].firstEarned}
+                  index={stampIndex++}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
