@@ -4,16 +4,20 @@ import { useGardenStore, FLOWER_CATALOG } from '../stores/useGardenStore';
 import { SpriteSheet } from '../components/garden/SpriteSheet';
 import type { FlowerType } from '../types';
 
-// ── Stamp perforation mask ────────────────────────────────────────────────────
-// Cuts semicircles from all 4 edges, creating a classic postage-stamp look.
-const P = 13; // spacing between hole centers (px)
-const R = 5;  // hole radius (px)
-const STAMP_MASK = [
-  `radial-gradient(circle at 0 50%,    transparent ${R}px, #000 ${R+1}px) -${R}px 0          / ${P}px ${P}px repeat-y`,
-  `radial-gradient(circle at 100% 50%, transparent ${R}px, #000 ${R+1}px) calc(100% + ${R}px) 0 / ${P}px ${P}px repeat-y`,
-  `radial-gradient(circle at 50% 0,    transparent ${R}px, #000 ${R+1}px) 0 -${R}px          / ${P}px ${P}px repeat-x`,
-  `radial-gradient(circle at 50% 100%, transparent ${R}px, #000 ${R+1}px) 0 calc(100% + ${R}px) / ${P}px ${P}px repeat-x`,
-].join(', ');
+// ── Stamp border ──────────────────────────────────────────────────────────────
+// Uses the classic CSS stamp mask trick:
+//   • radial-gradient tiles transparent circles (holes) across the entire element
+//     including the padding — these become the perforations
+//   • conic-gradient content-box fills the inner content area solid so it is
+//     always fully visible regardless of where the circles land
+//
+// The element background (white) shows through in the padding strips between
+// holes, creating the stamp border. The inner content div carries its own
+// background (cream), visible because the content-box layer keeps it opaque.
+const R = 9; // perforation radius — controls hole size and spacing
+const STAMP_MASK =
+  `radial-gradient(50% 50%, #0000 66%, #000 67%) round ${R}px ${R}px/${R * 2}px ${R * 2}px, ` +
+  `conic-gradient(#000 0 0) content-box`;
 
 // ── Per-type accent colors ────────────────────────────────────────────────────
 const STAMP_COLORS: Record<FlowerType, string> = {
@@ -25,8 +29,7 @@ const STAMP_COLORS: Record<FlowerType, string> = {
   'heliotrope':           '#8890BC',
 };
 
-// Gentle tilts per position so stamps look hand-arranged
-const TILTS = [-1.4, 0.9, -0.7, 1.6, -1.1, 0.5, -0.4, 1.2];
+const TILTS = [-1.4, 0.9, -0.7, 1.6, -1.1, 0.5];
 
 // ── StampCard ─────────────────────────────────────────────────────────────────
 function StampCard({ type, count, firstEarned, index }: {
@@ -43,79 +46,85 @@ function StampCard({ type, count, firstEarned, index }: {
   return (
     <div style={{
       transform: `rotate(${tilt}deg)`,
+      // drop-shadow follows the perforated stamp outline (not the bounding box)
       filter: earned
-        ? 'drop-shadow(2px 5px 10px rgba(93,78,55,0.28))'
+        ? 'drop-shadow(2px 5px 12px rgba(93,78,55,0.32))'
         : 'grayscale(1) opacity(0.38) drop-shadow(1px 3px 6px rgba(93,78,55,0.18))',
     }}>
+      {/* Stamp shell — warm cream perforated teeth */}
       <div style={{
-        background: '#FDFAF4',
-        WebkitMaskImage: STAMP_MASK,
-        maskImage: STAMP_MASK,
-      }}>
-        {/* Top color band */}
-        <div style={{ height: 8, background: color }} />
+        padding: R,
+        background: '#F0E6D3',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        WebkitMask: STAMP_MASK,
+        mask: STAMP_MASK,
+      } as React.CSSProperties}>
 
-        {/* Flower */}
-        <div style={{
-          padding: '16px 0 12px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: 80,
-          background: `${color}22`,
-        }}>
-          {earned ? (
-            <SpriteSheet
-              src={catalog.sheet ?? catalog.sprite}
-              frame={catalog.sheetBloomFrame ?? 0}
-              frameSize={16}
-              scale={4}
-              shadow
-            />
-          ) : (
-            <span style={{ fontSize: 38, opacity: 0.2 }}>✿</span>
-          )}
-        </div>
+        {/* Inner content — two nested 1px lines frame the cream interior */}
+        <div style={{ background: '#FDF5E8', border: `1px solid ${color}`, padding: 3 }}>
+        <div style={{ border: `1px solid ${color}` }}>
 
-        {/* Text */}
-        <div style={{ padding: '7px 12px 16px', textAlign: 'center' }}>
+          {/* Flower */}
           <div style={{
-            fontFamily: 'Georgia, serif',
-            fontSize: 13,
-            fontWeight: 700,
-            color: '#5D4E37',
-            letterSpacing: '0.01em',
+            padding: '16px 0 12px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: 78,
+            background: `${color}12`,
           }}>
-            {catalog.label}
+            {earned ? (
+              <SpriteSheet
+                src={catalog.sheet ?? catalog.sprite}
+                frame={catalog.sheetBloomFrame ?? 0}
+                frameSize={16}
+                scale={4}
+                shadow
+              />
+            ) : (
+              <span style={{ fontSize: 38, opacity: 0.18 }}>✿</span>
+            )}
           </div>
 
-          {earned ? (
-            <>
-              <div style={{ fontSize: 11, color: 'rgba(93,78,55,0.55)', marginTop: 4 }}>
-                ×{count} earned
-              </div>
-              {firstEarned && (
-                <div style={{
-                  fontSize: 9,
-                  color: 'rgba(93,78,55,0.4)',
-                  marginTop: 5,
-                  fontStyle: 'italic',
-                  lineHeight: 1.6,
-                }}>
-                  first earned<br />
-                  {format(new Date(firstEarned), 'MMM d, yyyy')}
-                </div>
-              )}
-            </>
-          ) : (
-            <div style={{ fontSize: 10, color: 'rgba(93,78,55,0.3)', marginTop: 4, fontStyle: 'italic' }}>
-              not yet earned
+          {/* Text */}
+          <div style={{ padding: '7px 10px 14px', textAlign: 'center' }}>
+            <div style={{
+              fontFamily: 'Georgia, serif',
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#5D4E37',
+              letterSpacing: '0.01em',
+            }}>
+              {catalog.label}
             </div>
-          )}
-        </div>
 
-        {/* Bottom band */}
-        <div style={{ height: 5, background: color, opacity: 0.45 }} />
+            {earned ? (
+              <>
+                <div style={{ fontSize: 11, color: 'rgba(93,78,55,0.55)', marginTop: 4 }}>
+                  ×{count} earned
+                </div>
+                {firstEarned && (
+                  <div style={{
+                    fontSize: 9,
+                    color: 'rgba(93,78,55,0.4)',
+                    marginTop: 5,
+                    fontStyle: 'italic',
+                    lineHeight: 1.6,
+                  }}>
+                    first earned<br />
+                    {format(new Date(firstEarned), 'MMM d, yyyy')}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: 10, color: 'rgba(93,78,55,0.28)', marginTop: 4, fontStyle: 'italic' }}>
+                not yet earned
+              </div>
+            )}
+          </div>
+
+        </div>
+        </div>
       </div>
     </div>
   );
