@@ -6,6 +6,7 @@ import { RhythmDayDetail } from './screens/RhythmDayDetail';
 import { EditWeeklyRhythm } from './screens/EditWeeklyRhythm';
 import { Tasks } from './screens/Tasks';
 import { Garden } from './screens/Garden';
+import { Collections } from './screens/Collections';
 import { Challenges } from './screens/Challenges';
 import { Settings } from './screens/Settings';
 import { Onboarding } from './screens/Onboarding';
@@ -32,6 +33,7 @@ function AppContent() {
         <Route path="/rhythm/edit" element={<EditWeeklyRhythm />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/garden" element={<Garden />} />
+        <Route path="/collections" element={<Collections />} />
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>

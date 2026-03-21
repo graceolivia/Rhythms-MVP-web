@@ -14,7 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/timeline', label: 'Timeline', icon: '◇', activeIcon: '◆' },
   { to: '/challenges', label: 'Challenges', icon: '🌱', activeIcon: '🌱' },
   { to: '/tasks', label: 'Tasks', icon: '◠', activeIcon: '☽' },
-  { to: '/garden', label: 'Garden', icon: '❀', activeIcon: '✿' },
+  { to: '/collections', label: 'Collections', icon: '✿', activeIcon: '✿' },
   { to: '/settings', label: 'Settings', icon: '⚙', activeIcon: '⚙' },
 ];
 
@@ -48,11 +48,33 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
           {isActive && <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />}
         </svg>
       );
-    case 'Garden':
+    case 'Collections':
       return (
-        <svg className="w-6 h-6" fill={isActive ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path d="M12 22V12M12 12C12 9 9 6 6 6c0 3 3 6 6 6zM12 12c0-3 3-6 6-6 0 3-3 6-6 6z" />
-          <circle cx="12" cy="5" r="3" />
+        <svg className="w-6 h-6" viewBox="0 0 24 24">
+          {/* Stamp body */}
+          <rect x="5" y="5" width="14" height="14" rx="1"
+            fill={isActive ? 'currentColor' : 'none'}
+            stroke="currentColor" strokeWidth={isActive ? 0 : 2}
+          />
+          {/* Side perforations */}
+          {[8, 12, 16].map(y => (
+            <g key={y}>
+              <line x1="3" y1={y} x2="5.5" y2={y} stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <line x1="18.5" y1={y} x2="21" y2={y} stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </g>
+          ))}
+          {[8, 12, 16].map(x => (
+            <g key={x}>
+              <line x1={x} y1="3" x2={x} y2="5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <line x1={x} y1="18.5" x2={x} y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </g>
+          ))}
+          {/* Flower center */}
+          <circle cx="12" cy="12" r="2.5"
+            fill={isActive ? 'white' : 'none'}
+            stroke={isActive ? 'none' : 'currentColor'}
+            strokeWidth="1.5"
+          />
         </svg>
       );
     case 'Settings':
