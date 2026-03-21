@@ -753,7 +753,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
             {format(now, 'MMMM d')}
           </p>
           <p style={{ fontSize: 13, lineHeight: 1.2, color: subtextColor }}>
-            {format(now, 'EEEE')} &nbsp;·&nbsp; ☀ {format(sunrise, 'h:mm a')}
+            {format(now, 'EEEE')}
           </p>
         </div>
 
@@ -1133,6 +1133,11 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         )}
 
       </div>
+      </div>
+
+      {/* ── Sun times bar ── */}
+      <div style={{ padding: '5px 14px', display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'rgba(93,78,55,0.45)', background: 'rgba(254,246,236,0.6)' }}>
+        <span>sunrise {format(sunrise, 'h:mm a')} &nbsp;·&nbsp; sunset {format(sunset, 'h:mm a')}</span>
       </div>
 
       {/* ── Edit garden button (overlaid, hidden when tray open) ── */}
