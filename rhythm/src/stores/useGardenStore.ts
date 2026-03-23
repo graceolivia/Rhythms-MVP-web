@@ -389,6 +389,10 @@ export const useGardenStore = create<GardenState>()(
         state.flowers = state.flowers.map(f =>
           TYPE_REMAP[f.type] ? { ...f, type: TYPE_REMAP[f.type] } : f
         );
+        // Also remap flowerType on placedFlowers (stored separately)
+        state.placedFlowers = state.placedFlowers.map(p =>
+          TYPE_REMAP[p.flowerType] ? { ...p, flowerType: TYPE_REMAP[p.flowerType] } : p
+        );
         // Drop any remaining unknown types
         const validTypes = new Set(Object.keys(FLOWER_CATALOG));
         const validFlowerIds = new Set(
