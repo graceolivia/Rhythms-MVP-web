@@ -22,9 +22,52 @@ import { useGardenStore } from './stores/useGardenStore';
 import { useCharacterStore } from './stores/useCharacterStore';
 import { DEV_SKIP_ONBOARDING } from './config/devMode';
 
+const SEASON_LABELS: Record<string, string> = {
+  spring: 'Spring',
+  summer: 'Summer',
+  fall:   'Fall',
+  winter: 'Winter',
+};
+
+function SeasonResetModal() {
+  const seasonResetPending = useGardenStore(s => s.seasonResetPending);
+  const dismissSeasonReset = useGardenStore(s => s.dismissSeasonReset);
+  const currentSeason      = useGardenStore(s => s.currentSeason);
+
+  if (!seasonResetPending) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(93,78,55,0.35)', backdropFilter: 'blur(2px)' }}
+      onClick={dismissSeasonReset}
+    >
+      <div
+        className="bg-cream rounded-2xl px-8 py-8 mx-6 max-w-xs text-center shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="text-4xl mb-3">🌱</div>
+        <h2 className="font-display text-xl text-bark mb-2">
+          {SEASON_LABELS[currentSeason]} is here!
+        </h2>
+        <p className="text-bark/60 text-sm leading-relaxed mb-6">
+          A new season begins. Your garden is fresh and ready for new flowers to bloom.
+        </p>
+        <button
+          onClick={dismissSeasonReset}
+          className="bg-sage text-cream font-semibold px-6 py-2.5 rounded-full text-sm hover:bg-sage/90 transition-colors"
+        >
+          Start planting
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AppContent() {
   return (
     <div className="pb-16">
+      <SeasonResetModal />
       <Routes>
         <Route path="/" element={<Today />} />
         <Route path="/timeline" element={<Timeline />} />

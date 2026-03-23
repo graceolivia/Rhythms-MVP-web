@@ -121,6 +121,10 @@ interface GardenState extends Garden {
   // Season when the garden was last reset (cleared for new season); null = never reset
   lastSeasonReset: Season | null;
 
+  // True after a seasonal reset — cleared once the user dismisses the notice
+  seasonResetPending: boolean;
+  dismissSeasonReset: () => void;
+
   // Currently selected flower type for placement
   selectedFlowerType: FlowerType | null;
 
@@ -164,6 +168,7 @@ export const useGardenStore = create<GardenState>()(
       flowers: [],
       currentSeason: getCurrentSeason(),
       lastSeasonReset: null,
+      seasonResetPending: false,
       unlockedCustomizations: [],
       placedFlowers: [],
       selectedFlowerType: null,
@@ -238,6 +243,8 @@ export const useGardenStore = create<GardenState>()(
       // ===========================================
       // GRID PLACEMENT (new functionality)
       // ===========================================
+
+      dismissSeasonReset: () => set({ seasonResetPending: false }),
 
       selectFlowerType: (type) => {
         set({ selectedFlowerType: type, mode: 'place', movingFlowerId: null });
@@ -391,9 +398,10 @@ export const useGardenStore = create<GardenState>()(
         // against the real current season — this catches existing users too.
         const currentSeason = getCurrentSeason();
         if (state.lastSeasonReset !== currentSeason) {
-          state.placedFlowers   = [];
-          state.lastSeasonReset = currentSeason;
-          state.currentSeason   = currentSeason;
+          state.placedFlowers       = [];
+          state.lastSeasonReset     = currentSeason;
+          state.currentSeason       = currentSeason;
+          state.seasonResetPending  = true;
         }
 
         // Remap old/removed FlowerTypes to their replacements
