@@ -118,6 +118,9 @@ interface GardenState extends Garden {
   // Placed flowers on the grid
   placedFlowers: PlacedFlower[];
 
+  // Season when the garden was last reset (cleared for new season); null = never reset
+  lastSeasonReset: Season | null;
+
   // Currently selected flower type for placement
   selectedFlowerType: FlowerType | null;
 
@@ -160,6 +163,7 @@ export const useGardenStore = create<GardenState>()(
     (set, get) => ({
       flowers: [],
       currentSeason: getCurrentSeason(),
+      lastSeasonReset: null,
       unlockedCustomizations: [],
       placedFlowers: [],
       selectedFlowerType: null,
@@ -347,6 +351,7 @@ export const useGardenStore = create<GardenState>()(
           selectedFlowerType: null,
           unlockedCustomizations: [],
           currentSeason: getCurrentSeason(),
+          lastSeasonReset: null,
           mode: 'place',
           movingFlowerId: null,
         });
@@ -380,6 +385,17 @@ export const useGardenStore = create<GardenState>()(
       name: 'rhythm_garden',
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+
+        // Clear the garden grid when the season has changed.
+        // We compare the persisted currentSeason (set when flowers were last earned)
+        // against the real current season — this catches existing users too.
+        const currentSeason = getCurrentSeason();
+        if (state.lastSeasonReset !== currentSeason) {
+          state.placedFlowers   = [];
+          state.lastSeasonReset = currentSeason;
+          state.currentSeason   = currentSeason;
+        }
+
         // Remap old/removed FlowerTypes to their replacements
         const TYPE_REMAP: Record<string, FlowerType> = {
           'golden-hour-lily':    'winter-pansy',
