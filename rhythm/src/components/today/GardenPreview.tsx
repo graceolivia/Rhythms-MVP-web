@@ -19,7 +19,7 @@ import { useRef, useLayoutEffect, useState, useMemo, useEffect, useCallback } fr
 import { format } from 'date-fns';
 import { useSunTimes } from '../../hooks/useSunTimes';
 import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_ROW, BLOCKED_CELLS } from '../../stores/useGardenStore';
-import type { FlowerType } from '../../types';
+import type { FlowerType, Season } from '../../types';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
 import { GrowthSprite } from '../garden/GrowthSprite';
 import { SpriteSheet } from '../garden/SpriteSheet';
@@ -28,7 +28,11 @@ import moonPng from '../../assets/sky/16moon.png';
 import daySkyPng from '../../assets/sky/sky2.png';
 import nightSkyPng from '../../assets/sky/nightsky.png';
 import winterSheetPng from '../../assets/cottage_scene/farm_winter_recolor.png';
+import springSheetPng from '../../assets/cottage_scene/farm_spring_summer.png';
+import autumnSheetPng from '../../assets/cottage_scene/farm_autumn.png';
 import { winterGroundDark, house_small, fencePieces, fenceDoorOpening, snowyPath, snowPiles, right_tree, pine_tree, mailbox } from '../../assets/cottage_scene/winterSprites';
+import { spring_pine_tree, spring_house, spring_mailbox, spring_fencePieces, spring_fenceDoorOpening, spring_path } from '../../assets/cottage_scene/springSprites';
+import { autumn_pine_tree, autumn_house, autumn_mailbox, autumn_fencePieces, autumn_fenceDoorOpening, autumn_path } from '../../assets/cottage_scene/autumnSprites';
 import { CharacterSprite, ROW_IDLE_BOUNCE_FRONT, ROW_IDLE_BOUNCE_SIDE, ROW_IDLE_BOUNCE_BACK } from '../character/CharacterSprite';
 import { useCharacterStore } from '../../stores/useCharacterStore';
 
@@ -176,6 +180,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const [scale, setScale] = useState(1);
   const [now, setNow] = useState(() => new Date());
   const [simProgress, setSimProgress] = useState<number | null>(null); // dev-only time scrubber
+  const [simSeason,   setSimSeason]   = useState<Season | null>(null); // dev-only season override
   const [playerPos, setPlayerPos] = useState({ x: PLAYER_START_X, y: PLAYER_START_Y });
   const [playerFrame, setPlayerFrame] = useState<PlayerFrame>(1);
   const [playerFlipped, setPlayerFlipped] = useState(false);
@@ -195,7 +200,22 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const pineTreeRef    = useRef<HTMLCanvasElement>(null);
   const mailboxRef     = useRef<HTMLCanvasElement>(null);
 
-  // Draw winter ground tiles (snow perimeter + dirt garden interior)
+  // Season sheet — must be declared before canvas effects that depend on it
+  const currentSeason    = useGardenStore(s => s.currentSeason);
+  const effectiveSeason  = simSeason ?? currentSeason;
+  const seasonSheet      = effectiveSeason === 'winter' ? winterSheetPng
+                         : effectiveSeason === 'fall'   ? autumnSheetPng
+                         : springSheetPng; // spring + summer
+  const isWinter         = effectiveSeason === 'winter';
+  const isFall           = effectiveSeason === 'fall';
+  const seasonPineTree = isWinter ? pine_tree        : isFall ? autumn_pine_tree : spring_pine_tree;
+  const seasonHouse    = isWinter ? house_small      : isFall ? autumn_house     : spring_house;
+  const seasonMailbox  = isWinter ? mailbox          : isFall ? autumn_mailbox   : spring_mailbox;
+  const seasonFencePieces      = isWinter ? fencePieces      : isFall ? autumn_fencePieces      : spring_fencePieces;
+  const seasonFenceDoorOpening = isWinter ? fenceDoorOpening : isFall ? autumn_fenceDoorOpening : spring_fenceDoorOpening;
+  const seasonPath     = isWinter ? snowyPath        : isFall ? autumn_path      : spring_path;
+
+  // Draw ground tiles (snow/grass/autumn perimeter + dirt garden interior)
   useEffect(() => {
     const canvas = groundCanvasRef.current;
     if (!canvas) return;
@@ -203,6 +223,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     if (!ctx) return;
     const img = new Image();
     img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
       for (let row = 0; row < GROUND_ROWS; row++) {
         for (let col = 0; col < GROUND_COLS; col++) {
@@ -212,27 +233,28 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         }
       }
     };
-    img.src = winterSheetPng;
-  }, []);
+    img.src = seasonSheet;
+  }, [seasonSheet]);
 
-  // Draw house_small tiles from winter spritesheet onto the house canvas
+  // Draw house_small tiles from seasonal spritesheet onto the house canvas
   useEffect(() => {
     const canvas = houseCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const img = new Image();
+    const tiles = seasonHouse;
     img.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
-      house_small.forEach(t => {
+      tiles.forEach(t => {
         const dx = (t.col - HOUSE_MIN_COL) * HOUSE_TILE;
         const dy = (t.row - HOUSE_MIN_ROW) * HOUSE_TILE;
         ctx.drawImage(img, t.sx, t.sy, HOUSE_TILE, HOUSE_TILE, dx, dy, HOUSE_TILE, HOUSE_TILE);
       });
     };
-    img.src = winterSheetPng;
-  }, []);
+    img.src = seasonSheet;
+  }, [effectiveSeason, seasonSheet]);
 
   // Draw right tree (5×5 tiles at 1× scale, to the right of the house)
   useEffect(() => {
@@ -242,8 +264,9 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     if (!ctx) return;
     const img = new Image();
     img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
-      const S = 16, D = HOUSE_TILE; // 1× scale — source and dest both 16px
+      const S = 16, D = HOUSE_TILE;
       const minCol = Math.min(...right_tree.map(t => t.col));
       const minRow = Math.min(...right_tree.map(t => t.row));
       right_tree.forEach(t => {
@@ -251,8 +274,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           (t.col - minCol) * D, (t.row - minRow) * D, D, D);
       });
     };
-    img.src = winterSheetPng;
-  }, []);
+    img.src = seasonSheet;
+  }, [seasonSheet]);
 
   // Draw mailbox (1×2 tiles at 1× draw / 2× CSS display)
   useEffect(() => {
@@ -261,16 +284,18 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const img = new Image();
+    const tiles = seasonMailbox;
     img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
       const S = 16, D = HOUSE_TILE;
-      const minRow = Math.min(...mailbox.map(t => t.row));
-      mailbox.forEach(t => {
+      const minRow = Math.min(...tiles.map(t => t.row));
+      tiles.forEach(t => {
         ctx.drawImage(img, t.sx, t.sy, S, S, 0, (t.row - minRow) * D, D, D);
       });
     };
-    img.src = winterSheetPng;
-  }, []);
+    img.src = seasonSheet;
+  }, [effectiveSeason, seasonSheet]);
 
   // Draw pine tree (3×4 tiles at 1× draw / 2× CSS display)
   useEffect(() => {
@@ -279,25 +304,30 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const img = new Image();
+    const tiles = seasonPineTree;
+    const sheet = seasonSheet;
     img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
       const S = 16, D = HOUSE_TILE;
-      const minCol = Math.min(...pine_tree.map(t => t.col));
-      const minRow = Math.min(...pine_tree.map(t => t.row));
-      pine_tree.forEach(t => {
+      const minCol = Math.min(...tiles.map(t => t.col));
+      const minRow = Math.min(...tiles.map(t => t.row));
+      tiles.forEach(t => {
         ctx.drawImage(img, t.sx, t.sy, S, S,
           (t.col - minCol) * D, (t.row - minRow) * D, D, D);
       });
     };
-    img.src = winterSheetPng;
-  }, []);
+    img.src = sheet;
+  }, [effectiveSeason, seasonSheet]);
 
-  // Draw snow piles on their own canvas so they can sit above HORIZON_Y
+  // Draw snow piles (winter only)
   useEffect(() => {
     const canvas = snowPilesCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (effectiveSeason !== 'winter') return;
     const img = new Image();
     img.onload = () => {
       ctx.imageSmoothingEnabled = false;
@@ -309,19 +339,20 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       }
     };
     img.src = winterSheetPng;
-  }, []);
+  }, [effectiveSeason]);
 
-  // Draw snowy path tiles (3 cols wide × GRID_ROWS tall, 2× scale)
+  // Draw path tiles (3 cols wide × GRID_ROWS tall, 2× scale)
   useEffect(() => {
     const canvas = pathCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const img = new Image();
+    const sp = seasonPath;
     img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
-      const S = 16, D = CELL; // 16px source → 32px dest (2×)
-      const sp = snowyPath;
+      const S = 16, D = CELL;
       const cols = [sp.topLeft,    sp.topCenter,    sp.topRight,
                     sp.midLeft,    sp.midCenter,    sp.midRight,
                     sp.bottomLeft, sp.bottomCenter, sp.bottomRight];
@@ -334,43 +365,48 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         });
       }
     };
-    img.src = winterSheetPng;
-  }, []);
+    img.src = seasonSheet;
+  }, [effectiveSeason, seasonSheet]);
 
-  // Draw winter fence tiles from spritesheet onto the four fence canvases
+  // Draw fence tiles from seasonal spritesheet onto the four fence canvases
   useEffect(() => {
     const canvases = [topFenceRef.current, leftFenceRef.current, rightFenceRef.current, bottomFenceRef.current];
     if (canvases.some(c => !c)) return;
     const img = new Image();
+    const fp   = seasonFencePieces;
+    const door = seasonFenceDoorOpening;
     img.onload = () => {
       const S = FENCE_TILE_SRC, D = FENCE_TILE_DST;
-      const fp = fencePieces;
 
       const blit = (ctx: CanvasRenderingContext2D, tile: { sx: number; sy: number }, dx: number, dy: number) => {
         ctx.drawImage(img, tile.sx, tile.sy, S, S, dx, dy, D, D);
       };
 
-      // Top fence — topLeft + topCenter×GRID_COLS + topRight
+      // Top fence
       const topCtx = topFenceRef.current!.getContext('2d')!;
       topCtx.imageSmoothingEnabled = false;
+      topCtx.clearRect(0, 0, topFenceRef.current!.width, topFenceRef.current!.height);
       blit(topCtx, fp.topLeft, 0, 0);
       for (let i = 0; i < GRID_COLS; i++) blit(topCtx, fp.topCenter, (1 + i) * D, 0);
       blit(topCtx, fp.topRight, (1 + GRID_COLS) * D, 0);
 
-      // Left fence — midLeft × GRID_ROWS (vertical)
+      // Left fence
       const leftCtx = leftFenceRef.current!.getContext('2d')!;
       leftCtx.imageSmoothingEnabled = false;
+      leftCtx.clearRect(0, 0, leftFenceRef.current!.width, leftFenceRef.current!.height);
       for (let i = 0; i < GRID_ROWS; i++) blit(leftCtx, fp.midLeft, 0, i * D);
 
-      // Right fence — midRight × GRID_ROWS (vertical)
+      // Right fence
       const rightCtx = rightFenceRef.current!.getContext('2d')!;
       rightCtx.imageSmoothingEnabled = false;
+      rightCtx.clearRect(0, 0, rightFenceRef.current!.width, rightFenceRef.current!.height);
       for (let i = 0; i < GRID_ROWS; i++) blit(rightCtx, fp.midRight, 0, i * D);
 
-      // Bottom fence — bottomLeft + bottomCenter×6 + leftmostDoor×1 + bottomCenter×6 + bottomRight
+      // Bottom fence — bottomLeft + bottomCenter×7 + door + bottomCenter×5 + bottomRight
       const btmCtx = bottomFenceRef.current!.getContext('2d')!;
       btmCtx.imageSmoothingEnabled = false;
-      const leftDoor = [...fenceDoorOpening].sort((a, b) => a.col - b.col)[0];
+      btmCtx.clearRect(0, 0, bottomFenceRef.current!.width, bottomFenceRef.current!.height);
+      const leftDoor = [...door].sort((a, b) => a.col - b.col)[0];
       let bx = 0;
       blit(btmCtx, fp.bottomLeft, bx, 0);   bx += D;
       for (let i = 0; i < 7; i++) { blit(btmCtx, fp.bottomCenter, bx, 0); bx += D; }
@@ -378,8 +414,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       for (let i = 0; i < 5; i++) { blit(btmCtx, fp.bottomCenter, bx, 0); bx += D; }
       blit(btmCtx, fp.bottomRight, bx, 0);
     };
-    img.src = winterSheetPng;
-  }, []);
+    img.src = seasonSheet;
+  }, [effectiveSeason, seasonSheet]);
 
   // Track held arrow keys
   useEffect(() => {
@@ -1033,6 +1069,24 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
                   onChange={e => setSimProgress(parseFloat(e.target.value))}
                   style={{ width: '100%', cursor: 'pointer', accentColor: '#9CAF88' }}
                 />
+              </div>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                {(['spring', 'summer', 'fall', 'winter'] as Season[]).map(s => (
+                  <button key={s} onClick={() => setSimSeason(simSeason === s ? null : s)}
+                    style={{ fontSize: 9, fontFamily: 'monospace', cursor: 'pointer', border: 'none',
+                      borderRadius: 4, padding: '2px 6px',
+                      background: effectiveSeason === s ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.2)',
+                      color: effectiveSeason === s ? '#333' : 'rgba(255,255,255,0.7)',
+                      fontWeight: effectiveSeason === s ? 700 : 400,
+                    }}
+                  >{s}</button>
+                ))}
+                {simSeason !== null && (
+                  <button onClick={() => setSimSeason(null)}
+                    style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.5)',
+                      background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: 2 }}
+                  >reset</button>
+                )}
               </div>
             </div>
           );

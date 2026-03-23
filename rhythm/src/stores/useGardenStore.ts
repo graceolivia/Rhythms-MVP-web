@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { format, getMonth } from 'date-fns';
+import { format } from 'date-fns';
 import type { Flower, FlowerType, Season, Garden } from '../types';
 
 // Your sprite sheets — add new ones here and add an entry to FLOWER_CATALOG below
@@ -9,6 +9,14 @@ import snowdropSheet from '../assets/flowers/sheets/0_winter/snowdrop.png';
 import winterPansySheet from '../assets/flowers/sheets/0_winter/winter-pansy.png';
 import heliotropeSheet from '../assets/flowers/sheets/0_winter/heliotrope.png';
 import pinkroseSheet from '../assets/flowers/sheets/2_summer/pinkrose.png';
+import forgetmenotSheet from '../assets/flowers/sheets/1_spring/forgetmenot.png';
+import whiteroseSheet from '../assets/flowers/sheets/1_spring/whiterose.png';
+import pinktulipSheet from '../assets/flowers/sheets/1_spring/pinktulip.png';
+import primulaSheet from '../assets/flowers/sheets/1_spring/primula.png';
+import hyacinthSheet from '../assets/flowers/sheets/1_spring/hyacinth.png';
+import poppySheet from '../assets/flowers/sheets/1_spring/poppy.png';
+import hibiscusSheet from '../assets/flowers/sheets/1_spring/hibiscus.png';
+import pansySheet from '../assets/flowers/sheets/1_spring/pansy.png';
 
 // ===========================================
 // GRID CONFIGURATION
@@ -34,8 +42,11 @@ export const BLOCKED_CELLS = new Set([
 // ===========================================
 
 // Helpers for sheet-based entries
-const sheet = (src: string, label: string, emoji: string) => ({
-  emoji, label, sprite: src, sheet: src, sheetBloomFrame: 3, sheetFrameCount: 4,
+const sheet  = (src: string, label: string, emoji: string) => ({
+  emoji, label, sprite: src, sheet: src, sheetBloomFrame: 4, sheetFrameCount: 5,
+});
+const sheet6 = (src: string, label: string, emoji: string) => ({
+  emoji, label, sprite: src, sheet: src, sheetBloomFrame: 5, sheetFrameCount: 6,
 });
 
 // FLOWER CATALOG — maps FlowerType keys to display info + sprites.
@@ -51,12 +62,20 @@ export const FLOWER_CATALOG: Record<FlowerType, {
   sheetFrameCount?: number;
   season: Season;
 }> = {
+  // Winter
   'daily-daisy':        { ...sheet(snowdropSheet,    'Snowdrop',     '❄️'), season: 'winter' },
   'rhythm-rose':        { ...sheet(pinkroseSheet,    'Pink Rose',    '🌸'), season: 'summer' },
-  'golden-hour-lily':   { ...sheet(winterPansySheet, 'Winter Pansy', '🌸'), season: 'winter' },
-  'self-care-sunflower':{ ...sheet(heliotropeSheet,  'Heliotrope',   '💜'), season: 'winter' },
-  'challenge-bloom':    { ...sheet(winterPansySheet, 'Winter Pansy', '🌸'), season: 'winter' },
   'heliotrope':         { ...sheet(heliotropeSheet,  'Heliotrope',   '💜'), season: 'winter' },
+  'winter-pansy':       { ...sheet(winterPansySheet, 'Winter Pansy', '🌸'), season: 'winter' },
+  // Spring
+  'forget-me-not':      { ...sheet6(forgetmenotSheet, 'Forget-Me-Not', '💙'), season: 'spring' },
+  'white-rose':         { ...sheet6(whiteroseSheet,   'White Rose',    '🤍'), season: 'spring' },
+  'pink-tulip':         { ...sheet6(pinktulipSheet,   'Pink Tulip',    '🌷'), season: 'spring' },
+  'primula':            { ...sheet6(primulaSheet,     'Primula',       '🌼'), season: 'spring' },
+  'hyacinth':           { ...sheet6(hyacinthSheet,    'Hyacinth',      '💜'), season: 'spring' },
+  'poppy':              { ...sheet6(poppySheet,       'Poppy',         '🌺'), season: 'spring' },
+  'hibiscus':           { ...sheet6(hibiscusSheet,    'Hibiscus',      '🌸'), season: 'spring' },
+  'pansy':              { ...sheet6(pansySheet,       'Pansy',         '🌸'), season: 'spring' },
 };
 
 // ===========================================
@@ -74,12 +93,25 @@ export interface PlacedFlower {
 
 type GardenMode = 'place' | 'move' | 'remove';
 
+// Season boundaries (month is 0-indexed, day is 1-indexed)
+const SEASON_DATES = [
+  { season: 'spring' as Season, month: 2,  day: 20 }, // Mar 20
+  { season: 'summer' as Season, month: 5,  day: 21 }, // Jun 21
+  { season: 'fall'   as Season, month: 8,  day: 23 }, // Sep 23
+  { season: 'winter' as Season, month: 11, day: 21 }, // Dec 21
+];
+
 function getCurrentSeason(): Season {
-  const month = getMonth(new Date()); // 0-11
-  if (month >= 2 && month <= 4) return 'spring';
-  if (month >= 5 && month <= 7) return 'summer';
-  if (month >= 8 && month <= 10) return 'fall';
-  return 'winter';
+  const now = new Date();
+  const month = now.getMonth(); // 0-11
+  const day   = now.getDate();
+
+  // Walk backwards through boundaries to find which season we're in
+  for (let i = SEASON_DATES.length - 1; i >= 0; i--) {
+    const { season, month: m, day: d } = SEASON_DATES[i];
+    if (month > m || (month === m && day >= d)) return season;
+  }
+  return 'winter'; // Jan 1 – Mar 19
 }
 
 interface GardenState extends Garden {
@@ -346,6 +378,25 @@ export const useGardenStore = create<GardenState>()(
     }),
     {
       name: 'rhythm_garden',
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        // Remap old/removed FlowerTypes to their replacements
+        const TYPE_REMAP: Record<string, FlowerType> = {
+          'golden-hour-lily':    'winter-pansy',
+          'challenge-bloom':     'winter-pansy',
+          'self-care-sunflower': 'heliotrope',
+        };
+        state.flowers = state.flowers.map(f =>
+          TYPE_REMAP[f.type] ? { ...f, type: TYPE_REMAP[f.type] } : f
+        );
+        // Drop any remaining unknown types
+        const validTypes = new Set(Object.keys(FLOWER_CATALOG));
+        const validFlowerIds = new Set(
+          state.flowers.filter(f => validTypes.has(f.type)).map(f => f.id)
+        );
+        state.flowers       = state.flowers.filter(f => validTypes.has(f.type));
+        state.placedFlowers = state.placedFlowers.filter(p => validFlowerIds.has(p.flowerId));
+      },
     }
   )
 );

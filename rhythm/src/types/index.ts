@@ -313,12 +313,20 @@ export interface ActiveChallenge {
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
 
 export type FlowerType =
-  | 'daily-daisy' // basic daily completion
-  | 'rhythm-rose' // all rhythms completed
-  | 'golden-hour-lily' // used double-nap well
-  | 'self-care-sunflower' // self-care task done
-  | 'challenge-bloom' // special challenge
-  | 'heliotrope'; // hand-drawn — sprite sheet flower
+  // Winter
+  | 'daily-daisy'
+  | 'rhythm-rose'
+  | 'heliotrope'
+  | 'winter-pansy'
+  // Spring
+  | 'forget-me-not'
+  | 'white-rose'
+  | 'pink-tulip'
+  | 'primula'
+  | 'hyacinth'
+  | 'poppy'
+  | 'hibiscus'
+  | 'pansy';
 
 export interface Flower {
   id: string;

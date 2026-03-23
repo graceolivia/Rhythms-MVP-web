@@ -21,12 +21,20 @@ const STAMP_MASK =
 
 // ── Per-type accent colors ────────────────────────────────────────────────────
 const STAMP_COLORS: Record<FlowerType, string> = {
+  // Winter
   'daily-daisy':          '#AABFCE',
   'rhythm-rose':          '#C49090',
-  'golden-hour-lily':     '#C4A050',
-  'self-care-sunflower':  '#8FA87C',
-  'challenge-bloom':      '#A898BC',
   'heliotrope':           '#8890BC',
+  'winter-pansy':         '#B090C8',
+  // Spring
+  'forget-me-not':        '#7BAEC4',
+  'white-rose':           '#C0BDA8',
+  'pink-tulip':           '#D4829A',
+  'primula':              '#C8A840',
+  'hyacinth':             '#9B7EC8',
+  'poppy':                '#C85050',
+  'hibiscus':             '#C87898',
+  'pansy':                '#7878B8',
 };
 
 const TILTS = [-1.4, 0.9, -0.7, 1.6, -1.1, 0.5];

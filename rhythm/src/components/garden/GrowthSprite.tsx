@@ -1,4 +1,3 @@
-import plantedSeedPng from '../../assets/flowers/planted seed.png';
 import { SpriteSheet } from './SpriteSheet';
 import type { GrowthStage, FlowerType } from '../../types';
 
@@ -14,27 +13,24 @@ const STAGE_EMOJI: Record<GrowthStage, string> = {
 const BLOOM_EMOJI: Record<FlowerType, string> = {
   'daily-daisy': '🌼',
   'rhythm-rose': '🌹',
-  'self-care-sunflower': '🌻',
-  'golden-hour-lily': '🌷',
-  'challenge-bloom': '🌺',
   'heliotrope': '💜',
 };
 
-// Sprite sheet frames 0–3 map to: seed, sprout, budding, bloom
-// 'planted' is always the universal planted-seed.png, not from the flower's sheet
-const STAGE_INDEX: Record<Exclude<GrowthStage, 'planted'>, number> = {
-  seed: 0,
-  sprout: 1,
-  budding: 2,
-  bloom: 3,
+// Sprite sheet frames 0–4 map to: planted, seed, sprout, budding, bloom
+const STAGE_INDEX: Record<GrowthStage, number> = {
+  planted: 0,
+  seed: 1,
+  sprout: 2,
+  budding: 3,
+  bloom: 4,
 };
 
 interface GrowthSpriteProps {
   stage: GrowthStage;
   flowerType?: FlowerType;
-  /** Custom pixel art sprites [seed, sprout, budding, bloom] */
-  sprites?: [string, string, string, string];
-  /** Horizontal sprite sheet — frames 0-3 map to seed/sprout/budding/bloom */
+  /** Custom pixel art sprites [planted, seed, sprout, budding, bloom] */
+  sprites?: [string, string, string, string, string];
+  /** Horizontal sprite sheet — frames 0-4 map to planted/seed/sprout/budding/bloom */
   spriteSheet?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   animate?: 'idle' | 'grow' | 'bloom' | 'none';
@@ -69,21 +65,9 @@ const ANIM_CLASSES = {
 };
 
 export function GrowthSprite({ stage, flowerType, sprites, spriteSheet, size = 'md', animate = 'idle' }: GrowthSpriteProps) {
-  // 'planted' always uses the universal planted-seed image, regardless of flower type
-  if (stage === 'planted') {
-    return (
-      <img
-        src={plantedSeedPng}
-        alt="planted seed"
-        className={`${IMG_SIZE_CLASSES[size]} ${ANIM_CLASSES[animate]} select-none block`}
-        style={{ imageRendering: 'pixelated', filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))' }}
-      />
-    );
-  }
-
   const frameIndex = STAGE_INDEX[stage];
 
-  // Sprite sheet: frames 0–3 map to seed/sprout/budding/bloom
+  // Sprite sheet: frames 0–4 map to planted/seed/sprout/budding/bloom
   if (spriteSheet) {
     return (
       <SpriteSheet

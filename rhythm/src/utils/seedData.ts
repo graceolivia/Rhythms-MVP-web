@@ -271,12 +271,9 @@ export const seedFlowers: FlowerType[] = [
   'rhythm-rose',
   'rhythm-rose',
   'rhythm-rose',
-  'golden-hour-lily',
-  'golden-hour-lily',
-  'self-care-sunflower',
-  'self-care-sunflower',
-  'self-care-sunflower',
-  'challenge-bloom',
+  'heliotrope',
+  'heliotrope',
+  'heliotrope',
 ];
 const DEV_FLOWER_MULTIPLIER = 8;
 
