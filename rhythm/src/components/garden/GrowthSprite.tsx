@@ -14,6 +14,15 @@ const BLOOM_EMOJI: Record<FlowerType, string> = {
   'daily-daisy': '🌼',
   'rhythm-rose': '🌹',
   'heliotrope': '💜',
+  'winter-pansy': '🌸',
+  'forget-me-not': '💐',
+  'white-rose': '🤍',
+  'pink-tulip': '🌷',
+  'primula': '🌸',
+  'hyacinth': '💜',
+  'poppy': '🌺',
+  'hibiscus': '🌺',
+  'pansy': '🌸',
 };
 
 // Sprite sheet frames 0–4 map to: planted, seed, sprout, budding, bloom

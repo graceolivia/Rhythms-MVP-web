@@ -278,8 +278,8 @@ export interface ChallengeTemplate {
   difficulty: 'gentle' | 'steady' | 'ambitious';
   /** Which season this challenge is available in; undefined = year-round */
   season?: Season;
-  /** Optional pixel art sprites per growth stage (seed, sprout, budding, bloom) */
-  sprites?: [string, string, string, string];
+  /** Optional pixel art sprites per growth stage (planted, seed, sprout, budding, bloom) */
+  sprites?: [string, string, string, string, string];
   /** Horizontal sprite sheet (16×16 frames) — alternative to individual sprites */
   spriteSheet?: string;
   /** If true, the challenge can be planted again after blooming */
