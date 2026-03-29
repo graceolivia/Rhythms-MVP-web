@@ -101,7 +101,7 @@ const SEASON_DATES = [
   { season: 'winter' as Season, month: 11, day: 21 }, // Dec 21
 ];
 
-function getCurrentSeason(): Season {
+export function getCurrentSeason(): Season {
   const now = new Date();
   const month = now.getMonth(); // 0-11
   const day   = now.getDate();

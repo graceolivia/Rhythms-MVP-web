@@ -2,9 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
-import { useGardenStore, PLOT_COLS, PLOT_ROW } from './useGardenStore';
+import { useGardenStore, PLOT_COLS, PLOT_ROW, getCurrentSeason } from './useGardenStore';
 import { useTaskStore } from './useTaskStore';
-import type { ChallengeTemplate, ActiveChallenge, GrowthStage } from '../types';
+import type { ChallengeTemplate, ActiveChallenge, GrowthStage, Season } from '../types';
 
 import pinkroseSheet from '../assets/flowers/sheets/2_summer/pinkrose.png';
 import snowdropSheet from '../assets/flowers/sheets/0_winter/snowdrop.png';
@@ -36,6 +36,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'rhythm-rose',
     category: 'laundry',
     difficulty: 'gentle',
+    // year-round (no season field)
     repeatable: true,
     spriteSheet: pinkroseSheet,
     seedTasks: [
@@ -54,6 +55,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'daily-daisy',
     category: 'other',
     difficulty: 'gentle',
+    // year-round (no season field)
     repeatable: true,
     spriteSheet: snowdropSheet,
     seedTasks: [
@@ -72,6 +74,7 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     flowerReward: 'heliotrope',
     category: 'other',
     difficulty: 'gentle',
+    season: 'winter' as Season,
     repeatable: true,
     spriteSheet: winterPansySheet,
     seedTasks: [
@@ -86,9 +89,10 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     description: 'Bring rhythm and beauty into the week with intentional play, craft, and nature.',
     type: 'cumulative',
     targetCount: 5,
-    flowerReward: 'daily-daisy',
+    flowerReward: 'forget-me-not',
     category: 'kids',
     difficulty: 'steady',
+    season: 'spring' as Season,
     spriteSheet: heliotropeSheet,
     seedTasks: [
       { title: 'Placeholder enrichment step 1' },
@@ -119,6 +123,7 @@ interface ChallengeState {
   activeChallenges: ActiveChallenge[];
   completedChallengeIds: string[];
   savedStepsByTemplate: Record<string, string[]>;
+  lastSeasonReset: Season | null;
 
   plantChallenge: (templateId: string, plotIndex: number, customStepTitles?: string[], repeatInterval?: 'daily' | 'weekly') => string | null;
   recordProgress: (challengeId: string) => 'progressed' | 'bloomed' | 'already-recorded' | 'not-found';
@@ -138,6 +143,7 @@ export const useChallengeStore = create<ChallengeState>()(
       activeChallenges: [],
       completedChallengeIds: [],
       savedStepsByTemplate: {},
+      lastSeasonReset: null,
 
       plantChallenge: (templateId, plotIndex, customStepTitles?, repeatInterval?) => {
         const state = get();
@@ -413,6 +419,25 @@ export const useChallengeStore = create<ChallengeState>()(
     }),
     {
       name: 'rhythm_challenges',
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const currentSeason = getCurrentSeason();
+        if (state.lastSeasonReset !== currentSeason) {
+          // Abandon any growing challenges that belong to the old season
+          const taskStore = useTaskStore.getState();
+          state.activeChallenges = state.activeChallenges.map(c => {
+            if (c.status !== 'growing') return c;
+            const template = CHALLENGE_TEMPLATES.find(t => t.id === c.templateId);
+            if (!template?.season || template.season === currentSeason) return c;
+            // Deactivate seeded tasks
+            for (const taskId of c.seededTaskIds ?? []) {
+              taskStore.updateTask(taskId, { isActive: false });
+            }
+            return { ...c, status: 'abandoned' };
+          });
+          state.lastSeasonReset = currentSeason;
+        }
+      },
     }
   )
 );

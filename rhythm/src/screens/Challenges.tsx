@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../stores/useChallengeStore';
+import { useGardenStore } from '../stores/useGardenStore';
 import { useTaskStore } from '../stores/useTaskStore';
 import { GrowthSprite } from '../components/garden/GrowthSprite';
 import { SpriteSheet } from '../components/garden/SpriteSheet';
@@ -438,6 +439,7 @@ function AvailableChallengeCard({
               ? `${template.targetCount}-day streak`
               : `${template.targetCount} completions`}
             {template.repeatable && ' · repeatable'}
+            {template.season && ` · ${SEASON_LABEL[template.season]} only`}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -461,10 +463,15 @@ function AvailableChallengeCard({
 // Main Challenges Screen
 // ===========================================
 
+const SEASON_LABEL: Record<string, string> = {
+  spring: 'Spring', summer: 'Summer', fall: 'Fall', winter: 'Winter',
+};
+
 export function Challenges() {
   const navigate = useNavigate();
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const plantChallenge = useChallengeStore(s => s.plantChallenge);
+  const currentSeason = useGardenStore(s => s.currentSeason);
 
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
   const [tab, setTab] = useState<'growing' | 'completed'>('growing');
@@ -473,9 +480,10 @@ export function Challenges() {
   const usedPlots = [...new Set(growing.map(c => c.plotIndex))];
   const activeTemplateIds = new Set(growing.map(c => c.templateId));
 
-  // Available = not currently growing, and either never bloomed or repeatable
+  // Available = not currently growing, matches current season or year-round, and either never bloomed or repeatable
   const available = CHALLENGE_TEMPLATES.filter(
     t => !activeTemplateIds.has(t.id)
+      && (!t.season || t.season === currentSeason)
       && (t.repeatable || !activeChallenges.some(c => c.templateId === t.id && c.status === 'bloomed'))
   );
 
@@ -557,9 +565,14 @@ export function Challenges() {
 
             {/* Available Challenges */}
             <section className="mb-6">
-              <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-3">
-                Available
-              </h2>
+              <div className="flex items-center gap-2 mb-3">
+                <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide">
+                  Available
+                </h2>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-sage/15 text-sage font-medium">
+                  {SEASON_LABEL[currentSeason]}
+                </span>
+              </div>
               {categories.length === 0 ? (
                 <p className="text-sm text-bark/40 text-center py-4">You've tried them all!</p>
               ) : (
