@@ -113,38 +113,6 @@ export interface PendingTransition {
   autoTracked?: boolean;        // true if this transition auto-flipped nap state
 }
 
-// Habit Blocks
-
-export type BlockAnchorType = 'time' | 'event' | 'after-previous';
-
-export interface BlockAnchor {
-  type: BlockAnchorType;
-  time?: string;         // HH:mm — when type is 'time'
-  eventKey?: string;     // e.g. 'nap-start:CHILD_ID' — when type is 'event'
-}
-
-export interface HabitBlockItem {
-  taskId: string;        // References Task.id
-  order: number;         // Position in the stack (1, 2, 3...)
-  isTrackable: boolean;  // true = checkbox (aspirational); false = listed only (routine)
-  choreQueueSlot?: boolean; // true = this slot picks a random chore from the queue
-}
-
-export interface HabitBlock {
-  id: string;
-  name: string;              // "Morning Rush", "Evening Close"
-  emoji?: string;            // Optional visual marker
-  anchor: BlockAnchor;
-  estimatedEndTime?: string; // HH:mm soft end
-  deadline?: string;         // HH:mm hard deadline (escalating reminders)
-  deadlineLabel?: string;    // "Leave for pickup by"
-  items: HabitBlockItem[];
-  recurrence: RecurrenceRule;
-  daysOfWeek?: number[];
-  isActive: boolean;
-  color?: string;            // Tailwind color key
-}
-
 // Tasks
 
 export type TaskTier = 'fixed-schedule' | 'routine' | 'todo';

@@ -4,14 +4,13 @@ import { useTaskStore, shouldTaskOccurOnDate } from '../../stores/useTaskStore';
 import { useChildStore } from '../../stores/useChildStore';
 import { useNapStore } from '../../stores/useNapStore';
 import { useCareBlockStore } from '../../stores/useCareBlockStore';
-import { useHabitBlockStore } from '../../stores/useHabitBlockStore';
 
 interface ComingUpEntry {
   time: string;       // HH:mm
   timeMinutes: number;
   label: string;
   emoji?: string;
-  type: 'task' | 'care-block' | 'nap-schedule' | 'habit-block';
+  type: 'task' | 'care-block' | 'nap-schedule';
   triggeredBy?: string;
 }
 
@@ -21,8 +20,6 @@ export function ComingUp() {
   const getChild = useChildStore((state) => state.getChild);
   const napSchedules = useNapStore((state) => state.napSchedules);
   const blocks = useCareBlockStore((state) => state.blocks);
-  const habitBlocks = useHabitBlockStore((state) => state.blocks);
-  const getBlocksForDate = useHabitBlockStore((state) => state.getBlocksForDate);
 
   const upcomingEntries = useMemo(() => {
     const now = new Date();
@@ -95,28 +92,10 @@ export function ComingUp() {
       }
     });
 
-    // Upcoming habit blocks
-    const todaysHabitBlocks = getBlocksForDate(now);
-    todaysHabitBlocks.forEach((block) => {
-      if (block.anchor.type === 'time' && block.anchor.time) {
-        const [bh, bm] = block.anchor.time.split(':').map(Number);
-        const timeMins = bh * 60 + bm;
-        if (timeMins > currentMinutes) {
-          entries.push({
-            time: block.anchor.time,
-            timeMinutes: timeMins,
-            label: block.name,
-            emoji: block.emoji,
-            type: 'habit-block',
-          });
-        }
-      }
-    });
-
     // Sort by time and take next 5
     entries.sort((a, b) => a.timeMinutes - b.timeMinutes);
     return entries.slice(0, 5);
-  }, [tasks, blocks, habitBlocks, getBlocksForDate, napSchedules, children, getChild]);
+  }, [tasks, blocks, napSchedules, children, getChild]);
 
   if (upcomingEntries.length === 0) return null;
 
@@ -139,7 +118,6 @@ export function ComingUp() {
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
               entry.type === 'care-block' ? 'bg-sage' :
               entry.type === 'nap-schedule' ? 'bg-lavender' :
-              entry.type === 'habit-block' ? 'bg-terracotta' :
               'bg-terracotta'
             }`} />
             <span className="text-sm text-bark/70 flex items-center gap-1">

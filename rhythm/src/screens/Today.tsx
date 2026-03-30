@@ -20,10 +20,6 @@ import { TaskCard } from '../components/today/TaskCard';
 import { TaskDetailSheet } from '../components/today/TaskDetailSheet';
 import { GardenPreview } from '../components/today/GardenPreview';
 import { RoutineBlock } from '../components/today/RoutineBlock';
-import { HabitBlockCard } from '../components/today/HabitBlockCard';
-import { UpNextBlocks } from '../components/today/UpNextBlocks';
-import { ChoreQueueBanner } from '../components/today/ChoreQueueBanner';
-import { useActiveBlock } from '../hooks/useActiveBlock';
 import { useAutoComplete } from '../hooks/useAutoComplete';
 import { useRepeatChallenges } from '../hooks/useRepeatChallenges';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
@@ -214,78 +210,6 @@ function AllTasksView({
 }
 
 // ────────────────────────────────────────────────
-//  Suggested tasks shown alongside active block
-// ────────────────────────────────────────────────
-
-function SuggestedDuringBlock({
-  activeBlock,
-  tasksWithInstances,
-  onTaskTap,
-  onEdit,
-  onDefer,
-  recentlyCompleted,
-  fadingOut,
-  today,
-}: {
-  activeBlock: { items: { taskId: string }[] };
-  tasksWithInstances: TaskWithInstance[];
-  onTaskTap: (instance: TaskInstance) => void;
-  onEdit: (task: Task) => void;
-  onDefer: (instanceId: string) => void;
-  recentlyCompleted: Set<string>;
-  fadingOut: Set<string>;
-  today: string;
-}) {
-  const { isTaskSuggested } = useAvailability();
-
-  const blockTaskIds = useMemo(
-    () => new Set(activeBlock.items.map((item) => item.taskId)),
-    [activeBlock.items]
-  );
-
-  const suggestedItems = useMemo(() => {
-    return tasksWithInstances.filter(({ task, instance }) => {
-      if (blockTaskIds.has(task.id)) return false;
-      if (instance.status === 'completed' && !recentlyCompleted.has(instance.id)) return false;
-      return isTaskSuggested(task);
-    });
-  }, [tasksWithInstances, blockTaskIds, isTaskSuggested, recentlyCompleted]);
-
-  if (suggestedItems.length === 0) return null;
-
-  return (
-    <div className="mb-4">
-      <h3 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-2">
-        Also suggested right now
-      </h3>
-      <div className="space-y-2">
-        {suggestedItems.map(({ task, instance }) => {
-          const isFading = fadingOut.has(instance.id);
-          return (
-            <div
-              key={instance.id}
-              className={`transition-all duration-300 ease-in-out ${
-                isFading ? 'opacity-0 max-h-0 overflow-hidden -my-1' : 'opacity-100 max-h-40'
-              }`}
-            >
-              <TaskCard
-                task={task}
-                instance={instance}
-                today={today}
-                suggested={true}
-                onTap={() => onTaskTap(instance)}
-                onEdit={() => onEdit(task)}
-                onDefer={task.tier === 'todo' && instance.status !== 'completed' ? () => onDefer(instance.id) : undefined}
-              />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ────────────────────────────────────────────────
 //  Main Today screen
 // ────────────────────────────────────────────────
 
@@ -310,7 +234,6 @@ export function Today() {
   const hasEventFired = useEventStore((state) => state.hasEventFired);
   const getEventTimestamp = useEventStore((state) => state.getEventTimestamp);
   const napPredictions = useNapPrediction();
-  const { activeBlock } = useActiveBlock();
   const { justBloomedId, bloomToast, bloomedTemplateId, dismissBloom } = useChallengeProgress();
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const navigate = useNavigate();
@@ -502,45 +425,17 @@ export function Today() {
               </button>
             </div>
 
-            {/* Active block view — shows when a habit block is currently active */}
-            {activeBlock ? (
-              <>
-                <HabitBlockCard
-                  block={activeBlock}
-                  onTaskTap={handleTaskTap}
-                  onEdit={setEditingTask}
-                  fadingOut={fadingOut}
-                  recentlyCompleted={recentlyCompleted}
-                />
-                <SuggestedDuringBlock
-                  activeBlock={activeBlock}
-                  tasksWithInstances={tasksWithInstances}
-                  onTaskTap={handleTaskTap}
-                  onEdit={setEditingTask}
-                  onDefer={handleDefer}
-                  recentlyCompleted={recentlyCompleted}
-                  fadingOut={fadingOut}
-                  today={today}
-                />
-              </>
-            ) : (
-              <>
-                {/* Chore queue banner — shows between blocks if chore not yet done */}
-                <ChoreQueueBanner />
-
-                {/* Your Window — primary focus (Phase 5) */}
-                <YourWindow
-                  availabilityLabel={stateLabel}
-                  availabilityDescription={stateDescription}
-                  tasksWithInstances={tasksWithInstances.filter(t => !routineTaskIds.has(t.task.id))}
-                  onTaskTap={handleTaskTap}
-                  onDefer={handleDefer}
-                  onEdit={setEditingTask}
-                  recentlyCompleted={recentlyCompleted}
-                  fadingOut={fadingOut}
-                />
-              </>
-            )}
+            {/* Your Window — primary focus */}
+            <YourWindow
+              availabilityLabel={stateLabel}
+              availabilityDescription={stateDescription}
+              tasksWithInstances={tasksWithInstances.filter(t => !routineTaskIds.has(t.task.id))}
+              onTaskTap={handleTaskTap}
+              onDefer={handleDefer}
+              onEdit={setEditingTask}
+              recentlyCompleted={recentlyCompleted}
+              fadingOut={fadingOut}
+            />
 
           </>
         )}
@@ -549,9 +444,6 @@ export function Today() {
 
         {/* Day overview — compact (current + 2 upcoming) */}
         <DayOverviewCompact />
-
-        {/* Preview of next 1-2 upcoming blocks */}
-        <UpNextBlocks />
 
         {/* Coming Up (Phase 5) */}
         <ComingUp />
