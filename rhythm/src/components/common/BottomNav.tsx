@@ -11,7 +11,6 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Today', icon: '○', activeIcon: '●' },
-  { to: '/timeline', label: 'Timeline', icon: '◇', activeIcon: '◆' },
   { to: '/challenges', label: 'Challenges', icon: '🌱', activeIcon: '🌱' },
   { to: '/tasks', label: 'Tasks', icon: '◠', activeIcon: '☽' },
   { to: '/collections', label: 'Collections', icon: '✿', activeIcon: '✿' },
@@ -26,12 +25,6 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isActive ? 2.5 : 2}>
           <circle cx="12" cy="12" r="10" />
           {isActive && <circle cx="12" cy="12" r="4" fill="currentColor" />}
-        </svg>
-      );
-    case 'Timeline':
-      return (
-        <svg className="w-6 h-6" fill={isActive ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
         </svg>
       );
     case 'Challenges':
