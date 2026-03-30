@@ -100,6 +100,19 @@ export async function pushAllDataToSupabase(
   const userId = user.id;
 
   try {
+    // Delete all existing rows for this user before re-inserting.
+    // This prevents orphaned records accumulating when local data is
+    // cleared and recreated (e.g. after re-onboarding), which would
+    // cause duplicates to pile up on the next pull.
+    const tables = [
+      'placed_flowers', 'flowers', 'care_blocks', 'away_logs',
+      'nap_logs', 'nap_schedules', 'task_instances', 'tasks', 'children',
+    ];
+    for (const table of tables) {
+      const { error } = await supabase.from(table).delete().eq('user_id', userId);
+      if (error) throw error;
+    }
+
     // Sync in order of dependencies (children first, then things that reference children)
 
     // 1. Children
