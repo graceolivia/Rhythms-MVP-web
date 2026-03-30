@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { pushAllDataToSupabase, pullAllDataFromSupabase } from '../lib/sync';
 import { useChildStore } from '../stores/useChildStore';
 import { useTaskStore } from '../stores/useTaskStore';
-import { useNapStore } from '../stores/useNapStore';
 import { useAwayStore } from '../stores/useAwayStore';
 import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useGardenStore } from '../stores/useGardenStore';
@@ -26,7 +25,6 @@ export function useSync() {
     try {
       const childStore = useChildStore.getState();
       const taskStore = useTaskStore.getState();
-      const napStore = useNapStore.getState();
       const awayStore = useAwayStore.getState();
       const careBlockStore = useCareBlockStore.getState();
       const gardenStore = useGardenStore.getState();
@@ -34,8 +32,6 @@ export function useSync() {
         children: childStore.children,
         tasks: taskStore.tasks,
         taskInstances: taskStore.taskInstances,
-        napSchedules: napStore.napSchedules,
-        napLogs: napStore.napLogs,
         awayLogs: awayStore.awayLogs,
         careBlocks: careBlockStore.blocks,
         flowers: gardenStore.flowers,
@@ -77,7 +73,6 @@ export function useSync() {
       // Update all stores with fetched data
       const childStore = useChildStore.getState();
       const taskStore = useTaskStore.getState();
-      const napStore = useNapStore.getState();
       const awayStore = useAwayStore.getState();
       const careBlockStore = useCareBlockStore.getState();
       const gardenStore = useGardenStore.getState();
@@ -88,10 +83,6 @@ export function useSync() {
         taskStore.replaceTasks(
           data.tasks as Parameters<typeof taskStore.replaceTasks>[0],
           data.taskInstances as Parameters<typeof taskStore.replaceTasks>[1]
-        );
-        napStore.replaceNapData(
-          data.napSchedules as Parameters<typeof napStore.replaceNapData>[0],
-          data.napLogs as Parameters<typeof napStore.replaceNapData>[1]
         );
         awayStore.replaceAwayLogs(data.awayLogs as Parameters<typeof awayStore.replaceAwayLogs>[0]);
         careBlockStore.replaceBlocks(data.careBlocks as Parameters<typeof careBlockStore.replaceBlocks>[0]);

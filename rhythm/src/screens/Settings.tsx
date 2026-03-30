@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
-import { useNapStore } from '../stores/useNapStore';
 import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useResetSeedData } from '../hooks/useResetSeedData';
@@ -55,10 +54,6 @@ export function Settings() {
   const updateChild = useChildStore((state) => state.updateChild);
   const removeChild = useChildStore((state) => state.removeChild);
   const getChild = useChildStore((state) => state.getChild);
-  const napSchedules = useNapStore((state) => state.napSchedules);
-  const addNapSchedule = useNapStore((state) => state.addNapSchedule);
-  const updateNapSchedule = useNapStore((state) => state.updateNapSchedule);
-  const removeNapSchedule = useNapStore((state) => state.removeNapSchedule);
   const careBlocks = useCareBlockStore((state) => state.blocks);
   const addCareBlock = useCareBlockStore((state) => state.addBlock);
   const updateCareBlock = useCareBlockStore((state) => state.updateBlock);
@@ -95,16 +90,6 @@ export function Settings() {
       color: 'lavender',
       bedtime: '19:30',
       wakeTime: '07:00',
-    });
-  };
-
-  const handleAddNap = (childId: string) => {
-    const existingNaps = napSchedules.filter((n) => n.childId === childId);
-    addNapSchedule({
-      childId,
-      napNumber: existingNaps.length + 1,
-      typicalStart: '13:00',
-      typicalEnd: '15:00',
     });
   };
 
@@ -293,16 +278,6 @@ export function Settings() {
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-sm text-bark/70 mb-3">
-                  <input
-                    type="checkbox"
-                    checked={child.isNappingAge}
-                    onChange={(e) => updateChild(child.id, { isNappingAge: e.target.checked })}
-                    className="rounded border-bark/20"
-                  />
-                  Daytime sleep
-                </label>
-
                 {/* Bedtime and Wake time */}
                 <div className="flex gap-3 mb-3">
                   <div className="flex-1">
@@ -338,57 +313,6 @@ export function Settings() {
                     Updated when you complete dropoff/pickup tasks
                   </p>
                 </div>
-
-                {/* Sleep Schedules (only for napping-age children) */}
-                {child.isNappingAge && (
-                  <div className="border-t border-bark/10 pt-3 mt-3">
-                    <label className="text-xs text-bark/50 block mb-2">Sleep Schedule</label>
-                    {napSchedules
-                      .filter((nap) => nap.childId === child.id)
-                      .sort((a, b) => a.napNumber - b.napNumber)
-                      .map((nap) => (
-                        <div key={nap.id} className="mb-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs text-bark/40 w-12">Sleep {nap.napNumber}</span>
-                            <input
-                              type="time"
-                              value={nap.typicalStart}
-                              onChange={(e) => updateNapSchedule(nap.id, { typicalStart: e.target.value })}
-                              className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                            />
-                            <span className="text-bark/40 text-xs">to</span>
-                            <input
-                              type="time"
-                              value={nap.typicalEnd}
-                              onChange={(e) => updateNapSchedule(nap.id, { typicalEnd: e.target.value })}
-                              className="flex-1 px-2 py-1 text-sm rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                            />
-                            <button
-                              onClick={() => removeNapSchedule(nap.id)}
-                              className="text-bark/40 hover:text-bark text-xs px-1"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                          <label className="flex items-center gap-1.5 ml-12 text-xs text-bark/60 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={nap.autoTrack !== false}
-                              onChange={(e) => updateNapSchedule(nap.id, { autoTrack: e.target.checked })}
-                              className="rounded border-bark/20"
-                            />
-                            Auto-track this sleep
-                          </label>
-                        </div>
-                      ))}
-                    <button
-                      onClick={() => handleAddNap(child.id)}
-                      className="w-full py-1 border border-dashed border-bark/20 rounded-lg text-bark/50 hover:border-bark/40 text-xs"
-                    >
-                      + Add Sleep
-                    </button>
-                  </div>
-                )}
 
                 {/* Linked Tasks */}
                 {getLinkedTasks(child.id).length > 0 && (

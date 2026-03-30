@@ -1,4 +1,4 @@
-import type { Child, NapSchedule, TaskInput, FlowerType } from '../types';
+import type { Child, TaskInput, FlowerType } from '../types';
 import { DEV_MODE } from '../config/devMode';
 
 // ============================================
@@ -9,12 +9,10 @@ export const seedChildren: Omit<Child, 'id'>[] = [
   {
     name: 'Milo',
     birthdate: '2022-04-10',
-    isNappingAge: true,
   },
   {
     name: 'Hazel',
     birthdate: '2024-07-15',
-    isNappingAge: true,
   },
 ];
 
@@ -28,33 +26,6 @@ export function loadSeedChildrenOnly(stores: {
     childState.addChild(child);
   });
 }
-
-// ============================================
-// NAP SCHEDULES (childId will be set after children are created)
-// ============================================
-
-export const seedNapSchedules: Omit<NapSchedule, 'id' | 'childId'>[] = [
-  // Milo (toddler) - one afternoon nap
-  {
-    napNumber: 1,
-    typicalStart: '13:00',
-    typicalEnd: '15:00',
-  },
-];
-
-export const seedBabyNapSchedules: Omit<NapSchedule, 'id' | 'childId'>[] = [
-  // Hazel (baby) - two naps
-  {
-    napNumber: 1,
-    typicalStart: '09:30',
-    typicalEnd: '11:00',
-  },
-  {
-    napNumber: 2,
-    typicalStart: '13:30',
-    typicalEnd: '15:00',
-  },
-];
 
 // ============================================
 // TASKS (Templates)
@@ -311,9 +282,6 @@ export function loadSeedData(stores: {
   childStore: {
     getState: () => { children: Child[]; addChild: (child: Omit<Child, 'id'>) => string };
   };
-  napStore: {
-    getState: () => { addNapSchedule: (schedule: Omit<NapSchedule, 'id'>) => string };
-  };
   taskStore: {
     getState: () => { addTask: (task: TaskInput) => string };
   };
@@ -328,29 +296,12 @@ export function loadSeedData(stores: {
     console.log('🌱 Seed data skipped: children already exist.');
     return;
   }
-  const napState = stores.napStore.getState();
   const taskState = stores.taskStore.getState();
 
-  // Add children and track their IDs
-  const childIds: string[] = [];
+  // Add children
   seedChildren.forEach((child) => {
-    const id = childState.addChild(child);
-    childIds.push(id);
+    childState.addChild(child);
   });
-
-  // Add nap schedules for Milo (first child - toddler)
-  if (childIds[0]) {
-    seedNapSchedules.forEach((schedule) => {
-      napState.addNapSchedule({ ...schedule, childId: childIds[0] });
-    });
-  }
-
-  // Add nap schedules for Hazel (second child - baby)
-  if (childIds[1]) {
-    seedBabyNapSchedules.forEach((schedule) => {
-      napState.addNapSchedule({ ...schedule, childId: childIds[1] });
-    });
-  }
 
   // Add tasks
   seedTasks.forEach((task) => {

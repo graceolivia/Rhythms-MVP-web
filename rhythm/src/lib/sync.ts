@@ -84,13 +84,10 @@ export async function pushAllDataToSupabase(
     children: unknown[];
     tasks: unknown[];
     taskInstances: unknown[];
-    napSchedules: unknown[];
-    napLogs: unknown[];
     awayLogs: unknown[];
     careBlocks: unknown[];
     flowers: unknown[];
     placedFlowers: unknown[];
-    habitBlocks?: unknown[];
   }
 ): Promise<{ error: Error | null }> {
   if (!supabase) {
@@ -106,7 +103,7 @@ export async function pushAllDataToSupabase(
     // cause duplicates to pile up on the next pull.
     const tables = [
       'placed_flowers', 'flowers', 'care_blocks', 'away_logs',
-      'nap_logs', 'nap_schedules', 'task_instances', 'tasks', 'children',
+      'task_instances', 'tasks', 'children',
     ];
     for (const table of tables) {
       const { error } = await supabase.from(table).delete().eq('user_id', userId);
@@ -185,46 +182,7 @@ export async function pushAllDataToSupabase(
       if (error) throw error;
     }
 
-    // 4. Nap Schedules
-    if (stores.napSchedules.length > 0) {
-      const { error } = await supabase.from('nap_schedules').upsert(
-        (stores.napSchedules as Array<{
-          id: string; childId: string; napNumber: number;
-          typicalStart?: string | null; typicalEnd?: string | null;
-        }>).map((ns) => ({
-          id: ns.id,
-          user_id: userId,
-          child_id: ns.childId,
-          nap_number: ns.napNumber,
-          typical_start: ns.typicalStart || null,
-          typical_end: ns.typicalEnd || null,
-        })),
-        { onConflict: 'id' }
-      );
-      if (error) throw error;
-    }
-
-    // 5. Nap Logs
-    if (stores.napLogs.length > 0) {
-      const { error } = await supabase.from('nap_logs').upsert(
-        (stores.napLogs as Array<{
-          id: string; childId: string; date: string; startedAt: string;
-          endedAt?: string | null; sleepType?: string;
-        }>).map((nl) => ({
-          id: nl.id,
-          user_id: userId,
-          child_id: nl.childId,
-          date: nl.date,
-          started_at: nl.startedAt,
-          ended_at: nl.endedAt || null,
-          sleep_type: nl.sleepType || 'nap',
-        })),
-        { onConflict: 'id' }
-      );
-      if (error) throw error;
-    }
-
-    // 6. Away Logs
+    // 4. Away Logs
     if (stores.awayLogs.length > 0) {
       const { error } = await supabase.from('away_logs').upsert(
         (stores.awayLogs as Array<{
@@ -322,13 +280,10 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
     children: unknown[];
     tasks: unknown[];
     taskInstances: unknown[];
-    napSchedules: unknown[];
-    napLogs: unknown[];
     awayLogs: unknown[];
     careBlocks: unknown[];
     flowers: unknown[];
     placedFlowers: unknown[];
-    habitBlocks?: unknown[];
   } | null;
   error: Error | null;
 }> {
@@ -343,8 +298,6 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       childrenRes,
       tasksRes,
       taskInstancesRes,
-      napSchedulesRes,
-      napLogsRes,
       awayLogsRes,
       careBlocksRes,
       flowersRes,
@@ -353,8 +306,6 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       supabase.from('children').select('*').eq('user_id', userId),
       supabase.from('tasks').select('*').eq('user_id', userId),
       supabase.from('task_instances').select('*').eq('user_id', userId),
-      supabase.from('nap_schedules').select('*').eq('user_id', userId),
-      supabase.from('nap_logs').select('*').eq('user_id', userId),
       supabase.from('away_logs').select('*').eq('user_id', userId),
       supabase.from('care_blocks').select('*').eq('user_id', userId),
       supabase.from('flowers').select('*').eq('user_id', userId),
@@ -366,8 +317,6 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       childrenRes.error,
       tasksRes.error,
       taskInstancesRes.error,
-      napSchedulesRes.error,
-      napLogsRes.error,
       awayLogsRes.error,
       careBlocksRes.error,
       flowersRes.error,
@@ -417,23 +366,6 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
       completedAt: ti.completed_at,
     }));
 
-    const napSchedules = (napSchedulesRes.data || []).map((ns: Record<string, unknown>) => ({
-      id: ns.id,
-      childId: ns.child_id,
-      napNumber: ns.nap_number,
-      typicalStart: ns.typical_start,
-      typicalEnd: ns.typical_end,
-    }));
-
-    const napLogs = (napLogsRes.data || []).map((nl: Record<string, unknown>) => ({
-      id: nl.id,
-      childId: nl.child_id,
-      date: nl.date,
-      startedAt: nl.started_at,
-      endedAt: nl.ended_at,
-      sleepType: nl.sleep_type,
-    }));
-
     const awayLogs = (awayLogsRes.data || []).map((al: Record<string, unknown>) => ({
       id: al.id,
       childId: al.child_id,
@@ -478,8 +410,6 @@ export async function pullAllDataFromSupabase(user: User): Promise<{
         children,
         tasks,
         taskInstances,
-        napSchedules,
-        napLogs,
         awayLogs,
         careBlocks,
         flowers,

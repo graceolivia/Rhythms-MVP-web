@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { useTaskStore, shouldTaskOccurOnDate } from '../../stores/useTaskStore';
 import { useChildStore } from '../../stores/useChildStore';
-import { useNapStore } from '../../stores/useNapStore';
 import { useCareBlockStore } from '../../stores/useCareBlockStore';
 
 interface ComingUpEntry {
@@ -10,15 +9,13 @@ interface ComingUpEntry {
   timeMinutes: number;
   label: string;
   emoji?: string;
-  type: 'task' | 'care-block' | 'nap-schedule';
+  type: 'task' | 'care-block';
   triggeredBy?: string;
 }
 
 export function ComingUp() {
   const tasks = useTaskStore((state) => state.tasks);
-  const children = useChildStore((state) => state.children);
   const getChild = useChildStore((state) => state.getChild);
-  const napSchedules = useNapStore((state) => state.napSchedules);
   const blocks = useCareBlockStore((state) => state.blocks);
 
   const upcomingEntries = useMemo(() => {
@@ -75,27 +72,10 @@ export function ComingUp() {
         }
       });
 
-    // Upcoming sleep schedules
-    napSchedules.forEach((schedule) => {
-      const child = children.find((c) => c.id === schedule.childId);
-      if (!child || !child.isNappingAge) return;
-
-      const [sh, sm] = schedule.typicalStart.split(':').map(Number);
-      const timeMins = sh * 60 + sm;
-      if (timeMins > currentMinutes) {
-        entries.push({
-          time: schedule.typicalStart,
-          timeMinutes: timeMins,
-          label: `${child.name}'s sleep ${schedule.napNumber}`,
-          type: 'nap-schedule',
-        });
-      }
-    });
-
     // Sort by time and take next 5
     entries.sort((a, b) => a.timeMinutes - b.timeMinutes);
     return entries.slice(0, 5);
-  }, [tasks, blocks, napSchedules, children, getChild]);
+  }, [tasks, blocks, getChild]);
 
   if (upcomingEntries.length === 0) return null;
 
@@ -117,7 +97,6 @@ export function ComingUp() {
             </span>
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
               entry.type === 'care-block' ? 'bg-sage' :
-              entry.type === 'nap-schedule' ? 'bg-lavender' :
               'bg-terracotta'
             }`} />
             <span className="text-sm text-bark/70 flex items-center gap-1">

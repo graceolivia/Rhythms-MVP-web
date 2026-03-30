@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { format, getDay } from 'date-fns';
 import type { CareBlock, CareBlockType, AvailabilityState, RecurrenceRule } from '../types';
 import { useChildStore } from './useChildStore';
-import { useNapStore } from './useNapStore';
 
 /**
  * Maps CareBlockType to the AvailabilityState it creates
@@ -203,20 +202,7 @@ export const useCareBlockStore = create<CareBlockState>()(
 
       getCurrentAvailabilityState: () => {
         const children = useChildStore.getState().children;
-        const napLogs = useNapStore.getState().napLogs;
-        const now = new Date();
         const currentTime = getCurrentTimeString();
-
-        // Check if any children are currently napping
-        const sleepingChildren = children.filter((child) => {
-          const activeNap = napLogs.find(
-            (log) =>
-              log.childId === child.id &&
-              log.endedAt === null &&
-              format(new Date(log.startedAt), 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd')
-          );
-          return !!activeNap;
-        });
 
         // Get active care blocks
         const activeBlocks = get().getActiveBlocksNow();
@@ -262,19 +248,6 @@ export const useCareBlockStore = create<CareBlockState>()(
           );
           if (allChildrenAway) {
             return 'free';
-          }
-        }
-
-        // Check if any children are napping (quiet state)
-        if (sleepingChildren.length > 0) {
-          // If all children are either napping or away, it's quiet time
-          const allQuietOrAway = children.every((child) => {
-            const isNapping = sleepingChildren.some((c) => c.id === child.id);
-            const isAway = awayBlocks.some((block) => block.childIds.includes(child.id));
-            return isNapping || isAway;
-          });
-          if (allQuietOrAway) {
-            return 'quiet';
           }
         }
 

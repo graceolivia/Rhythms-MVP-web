@@ -3,13 +3,8 @@ import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
-import { useNapState } from '../hooks/useNapState';
 import { useAvailability } from '../hooks/useAvailability';
-import { ChildStatusBar } from '../components/care/ChildStatusBar';
-import { TransitionPrompts } from '../components/care/TransitionPrompts';
-import { useTransitionCheck } from '../hooks/useTransitionCheck';
 import { useEventStore } from '../stores/useEventStore';
-import { useNapPrediction } from '../hooks/useNapPrediction';
 import { BloomModal } from '../components/common/BloomModal';
 import { QuickAddSeed } from '../components/tasks/QuickAddSeed';
 import { TaskEditor } from '../components/tasks/TaskEditor';
@@ -24,27 +19,11 @@ import { useAutoComplete } from '../hooks/useAutoComplete';
 import { useRepeatChallenges } from '../hooks/useRepeatChallenges';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../stores/useChallengeStore';
-import type { Task, TaskInstance, TaskTier, NapContext, CareContext } from '../types';
+import type { Task, TaskInstance, TaskTier, CareContext } from '../types';
 
 // ────────────────────────────────────────────────
 //  Legacy helpers (kept for backward compat)
 // ────────────────────────────────────────────────
-
-/** @deprecated */
-function isTaskSuggestedForNapState(task: Task, napState: NapContext): boolean {
-  if (!task.napContext || task.napContext === 'any') return false;
-  if (napState === 'any') return false;
-  switch (napState) {
-    case 'both-asleep':
-      return task.napContext === 'both-asleep'
-        || task.napContext === 'baby-asleep'
-        || task.napContext === 'toddler-asleep';
-    case 'baby-asleep': return task.napContext === 'baby-asleep';
-    case 'toddler-asleep': return task.napContext === 'toddler-asleep';
-    case 'both-awake': return task.napContext === 'both-awake';
-    default: return false;
-  }
-}
 
 /** @deprecated */
 function isTaskSuggestedForCareContext(task: Task, currentContext: CareContext): boolean {
@@ -100,7 +79,6 @@ function AllTasksView({
   setEditingTier: (tier: TaskTier) => void;
   today: string;
 }) {
-  const { napState } = useNapState();
   const getCurrentCareContext = useChildStore((state) => state.getCurrentCareContext);
   const careContext = getCurrentCareContext();
   const { isTaskSuggested } = useAvailability();
@@ -129,12 +107,10 @@ function AllTasksView({
           .sort((a, b) => {
             const aSuggested = isTaskSuggested(a.task) && a.instance.status !== 'completed';
             const bSuggested = isTaskSuggested(b.task) && b.instance.status !== 'completed';
-            const aSuggestedNap = isTaskSuggestedForNapState(a.task, napState) && a.instance.status !== 'completed';
-            const bSuggestedNap = isTaskSuggestedForNapState(b.task, napState) && b.instance.status !== 'completed';
             const aSuggestedCare = isTaskSuggestedForCareContext(a.task, careContext) && a.instance.status !== 'completed';
             const bSuggestedCare = isTaskSuggestedForCareContext(b.task, careContext) && b.instance.status !== 'completed';
-            const aAny = aSuggested || aSuggestedNap || aSuggestedCare;
-            const bAny = bSuggested || bSuggestedNap || bSuggestedCare;
+            const aAny = aSuggested || aSuggestedCare;
+            const bAny = bSuggested || bSuggestedCare;
             if (aAny && !bAny) return -1;
             if (!aAny && bAny) return 1;
             return 0;
@@ -169,10 +145,7 @@ function AllTasksView({
             <div className="space-y-2">
               {visibleItems.map(({ task, instance }) => {
                 const isFading = fadingOut.has(instance.id);
-                const suggestedAvailability = isTaskSuggested(task) && instance.status !== 'completed';
-                const suggestedNap = isTaskSuggestedForNapState(task, napState) && instance.status !== 'completed';
-                const suggestedCare = isTaskSuggestedForCareContext(task, careContext) && instance.status !== 'completed';
-                const suggested = suggestedAvailability || suggestedNap || suggestedCare;
+                const suggested = (isTaskSuggested(task) || isTaskSuggestedForCareContext(task, careContext)) && instance.status !== 'completed';
                 return (
                   <div key={instance.id} className={`transition-all duration-300 ease-in-out ${isFading ? 'opacity-0 max-h-0 overflow-hidden -my-1' : 'opacity-100 max-h-40'}`}>
                     <TaskCard
@@ -233,13 +206,9 @@ export function Today() {
   const { stateLabel, stateDescription } = useAvailability();
   const hasEventFired = useEventStore((state) => state.hasEventFired);
   const getEventTimestamp = useEventStore((state) => state.getEventTimestamp);
-  const napPredictions = useNapPrediction();
   const { justBloomedId, bloomToast, bloomedTemplateId, dismissBloom } = useChallengeProgress();
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const navigate = useNavigate();
-
-  // Check for transitions on mount + every 5 min
-  useTransitionCheck();
 
   // Auto-complete past fixed-schedule tasks
   useAutoComplete();
@@ -349,25 +318,11 @@ export function Today() {
 
   return (
     <div className="min-h-screen bg-parchment/30">
-      {/* Child status bar — fixed above BottomNav (Phase 1) */}
-      <ChildStatusBar napPredictions={Object.fromEntries(
-        Object.entries(napPredictions).map(([id, p]) => [id, {
-          nextNapTime: p.nextNapTime ?? undefined,
-          probableWakeTime: p.probableWakeTime ?? undefined,
-          wakeWindowWarning: p.wakeWindowWarning ?? undefined,
-        }])
-      )} />
-
       <div className="max-w-lg mx-auto px-4 pt-4 pb-14">
         {/* Unified sky + garden tableau */}
         <div className="-mx-4 -mt-4">
           <GardenPreview justBloomedId={justBloomedId} />
         </div>
-
-        {/* Transition prompts (Phase 2) */}
-        <TransitionPrompts napContext={Object.fromEntries(
-          Object.entries(napPredictions).map(([id, p]) => [id, { wakeWindowText: p.wakeWindowText ?? undefined }])
-        )} />
 
         {/* ── TASKS ── */}
 

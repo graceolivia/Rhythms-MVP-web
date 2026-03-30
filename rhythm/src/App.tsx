@@ -15,7 +15,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
 import { isFreshInstall, consumeSkipSeedDataOnce } from './utils/storageHelpers';
 import { useChildStore } from './stores/useChildStore';
-import { useNapStore } from './stores/useNapStore';
 import { useTaskStore } from './stores/useTaskStore';
 import { useGardenStore } from './stores/useGardenStore';
 import { useCharacterStore } from './stores/useCharacterStore';
@@ -101,7 +100,6 @@ function App() {
       } else if (DEV_SKIP_ONBOARDING) {
         loadSeedData({
           childStore: useChildStore,
-          napStore: useNapStore,
           taskStore: useTaskStore,
           gardenStore: useGardenStore,
         });
@@ -109,7 +107,6 @@ function App() {
         // In development, load seed data instead of showing onboarding
         loadSeedData({
           childStore: useChildStore,
-          napStore: useNapStore,
           taskStore: useTaskStore,
           gardenStore: useGardenStore,
         });

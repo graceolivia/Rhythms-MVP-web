@@ -1,8 +1,6 @@
 import { useMemo } from 'react';
-import { format } from 'date-fns';
 import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useChildStore } from '../stores/useChildStore';
-import { useNapStore } from '../stores/useNapStore';
 import type { AvailabilityState, CareBlock, Task } from '../types';
 
 interface AvailabilityInfo {
@@ -70,33 +68,16 @@ export function useAvailability(): AvailabilityInfo {
   const currentState = useCareBlockStore((state) => state.getCurrentAvailabilityState());
   const getActiveBlocksNow = useCareBlockStore((state) => state.getActiveBlocksNow);
   const children = useChildStore((state) => state.children);
-  const napLogs = useNapStore((state) => state.napLogs);
 
   const activeBlocks = useMemo(() => getActiveBlocksNow(), [getActiveBlocksNow]);
 
   // Compute which children are in which state
   const { childrenAway, childrenAsleep, childrenHome } = useMemo(() => {
-    const now = new Date();
-    const today = format(now, 'yyyy-MM-dd');
-
     const away: string[] = [];
     const asleep: string[] = [];
     const home: string[] = [];
 
     for (const child of children) {
-      // Check if child has active nap
-      const hasActiveNap = napLogs.some(
-        (log) =>
-          log.childId === child.id &&
-          log.endedAt === null &&
-          format(new Date(log.startedAt), 'yyyy-MM-dd') === today
-      );
-
-      if (hasActiveNap) {
-        asleep.push(child.id);
-        continue;
-      }
-
       // Check if child is covered by a "free" block (childcare, babysitter)
       const isAway = activeBlocks.some(
         (block) =>
@@ -126,7 +107,7 @@ export function useAvailability(): AvailabilityInfo {
     }
 
     return { childrenAway: away, childrenAsleep: asleep, childrenHome: home };
-  }, [children, napLogs, activeBlocks]);
+  }, [children, activeBlocks]);
 
   // Helper functions
   const isChildAway = (childId: string) => childrenAway.includes(childId);

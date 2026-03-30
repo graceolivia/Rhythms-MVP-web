@@ -1,4 +1,4 @@
-// Children & Naps
+// Children
 
 export type ChildColor = 'lavender' | 'sage' | 'skyblue' | 'dustyrose' | 'terracotta' | 'clay';
 
@@ -9,32 +9,11 @@ export interface Child {
   id: string;
   name: string;
   birthdate: string; // ISO date
-  isNappingAge: boolean;
+  isNappingAge?: boolean; // deprecated, kept for data compatibility
   color?: ChildColor;
   bedtime?: string;   // HH:mm format (e.g., "19:30")
   wakeTime?: string;  // HH:mm format (e.g., "07:00")
   careStatus?: CareStatus;  // Current care status (default: 'home')
-}
-
-export interface NapSchedule {
-  id: string;
-  childId: string;
-  napNumber: number; // 1, 2, or 3
-  typicalStart: string; // '09:30'
-  typicalEnd: string; // '11:00'
-  autoTrack?: boolean; // auto-start/end nap at schedule times (default: treated as true when undefined)
-}
-
-export type SleepType = 'nap' | 'night';
-
-export interface NapLog {
-  id: string;
-  childId: string;
-  date: string; // ISO date
-  startedAt: string; // ISO datetime
-  endedAt: string | null; // null if still sleeping
-  sleepType?: SleepType; // 'nap' or 'night', defaults to 'nap' for backwards compatibility
-  autoTracked?: boolean; // true if this log was auto-created by schedule
 }
 
 export interface ChildcareSchedule {
@@ -96,7 +75,7 @@ export interface CareBlock {
 
 // Transitions
 
-export type TransitionType = 'care-block-start' | 'care-block-end' | 'nap-start' | 'nap-end';
+export type TransitionType = 'care-block-start' | 'care-block-end';
 
 export interface PendingTransition {
   id: string;
@@ -105,7 +84,6 @@ export interface PendingTransition {
   scheduledTime: string;        // HH:mm
   scheduledDate: string;        // YYYY-MM-DD
   blockId?: string;             // CareBlock ID
-  napScheduleId?: string;       // NapSchedule ID
   description: string;          // "Julian home from daycare?"
   autoConfirmAfterMs: number;   // Default 30 min (1800000)
   createdAt: string;
