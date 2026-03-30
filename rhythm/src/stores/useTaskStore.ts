@@ -5,6 +5,7 @@ import { format, getDay, subDays, differenceInDays, parseISO } from 'date-fns';
 import type { Task, TaskInput, TaskInstance, TaskStatus, CareStatus, ChildTaskType, ChildcareSchedule, AvailabilityState } from '../types';
 import { useChildStore } from './useChildStore';
 import { useEventStore } from './useEventStore';
+import { useCoinStore } from './useCoinStore';
 
 /**
  * Check if a task is suggested for the current availability state.
@@ -239,6 +240,9 @@ export const useTaskStore = create<TaskState>()(
             useChildStore.getState().updateCareStatus(task.childId, newStatus);
           }
         }
+
+        // Earn a coin for completing a task
+        useCoinStore.getState().earnCoin();
 
         // Emit task-complete event
         if (task) {

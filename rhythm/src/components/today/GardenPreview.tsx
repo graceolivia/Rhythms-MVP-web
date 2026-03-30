@@ -35,6 +35,7 @@ import { spring_pine_tree, spring_house, spring_mailbox, spring_fencePieces, spr
 import { autumn_pine_tree, autumn_house, autumn_mailbox, autumn_fencePieces, autumn_fenceDoorOpening, autumn_path } from '../../assets/cottage_scene/autumnSprites';
 import { CharacterSprite, ROW_IDLE_BOUNCE_FRONT, ROW_IDLE_BOUNCE_SIDE, ROW_IDLE_BOUNCE_BACK } from '../character/CharacterSprite';
 import { useCharacterStore } from '../../stores/useCharacterStore';
+import { useCoinStore } from '../../stores/useCoinStore';
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 const CELL = 32;
@@ -173,7 +174,7 @@ const SHOW_GRID_COORDS = DEV_OVERLAY;
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null }) {
-
+  const coins = useCoinStore((state) => state.coins);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [now, setNow] = useState(() => new Date());
@@ -748,6 +749,12 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div ref={wrapRef} style={{ width: '100%', position: 'relative' }}>
+      {/* Coin counter overlay */}
+      <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 20, pointerEvents: 'none' }}>
+        <span className="inline-flex items-center gap-1 bg-bark/40 text-cream text-xs font-medium px-2 py-0.5 rounded-full backdrop-blur-sm">
+          ◎ {coins}
+        </span>
+      </div>
       <div style={{ width: '100%', height: FULL_H * scale, overflow: 'hidden' }}>
       <div
         style={{

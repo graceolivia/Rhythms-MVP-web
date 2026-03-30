@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTaskStore } from '../../stores/useTaskStore';
+import { useCoinStore } from '../../stores/useCoinStore';
 
 interface NavItem {
   to: string;
@@ -13,7 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Today', icon: '○', activeIcon: '●' },
   { to: '/challenges', label: 'Challenges', icon: '🌱', activeIcon: '🌱' },
   { to: '/tasks', label: 'Tasks', icon: '◠', activeIcon: '☽' },
-  { to: '/collections', label: 'Collections', icon: '✿', activeIcon: '✿' },
+  { to: '/shop', label: 'Shop', icon: '◎', activeIcon: '◎' },
   { to: '/settings', label: 'Settings', icon: '⚙', activeIcon: '⚙' },
 ];
 
@@ -70,6 +71,13 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
           />
         </svg>
       );
+    case 'Shop':
+      return (
+        <svg className="w-6 h-6" fill={isActive ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="4" fill={isActive ? 'white' : 'none'} stroke={isActive ? 'none' : 'currentColor'} strokeWidth={1.5} />
+        </svg>
+      );
     case 'Settings':
       return (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -80,6 +88,15 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
     default:
       return <span className="text-xl">{isActive ? item.activeIcon : item.icon}</span>;
   }
+}
+
+function CoinsBadge() {
+  const coins = useCoinStore((state) => state.coins);
+  return (
+    <span className="absolute -top-1 -right-2 min-w-[20px] h-4 px-1 bg-terracotta text-cream text-[10px] font-medium rounded-full flex items-center justify-center">
+      {coins > 999 ? '999+' : coins}
+    </span>
+  );
 }
 
 function SeedsBadge() {
@@ -119,6 +136,7 @@ export function BottomNav() {
                 <div className="relative">
                   <NavIcon item={item} isActive={isActive} />
                   {item.label === 'Tasks' && <SeedsBadge />}
+                  {item.label === 'Shop' && <CoinsBadge />}
                 </div>
                 <span className={`text-xs mt-1 ${isActive ? 'font-medium' : ''}`}>
                   {item.label}
