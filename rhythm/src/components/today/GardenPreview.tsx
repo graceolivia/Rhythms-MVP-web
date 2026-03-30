@@ -186,6 +186,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const [playerFlipped, setPlayerFlipped] = useState(false);
   const playerPosRef = useRef({ x: PLAYER_START_X, y: PLAYER_START_Y });
   const keysRef = useRef<Set<string>>(new Set());
+  const targetRef = useRef<{ x: number; y: number } | null>(null);
   const rafRef = useRef(0);
   const rustleRef = useRef<Map<string, number>>(new Map());
   const groundCanvasRef    = useRef<HTMLCanvasElement>(null);
@@ -437,6 +438,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     const loop = () => {
       const keys = keysRef.current;
       if (keys.size > 0) {
+        // Keyboard clears any tap-to-walk target
+        targetRef.current = null;
         let { x, y } = playerPosRef.current;
         let dx = 0, dy = 0;
         if (keys.has('ArrowLeft'))  { dx -= PLAYER_SPEED; setPlayerFrame(0); setPlayerFlipped(true);  }
@@ -456,6 +459,41 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         } else if (isWalkable(x, ny)) {
           y = ny;           // slide vertically
         }                   // else fully blocked — don't move
+        playerPosRef.current = { x, y };
+        setPlayerPos({ x, y });
+      } else if (targetRef.current) {
+        // Tap-to-walk: move toward the tapped destination
+        let { x, y } = playerPosRef.current;
+        const tx = targetRef.current.x;
+        const ty = targetRef.current.y;
+        const dx = tx - x;
+        const dy = ty - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= PLAYER_SPEED * 1.5) {
+          // Arrived — snap to target and stop
+          x = tx; y = ty;
+          targetRef.current = null;
+        } else {
+          const ndx = (dx / dist) * PLAYER_SPEED;
+          const ndy = (dy / dist) * PLAYER_SPEED;
+          // Update facing direction
+          if (Math.abs(ndx) >= Math.abs(ndy)) {
+            setPlayerFrame(0); setPlayerFlipped(ndx < 0);
+          } else {
+            setPlayerFrame(ndy > 0 ? 1 : 2); setPlayerFlipped(false);
+          }
+          const nx = Math.max(-PLAYER_CHAR_CX, Math.min(GRID_W - PLAYER_CHAR_CX, x + ndx));
+          const ny = Math.max(-PLAYER_CHAR_FEET_Y + HOUSE_TILE, Math.min(GRID_H + CELL - PLAYER_CHAR_FEET_Y, y + ndy));
+          if (isWalkable(nx, ny)) {
+            x = nx; y = ny;
+          } else if (isWalkable(nx, y)) {
+            x = nx;
+          } else if (isWalkable(x, ny)) {
+            y = ny;
+          } else {
+            targetRef.current = null; // blocked — give up
+          }
+        }
         playerPosRef.current = { x, y };
         setPlayerPos({ x, y });
       }
@@ -910,14 +948,20 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
                 const rect = e.currentTarget.getBoundingClientRect();
                 const cx = (e.clientX - rect.left) / scale;
                 const cy = (e.clientY - rect.top)  / scale;
+                // Convert click position to player-position coords (top-left of sprite canvas)
+                const tx = cx - PLAYER_CHAR_CX;
+                const ty = cy - PLAYER_CHAR_FEET_Y;
+                // Face toward tap immediately
                 const { x: px, y: py } = playerPosRef.current;
-                const dx = cx - (px + PLAYER_W / 2);
-                const dy = cy - (py + PLAYER_H / 2);
+                const dx = cx - (px + PLAYER_CHAR_CX);
+                const dy = cy - (py + PLAYER_CHAR_FEET_Y);
                 if (Math.abs(dx) >= Math.abs(dy)) {
                   setPlayerFrame(0); setPlayerFlipped(dx < 0);
                 } else {
                   setPlayerFrame(dy > 0 ? 1 : 2); setPlayerFlipped(false);
                 }
+                // Walk to the tapped position
+                targetRef.current = { x: tx, y: ty };
               }}
             >
               {gridCells}
