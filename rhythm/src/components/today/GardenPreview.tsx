@@ -89,8 +89,6 @@ const FENCE_TILE_DST = CELL; // dest px in scene (2× scale)
 // Character is centered at canvas x≈80, feet at canvas y≈110.
 // Grid-relative start: center on col 7, feet at row 5.
 const PLAYER_SCALE   = 2;
-const PLAYER_W = 80 * PLAYER_SCALE;   // 160 — full canvas width
-const PLAYER_H = 64 * PLAYER_SCALE;   // 128 — full canvas height
 const PLAYER_CHAR_CX = 40 * PLAYER_SCALE; // 80 — visible char center-x within canvas
 const PLAYER_CHAR_FEET_Y = 55 * PLAYER_SCALE; // 110 — approx feet y within canvas
 const PLAYER_START_X = 7 * CELL + CELL / 2 - PLAYER_CHAR_CX; // 160
