@@ -28,3 +28,14 @@ body {
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0);
 }
+
+/* Coin burst animation */
+@keyframes coin-float {
+  0%   { transform: translate(var(--tx, 0px), 0) scale(1);   opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translate(var(--tx, 0px), -52px) scale(0.7); opacity: 0; }
+}
+
+.coin-particle {
+  animation: coin-float 0.55s ease-out forwards;
+}
