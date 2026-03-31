@@ -18,7 +18,7 @@ import { useRef, useLayoutEffect, useState, useMemo, useEffect, useCallback } fr
 
 import { format } from 'date-fns';
 import { useSunTimes } from '../../hooks/useSunTimes';
-import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_ROW, BLOCKED_CELLS } from '../../stores/useGardenStore';
+import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_ROW, BLOCKED_CELLS, getCurrentSeason } from '../../stores/useGardenStore';
 import type { FlowerType, Season } from '../../types';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
 import { GrowthSprite } from '../garden/GrowthSprite';
@@ -595,18 +595,20 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const clearGarden        = useGardenStore(s => s.clearGarden);
   const getUnplacedByType  = useGardenStore(s => s.getUnplacedByType);
 
-  // Available-by-type counts for palette
+  // Available-by-type counts for palette — current season only
   const placedFlowerIds = useMemo(
     () => new Set(placedFlowers.map(p => p.flowerId)),
     [placedFlowers]
   );
+  const activeSeason = getCurrentSeason();
   const availableByType = useMemo(() => {
     const counts: Partial<Record<FlowerType, number>> = {};
     flowers.forEach(f => {
-      if (!placedFlowerIds.has(f.id)) counts[f.type] = (counts[f.type] || 0) + 1;
+      if (!placedFlowerIds.has(f.id) && FLOWER_CATALOG[f.type].season === activeSeason)
+        counts[f.type] = (counts[f.type] || 0) + 1;
     });
     return counts;
-  }, [flowers, placedFlowerIds]);
+  }, [flowers, placedFlowerIds, activeSeason]);
   const totalAvailable = useMemo(
     () => Object.values(availableByType).reduce((a, b) => a + b, 0),
     [availableByType]
