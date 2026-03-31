@@ -77,15 +77,31 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
 
   const activeSeason = getCurrentSeason();
 
-  const availableByType = useMemo(() => {
+  const seedsByType = useMemo(() => {
     const counts: Partial<Record<FlowerType, number>> = {};
     flowers.forEach((f) => {
-      if (!placedFlowerIds.has(f.id) && FLOWER_CATALOG[f.type].season === activeSeason) {
+      if (!placedFlowerIds.has(f.id) && f.challengeId === null && FLOWER_CATALOG[f.type].season === activeSeason)
         counts[f.type] = (counts[f.type] || 0) + 1;
-      }
     });
     return counts;
   }, [flowers, placedFlowerIds, activeSeason]);
+
+  const bloomsByType = useMemo(() => {
+    const counts: Partial<Record<FlowerType, number>> = {};
+    flowers.forEach((f) => {
+      if (!placedFlowerIds.has(f.id) && f.challengeId !== null && FLOWER_CATALOG[f.type].season === activeSeason)
+        counts[f.type] = (counts[f.type] || 0) + 1;
+    });
+    return counts;
+  }, [flowers, placedFlowerIds, activeSeason]);
+
+  const availableByType = useMemo(() => {
+    const counts: Partial<Record<FlowerType, number>> = { ...seedsByType };
+    (Object.entries(bloomsByType) as [FlowerType, number][]).forEach(([type, count]) => {
+      counts[type] = (counts[type] || 0) + count;
+    });
+    return counts;
+  }, [seedsByType, bloomsByType]);
 
   const totalAvailable = Object.values(availableByType).reduce((a, b) => a + b, 0);
 
@@ -121,37 +137,58 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
             No {activeSeason} flowers yet — visit the Shop!
           </p>
         ) : (
-          <div className="grid grid-cols-5 gap-2">
-            {(Object.keys(FLOWER_CATALOG) as FlowerType[]).map((type) => {
-              const count = availableByType[type] || 0;
-              if (count === 0) return null;
-
-              const isSelected = selectedFlowerType === type;
-
-              return (
-                <button
-                  key={type}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.effectAllowed = 'copy';
-                    e.dataTransfer.setData('text/plain', `palette:${type}`);
-                    handleSelect(type);
-                    onFlowerDragStart?.(type);
-                  }}
-                  onClick={() => handleSelect(type)}
-                  className={`flex flex-col items-center justify-center rounded-xl transition-all duration-200 border-2 p-2 ${
-                    isSelected
-                      ? 'border-sage bg-sage/20 scale-105'
-                      : 'border-transparent bg-parchment hover:bg-linen hover:scale-105'
-                  }`}
-                >
-                  <FlowerSpriteByType type={type} />
-                  <span className="text-[10px] text-bark/60 font-semibold mt-1">×{count}</span>
-                  <span className="text-[9px] text-bark/40 mt-0.5 leading-tight text-center">{FLOWER_CATALOG[type].label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <>
+            {Object.values(seedsByType).some(c => c > 0) && (
+              <>
+                <p className="text-[10px] font-semibold text-bark/40 uppercase tracking-wide mb-2">🌱 Seeds</p>
+                <div className="grid grid-cols-5 gap-2 mb-4">
+                  {(Object.keys(FLOWER_CATALOG) as FlowerType[]).map((type) => {
+                    const count = seedsByType[type] || 0;
+                    if (count === 0) return null;
+                    const isSelected = selectedFlowerType === type;
+                    return (
+                      <button
+                        key={`seed-${type}`}
+                        draggable
+                        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', `palette:${type}`); handleSelect(type); onFlowerDragStart?.(type); }}
+                        onClick={() => handleSelect(type)}
+                        className={`flex flex-col items-center justify-center rounded-xl transition-all duration-200 border-2 p-2 ${isSelected ? 'border-sage bg-sage/20 scale-105' : 'border-transparent bg-parchment hover:bg-linen hover:scale-105'}`}
+                      >
+                        <SpriteSheet src={FLOWER_CATALOG[type].sheet ?? FLOWER_CATALOG[type].sprite} frame={1} frameSize={16} scale={2} shadow />
+                        <span className="text-[10px] text-bark/60 font-semibold mt-1">×{count}</span>
+                        <span className="text-[9px] text-bark/40 mt-0.5 leading-tight text-center">{FLOWER_CATALOG[type].label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {Object.values(bloomsByType).some(c => c > 0) && (
+              <>
+                <p className="text-[10px] font-semibold text-bark/40 uppercase tracking-wide mb-2">🌸 Bloomed</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {(Object.keys(FLOWER_CATALOG) as FlowerType[]).map((type) => {
+                    const count = bloomsByType[type] || 0;
+                    if (count === 0) return null;
+                    const isSelected = selectedFlowerType === type;
+                    return (
+                      <button
+                        key={`bloom-${type}`}
+                        draggable
+                        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', `palette:${type}`); handleSelect(type); onFlowerDragStart?.(type); }}
+                        onClick={() => handleSelect(type)}
+                        className={`flex flex-col items-center justify-center rounded-xl transition-all duration-200 border-2 p-2 ${isSelected ? 'border-sage bg-sage/20 scale-105' : 'border-transparent bg-parchment hover:bg-linen hover:scale-105'}`}
+                      >
+                        <FlowerSpriteByType type={type} />
+                        <span className="text-[10px] text-bark/60 font-semibold mt-1">×{count}</span>
+                        <span className="text-[9px] text-bark/40 mt-0.5 leading-tight text-center">{FLOWER_CATALOG[type].label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
       </div>
@@ -193,6 +230,11 @@ export function Garden() {
   const clearGarden = useGardenStore((s) => s.clearGarden);
   const getFlowerAt = useGardenStore((s) => s.getFlowerAt);
   const getUnplacedByType = useGardenStore((s) => s.getUnplacedByType);
+
+  const seedFlowerIds = useMemo(
+    () => new Set(flowers.filter((f) => f.challengeId === null).map((f) => f.id)),
+    [flowers]
+  );
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -390,10 +432,11 @@ export function Garden() {
             >
               {(() => {
                 const entry = FLOWER_CATALOG[placedFlower.flowerType];
+                const isSeed = seedFlowerIds.has(placedFlower.flowerId);
                 return (
                   <SpriteSheet
                     src={entry.sheet ?? entry.sprite}
-                    frame={entry.sheetBloomFrame ?? 0}
+                    frame={isSeed ? 1 : (entry.sheetBloomFrame ?? 0)}
                     frameSize={16}
                     scale={2}
                     shadow

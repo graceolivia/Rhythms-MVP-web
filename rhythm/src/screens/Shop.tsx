@@ -82,7 +82,7 @@ export function Shop() {
                   <div className="relative">
                     <SpriteSheet
                       src={info.sheet ?? info.sprite}
-                      frame={info.sheetBloomFrame ?? 4}
+                      frame={1}
                       frameSize={16}
                       scale={4}
                       shadow
