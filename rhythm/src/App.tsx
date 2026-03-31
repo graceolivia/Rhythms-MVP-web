@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Today } from './screens/Today';
-import { Timeline } from './screens/Timeline';
 import { RhythmDayDetail } from './screens/RhythmDayDetail';
 import { EditWeeklyRhythm } from './screens/EditWeeklyRhythm';
 import { Tasks } from './screens/Tasks';
 import { Garden } from './screens/Garden';
 import { Collections } from './screens/Collections';
+import { Shop } from './screens/Shop';
 import { Challenges } from './screens/Challenges';
 import { Settings } from './screens/Settings';
 import { Onboarding } from './screens/Onboarding';
@@ -16,7 +16,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
 import { isFreshInstall, consumeSkipSeedDataOnce } from './utils/storageHelpers';
 import { useChildStore } from './stores/useChildStore';
-import { useNapStore } from './stores/useNapStore';
 import { useTaskStore } from './stores/useTaskStore';
 import { useGardenStore } from './stores/useGardenStore';
 import { useCharacterStore } from './stores/useCharacterStore';
@@ -70,13 +69,12 @@ function AppContent() {
       <SeasonResetModal />
       <Routes>
         <Route path="/" element={<Today />} />
-        <Route path="/timeline" element={<Timeline />} />
-        <Route path="/rhythm" element={<Navigate to="/timeline" replace />} />
         <Route path="/rhythm/day/:date" element={<RhythmDayDetail />} />
         <Route path="/rhythm/edit" element={<EditWeeklyRhythm />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/garden" element={<Garden />} />
         <Route path="/collections" element={<Collections />} />
+        <Route path="/shop" element={<Shop />} />
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
@@ -104,7 +102,6 @@ function App() {
       } else if (DEV_SKIP_ONBOARDING) {
         loadSeedData({
           childStore: useChildStore,
-          napStore: useNapStore,
           taskStore: useTaskStore,
           gardenStore: useGardenStore,
         });
@@ -112,7 +109,6 @@ function App() {
         // In development, load seed data instead of showing onboarding
         loadSeedData({
           childStore: useChildStore,
-          napStore: useNapStore,
           taskStore: useTaskStore,
           gardenStore: useGardenStore,
         });

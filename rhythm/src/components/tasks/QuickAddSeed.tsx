@@ -36,7 +36,7 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
   const updateTask = useTaskStore((s) => s.updateTask);
 
   const [title, setTitle] = useState('');
-  const [forToday, setForToday] = useState(false);
+  const [forToday, setForToday] = useState(true);
   const [focusLevel, setFocusLevel] = useState<FocusLevel | null>(null);
   const [timeBlock, setTimeBlock] = useState<TimeBlock | null>(null);
   const [activePicker, setActivePicker] = useState<ActivePicker>(null);
@@ -69,7 +69,7 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
     }
 
     setTitle('');
-    setForToday(false);
+    setForToday(true);
     setFocusLevel(null);
     setTimeBlock(null);
     setActivePicker(null);
@@ -116,8 +116,8 @@ export function QuickAddSeed({ isOpen, onClose }: QuickAddSeedProps) {
 
         {/* Zone 2: Chip row */}
         <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1">
-          <button type="button" onClick={() => setForToday(!forToday)} className={chip(forToday)}>
-            today
+          <button type="button" onClick={() => setForToday(!forToday)} className={chip(!forToday)}>
+            later
           </button>
 
           <button

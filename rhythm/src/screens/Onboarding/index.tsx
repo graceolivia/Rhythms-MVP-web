@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useChildStore } from '../../stores/useChildStore';
-import { useNapStore } from '../../stores/useNapStore';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { useCareBlockStore } from '../../stores/useCareBlockStore';
 import { useGardenStore } from '../../stores/useGardenStore';
@@ -18,18 +17,8 @@ interface OnboardingChild {
   id: string;
   name: string;
   birthdate: string;
-  isNappingAge: boolean;
   bedtime: string;
   wakeTime: string;
-}
-
-interface OnboardingNapSchedule {
-  id: string;
-  childId: string;
-  childName: string;
-  napNumber: number;
-  typicalStart: string;
-  typicalEnd: string;
 }
 
 interface OnboardingChildcare {
@@ -57,7 +46,6 @@ interface OnboardingTask {
 
 interface OnboardingData {
   children: OnboardingChild[];
-  napSchedules: OnboardingNapSchedule[];
   childcare: OnboardingChildcare[];
   fixedSchedule: OnboardingTask[];
   routines: OnboardingTask[];
@@ -180,17 +168,13 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
 
 function ChildrenStep({
   children,
-  napSchedules,
   onChange,
-  onNapChange,
   onNext,
   onBack,
   editingChildId,
 }: {
   children: OnboardingChild[];
-  napSchedules: OnboardingNapSchedule[];
   onChange: (children: OnboardingChild[]) => void;
-  onNapChange: (schedules: OnboardingNapSchedule[]) => void;
   onNext: () => void;
   onBack: () => void;
   editingChildId: string | null;
@@ -201,47 +185,6 @@ function ChildrenStep({
 
   const removeChild = (id: string) => {
     onChange(children.filter((c) => c.id !== id));
-    onNapChange(napSchedules.filter((n) => n.childId !== id));
-  };
-
-  const handleNappingToggle = (child: OnboardingChild, checked: boolean) => {
-    updateChild(child.id, { isNappingAge: checked });
-    if (checked) {
-      const existing = napSchedules.filter((n) => n.childId === child.id);
-      if (existing.length === 0) {
-        onNapChange([
-          ...napSchedules,
-          { id: uuidv4(), childId: child.id, childName: child.name, napNumber: 1, typicalStart: '13:00', typicalEnd: '15:00' },
-        ]);
-      }
-    } else {
-      onNapChange(napSchedules.filter((n) => n.childId !== child.id));
-    }
-  };
-
-  const addNap = (child: OnboardingChild) => {
-    const existing = napSchedules.filter((n) => n.childId === child.id);
-    // Second+ naps default to AM time
-    const isSecondOrLater = existing.length >= 1;
-    onNapChange([
-      ...napSchedules,
-      {
-        id: uuidv4(),
-        childId: child.id,
-        childName: child.name,
-        napNumber: existing.length + 1,
-        typicalStart: isSecondOrLater ? '09:00' : '13:00',
-        typicalEnd: isSecondOrLater ? '10:30' : '15:00',
-      },
-    ]);
-  };
-
-  const updateNap = (napId: string, updates: Partial<OnboardingNapSchedule>) => {
-    onNapChange(napSchedules.map((n) => (n.id === napId ? { ...n, ...updates } : n)));
-  };
-
-  const removeNap = (id: string) => {
-    onNapChange(napSchedules.filter((n) => n.id !== id));
   };
 
   // Show only the editing child when adding another, or all children on first entry
@@ -258,7 +201,6 @@ function ChildrenStep({
 
       <div className="space-y-4 mb-6">
         {visibleChildren.map((child) => {
-          const childNaps = napSchedules.filter((n) => n.childId === child.id);
           const childIndex = children.findIndex((c) => c.id === child.id);
           return (
             <div key={child.id} className="bg-parchment rounded-xl p-4">
@@ -309,76 +251,6 @@ function ChildrenStep({
                 </div>
               </div>
 
-              {/* Daytime sleep */}
-              <div className="border-t border-bark/10 pt-3">
-                <p className="text-sm font-medium text-bark mb-2">
-                  Does {child.name || 'this child'} nap?
-                </p>
-                <div className="flex gap-2 mb-2">
-                  <button
-                    onClick={() => !child.isNappingAge && handleNappingToggle(child, true)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                      child.isNappingAge
-                        ? 'bg-sage text-cream border-sage'
-                        : 'bg-cream text-bark/60 border-bark/20 hover:bg-parchment'
-                    }`}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => child.isNappingAge && handleNappingToggle(child, false)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                      !child.isNappingAge
-                        ? 'bg-sage text-cream border-sage'
-                        : 'bg-cream text-bark/60 border-bark/20 hover:bg-parchment'
-                    }`}
-                  >
-                    No
-                  </button>
-                </div>
-                {child.isNappingAge && (
-                  <div className="mt-3 space-y-3">
-                    {childNaps.map((nap, i) => (
-                      <div key={nap.id}>
-                        {childNaps.length > 1 && (
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-bark/50">Nap {i + 1}</span>
-                            <button
-                              onClick={() => removeNap(nap.id)}
-                              className="text-bark/30 hover:text-bark/60 text-xs"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="time"
-                            value={nap.typicalStart}
-                            onChange={(e) => updateNap(nap.id, { typicalStart: e.target.value })}
-                            className="flex-1 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                          />
-                          <span className="text-bark/30 text-sm">to</span>
-                          <input
-                            type="time"
-                            value={nap.typicalEnd}
-                            onChange={(e) => updateNap(nap.id, { typicalEnd: e.target.value })}
-                            className="flex-1 px-3 py-2 rounded-lg border border-bark/20 bg-cream focus:outline-none focus:border-sage"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    {childNaps.length < 3 && (
-                      <button
-                        onClick={() => addNap(child)}
-                        className="w-full py-2 border border-dashed border-bark/20 rounded-lg text-sm text-bark/50 hover:border-bark/40 hover:text-bark/70 transition-colors"
-                      >
-                        + Add another nap
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           );
         })}
@@ -1137,8 +1009,6 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const navigate = useNavigate();
   const addChild = useChildStore((state) => state.addChild);
   const clearChildren = useChildStore((state) => state.clearChildren);
-  const addNapSchedule = useNapStore((state) => state.addNapSchedule);
-  const clearNapSchedules = useNapStore((state) => state.clearNapSchedules);
   const addTask = useTaskStore((state) => state.addTask);
   const clearTasks = useTaskStore((state) => state.clearTasks);
   const addCareBlock = useCareBlockStore((state) => state.addBlock);
@@ -1149,8 +1019,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState<Step>('welcome');
   const [editingChildId, setEditingChildId] = useState<string | null>(null);
   const [data, setData] = useState<OnboardingData>({
-    children: [{ id: uuidv4(), name: '', birthdate: '', isNappingAge: false, bedtime: '19:30', wakeTime: '07:00' }],
-    napSchedules: [],
+    children: [{ id: uuidv4(), name: '', birthdate: '', bedtime: '19:30', wakeTime: '07:00' }],
     childcare: [],
     fixedSchedule: PRESET_FIXED_SCHEDULE.map((t) => ({ ...t, id: uuidv4(), selected: false })),
     routines: PRESET_ROUTINES.map((t) => ({ ...t, id: uuidv4(), selected: false })),
@@ -1172,7 +1041,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   };
 
   const handleAddAnother = () => {
-    const newChild = { id: uuidv4(), name: '', birthdate: '', isNappingAge: false, bedtime: '19:30', wakeTime: '07:00' };
+    const newChild = { id: uuidv4(), name: '', birthdate: '', bedtime: '19:30', wakeTime: '07:00' };
     setData({
       ...data,
       children: [...data.children, newChild],
@@ -1192,7 +1061,6 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const handleFinish = () => {
     // Clear any existing data
     clearChildren();
-    clearNapSchedules();
     clearTasks();
     clearCareBlocks();
     clearGardenState();
@@ -1205,7 +1073,6 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         const newId = addChild({
           name: child.name,
           birthdate: child.birthdate,
-          isNappingAge: child.isNappingAge,
           bedtime: child.bedtime,
           wakeTime: child.wakeTime,
         });
@@ -1246,19 +1113,6 @@ export function Onboarding({ onComplete }: OnboardingProps) {
             childTaskType: 'wake-up',
           });
         }
-      }
-    });
-
-    // Save nap schedules
-    data.napSchedules.forEach((nap) => {
-      const newChildId = childIdMap.get(nap.childId);
-      if (newChildId) {
-        addNapSchedule({
-          childId: newChildId,
-          napNumber: nap.napNumber,
-          typicalStart: nap.typicalStart,
-          typicalEnd: nap.typicalEnd,
-        });
       }
     });
 
@@ -1346,9 +1200,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         {step === 'children' && (
           <ChildrenStep
             children={data.children}
-            napSchedules={data.napSchedules}
             onChange={(children) => setData((d) => ({ ...d, children }))}
-            onNapChange={(napSchedules) => setData((d) => ({ ...d, napSchedules }))}
             onNext={() => { setEditingChildId(null); goNext(); }}
             onBack={goBack}
             editingChildId={editingChildId}

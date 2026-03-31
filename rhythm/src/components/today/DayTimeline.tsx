@@ -2,9 +2,7 @@ import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { useChildStore } from '../../stores/useChildStore';
-import { useNapStore } from '../../stores/useNapStore';
 import { useCareBlockStore } from '../../stores/useCareBlockStore';
-import { useHabitBlockStore } from '../../stores/useHabitBlockStore';
 import { shouldTaskOccurOnDate } from '../../stores/useTaskStore';
 
 interface TimelineEntry {
@@ -12,19 +10,15 @@ interface TimelineEntry {
   timeMinutes: number; // for sorting
   label: string;
   emoji?: string;
-  type: 'anchor' | 'care-block' | 'nap-schedule' | 'user-sleep' | 'habit-block';
+  type: 'anchor' | 'care-block' | 'user-sleep';
   isCurrentSegment: boolean;
 }
 
 function useDayTimelineEntries() {
   const tasks = useTaskStore((state) => state.tasks);
-  const children = useChildStore((state) => state.children);
   const userWakeTime = useChildStore((state) => state.userWakeTime);
   const userBedtime = useChildStore((state) => state.userBedtime);
-  const napSchedules = useNapStore((state) => state.napSchedules);
   const blocks = useCareBlockStore((state) => state.blocks);
-  const habitBlocks = useHabitBlockStore((state) => state.blocks);
-  const getBlocksForDate = useHabitBlockStore((state) => state.getBlocksForDate);
   const getChild = useChildStore((state) => state.getChild);
 
   return useMemo(() => {
@@ -92,41 +86,6 @@ function useDayTimelineEntries() {
         });
       });
 
-    // Add sleep schedules
-    napSchedules.forEach((schedule) => {
-      const child = children.find((c) => c.id === schedule.childId);
-      if (!child || !child.isNappingAge) return;
-
-      const [sh, sm] = schedule.typicalStart.split(':').map(Number);
-      items.push({
-        time: schedule.typicalStart,
-        timeMinutes: sh * 60 + sm,
-        label: `(${child.name} sleep ${schedule.napNumber})`,
-        type: 'nap-schedule',
-        isCurrentSegment: false,
-      });
-    });
-
-    // Add habit blocks
-    const todaysHabitBlocks = getBlocksForDate(today);
-    todaysHabitBlocks.forEach((block) => {
-      if (block.anchor.type === 'time' && block.anchor.time) {
-        const [bh, bm] = block.anchor.time.split(':').map(Number);
-        const startMins = bh * 60 + bm;
-        const endMins = block.estimatedEndTime
-          ? (() => { const [eh, em] = block.estimatedEndTime.split(':').map(Number); return eh * 60 + em; })()
-          : startMins + 90;
-        items.push({
-          time: block.anchor.time,
-          timeMinutes: startMins,
-          label: block.name,
-          emoji: block.emoji,
-          type: 'habit-block',
-          isCurrentSegment: currentMinutes >= startMins && currentMinutes < endMins,
-        });
-      }
-    });
-
     // Add user sleep bookends
     if (userWakeTime) {
       const [wh, wm] = userWakeTime.split(':').map(Number);
@@ -162,7 +121,7 @@ function useDayTimelineEntries() {
     }
 
     return { entries: items, currentMinutes };
-  }, [tasks, blocks, habitBlocks, getBlocksForDate, napSchedules, children, getChild, userWakeTime, userBedtime]);
+  }, [tasks, blocks, getChild, userWakeTime, userBedtime]);
 }
 
 const formatTimeDisplay = (time: string) => {
@@ -189,9 +148,7 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
       )}
       <span className={`text-sm flex items-center gap-1 ${
         entry.type === 'care-block' ? 'text-sage' :
-        entry.type === 'nap-schedule' ? 'text-lavender italic' :
         entry.type === 'user-sleep' ? 'text-dustyrose italic' :
-        entry.type === 'habit-block' ? 'text-terracotta font-medium' :
         ''
       }`}>
         {entry.emoji && <span className="emoji-icon">{entry.emoji}</span>}

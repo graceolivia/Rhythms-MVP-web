@@ -5,6 +5,7 @@ import { format, getDay, subDays, differenceInDays, parseISO } from 'date-fns';
 import type { Task, TaskInput, TaskInstance, TaskStatus, CareStatus, ChildTaskType, ChildcareSchedule, AvailabilityState } from '../types';
 import { useChildStore } from './useChildStore';
 import { useEventStore } from './useEventStore';
+import { useCoinStore } from './useCoinStore';
 
 /**
  * Check if a task is suggested for the current availability state.
@@ -238,6 +239,27 @@ export const useTaskStore = create<TaskState>()(
           if (newStatus) {
             useChildStore.getState().updateCareStatus(task.childId, newStatus);
           }
+        }
+
+        // Earn a coin for completing a task
+        useCoinStore.getState().earnCoin();
+
+        // Check if all today's tasks are now done → award daily bonus
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const allTasks = get().tasks;
+        const todayInstances = get().taskInstances.filter((i) => {
+          if (i.date !== today) return false;
+          if (i.status === 'deferred') return false;
+          const t = allTasks.find((t) => t.id === i.taskId);
+          if (!t) return false;
+          if (t.isInformational) return false;
+          if (t.childTaskType === 'pickup' || t.childTaskType === 'dropoff') return false;
+          return true;
+        });
+        const allDone = todayInstances.length > 0 &&
+          todayInstances.every((i) => i.status === 'completed' || i.status === 'skipped');
+        if (allDone) {
+          useCoinStore.getState().earnDailyBonus();
         }
 
         // Emit task-complete event

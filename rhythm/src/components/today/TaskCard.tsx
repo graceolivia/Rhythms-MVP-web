@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { useTaskStore, getTaskDisplayTitle } from '../../stores/useTaskStore';
 import { useChildStore } from '../../stores/useChildStore';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
@@ -37,7 +37,19 @@ export function TaskCard({
   const isSoftMarker = task.childTaskType === 'bedtime' || task.childTaskType === 'wake-up';
   const savedMeal = isMeal ? (task.plannedMeals?.[today] ?? '') : '';
   const [mealInput, setMealInput] = useState(savedMeal);
+  const [burst, setBurst] = useState(false);
+  const burstKey = useRef(0);
   const displayTitle = getTaskDisplayTitle(task, getChild);
+
+  const handleCheckboxTap = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isCompleted) {
+      burstKey.current += 1;
+      setBurst(true);
+      setTimeout(() => setBurst(false), 600);
+    }
+    onTap();
+  }, [isCompleted, onTap]);
 
   // Check if this task was seeded by an active challenge
   const challengeInfo = useMemo(() => {
@@ -76,7 +88,7 @@ export function TaskCard({
         {isSoftMarker ? (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onTap(); }}
+            onClick={handleCheckboxTap}
             className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-base transition-colors ${
               isCompleted ? 'opacity-40' : 'opacity-60'
             }`}
@@ -85,21 +97,48 @@ export function TaskCard({
             {isCompleted ? '✓' : <span className="emoji-icon">{task.childTaskType === 'bedtime' ? '🌙' : '☀️'}</span>}
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onTap(); }}
-            className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-              isCompleted
-                ? 'border-sage bg-sage text-cream'
-                : 'border-bark/20'
-            }`}
-          >
-            {isCompleted && (
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
+          <div className="relative mt-0.5 flex-shrink-0">
+            {/* Coin burst particles */}
+            {burst && (
+              <div
+                key={burstKey.current}
+                className="absolute inset-0 pointer-events-none"
+                style={{ zIndex: 50 }}
+              >
+                {[
+                  { tx: '-8px', delay: '0ms' },
+                  { tx: '0px',  delay: '40ms' },
+                  { tx: '8px',  delay: '20ms' },
+                ].map((p, i) => (
+                  <span
+                    key={i}
+                    className="coin-particle absolute left-0 top-0 text-[11px] select-none"
+                    style={{
+                      '--tx': p.tx,
+                      animationDelay: p.delay,
+                    } as React.CSSProperties}
+                  >
+                    ◎
+                  </span>
+                ))}
+              </div>
             )}
-          </button>
+            <button
+              type="button"
+              onClick={handleCheckboxTap}
+              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                isCompleted
+                  ? 'border-sage bg-sage text-cream'
+                  : 'border-bark/20'
+              }`}
+            >
+              {isCompleted && (
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
+          </div>
         )}
 
         {/* Content */}

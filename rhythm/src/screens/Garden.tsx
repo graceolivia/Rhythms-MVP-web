@@ -5,6 +5,7 @@ import {
   GRID_ROWS,
   BLOCKED_CELLS,
   FLOWER_CATALOG,
+  getCurrentSeason,
 } from '../stores/useGardenStore';
 import { SpriteSheet } from '../components/garden/SpriteSheet';
 import type { FlowerType } from '../types';
@@ -69,21 +70,22 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
   const selectedFlowerType = useGardenStore((s) => s.selectedFlowerType);
   const selectFlowerType = useGardenStore((s) => s.selectFlowerType);
   const setMode = useGardenStore((s) => s.setMode);
-
   const placedFlowerIds = useMemo(
     () => new Set(placedFlowers.map((p) => p.flowerId)),
     [placedFlowers]
   );
 
+  const activeSeason = getCurrentSeason();
+
   const availableByType = useMemo(() => {
     const counts: Partial<Record<FlowerType, number>> = {};
     flowers.forEach((f) => {
-      if (!placedFlowerIds.has(f.id)) {
+      if (!placedFlowerIds.has(f.id) && FLOWER_CATALOG[f.type].season === activeSeason) {
         counts[f.type] = (counts[f.type] || 0) + 1;
       }
     });
     return counts;
-  }, [flowers, placedFlowerIds]);
+  }, [flowers, placedFlowerIds, activeSeason]);
 
   const totalAvailable = Object.values(availableByType).reduce((a, b) => a + b, 0);
 
@@ -116,7 +118,7 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
       <div className="px-4 py-4 max-h-[200px] overflow-y-auto pb-20">
         {totalAvailable === 0 ? (
           <p className="text-center text-bark/50 text-sm py-4">
-            Complete challenges to earn flowers!
+            No {activeSeason} flowers yet — visit the Shop!
           </p>
         ) : (
           <div className="grid grid-cols-5 gap-2">
