@@ -19,6 +19,7 @@ import { useAutoComplete } from '../hooks/useAutoComplete';
 import { useRepeatChallenges } from '../hooks/useRepeatChallenges';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../stores/useChallengeStore';
+import { useCoinStore } from '../stores/useCoinStore';
 import type { Task, TaskInstance, TaskTier, CareContext } from '../types';
 
 // ────────────────────────────────────────────────
@@ -209,12 +210,26 @@ export function Today() {
   const { justBloomedId, bloomToast, bloomedTemplateId, dismissBloom } = useChallengeProgress();
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const navigate = useNavigate();
+  const pendingBonus = useCoinStore((s) => s.pendingBonus);
+  const clearPendingBonus = useCoinStore((s) => s.clearPendingBonus);
+  const [showBonusToast, setShowBonusToast] = useState(false);
+  const bonusToastKey = useRef(0);
 
   // Auto-complete past fixed-schedule tasks
   useAutoComplete();
 
   // Auto-replant challenges with a repeat interval
   useRepeatChallenges();
+
+  // Show bonus toast when daily bonus is earned
+  useEffect(() => {
+    if (!pendingBonus) return;
+    bonusToastKey.current += 1;
+    setShowBonusToast(true);
+    clearPendingBonus();
+    const t = setTimeout(() => setShowBonusToast(false), 2500);
+    return () => clearTimeout(t);
+  }, [pendingBonus, clearPendingBonus]);
 
   // Generate today's instances on mount
   useEffect(() => {
@@ -406,6 +421,23 @@ export function Today() {
         {/* Bottom padding for mobile */}
         <div className="h-20" />
       </div>
+
+      {/* Daily bonus toast */}
+      {showBonusToast && (
+        <div
+          key={bonusToastKey.current}
+          className="bonus-toast fixed bottom-24 left-0 right-0 flex justify-center z-50 pointer-events-none"
+        >
+          <div className="flex items-center gap-2.5 bg-bark text-cream px-5 py-3 rounded-2xl shadow-xl">
+            <span className="text-lg">◎</span>
+            <div>
+              <p className="font-semibold text-sm leading-tight">All done!</p>
+              <p className="text-cream/70 text-xs">+3 bonus coins</p>
+            </div>
+            <span className="text-lg">✦</span>
+          </div>
+        </div>
+      )}
 
       {/* Bloom modal */}
       {bloomToast && bloomedTemplateId && (
