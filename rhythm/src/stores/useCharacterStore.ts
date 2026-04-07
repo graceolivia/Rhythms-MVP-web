@@ -12,16 +12,20 @@ export interface CharacterConfig {
 
 interface CharacterState {
   config: CharacterConfig | null;
+  playerName: string | null;
   setConfig: (config: CharacterConfig) => void;
   clearConfig: () => void;
+  setPlayerName: (name: string) => void;
 }
 
 export const useCharacterStore = create<CharacterState>()(
   persist(
     (set) => ({
       config: null,
+      playerName: null,
       setConfig: (config) => set({ config }),
       clearConfig: () => set({ config: null }),
+      setPlayerName: (name) => set({ playerName: name }),
     }),
     { name: 'rhythm_character' }
   )

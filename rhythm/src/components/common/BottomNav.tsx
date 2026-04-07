@@ -117,9 +117,12 @@ function SeedsBadge() {
   );
 }
 
-export function BottomNav() {
+export function BottomNav({ dimmed = false }: { dimmed?: boolean }) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-cream border-t border-bark/10 pb-safe">
+    <nav
+      className="fixed bottom-0 left-0 right-0 bg-cream border-t border-bark/10 pb-safe transition-opacity duration-300"
+      style={{ opacity: dimmed ? 0.3 : 1, pointerEvents: dimmed ? 'none' : 'auto' }}
+    >
       <div className="max-w-lg mx-auto flex justify-around items-center h-16">
         {NAV_ITEMS.map((item) => (
           <NavLink

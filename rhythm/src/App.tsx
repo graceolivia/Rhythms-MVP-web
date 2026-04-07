@@ -9,12 +9,13 @@ import { Collections } from './screens/Collections';
 import { Shop } from './screens/Shop';
 import { Challenges } from './screens/Challenges';
 import { Settings } from './screens/Settings';
-import { Onboarding } from './screens/Onboarding';
 import { CharacterCreator } from './screens/CharacterCreator';
+import { TutorialOverlay } from './components/tutorial/TutorialOverlay';
+import { useTutorialStore } from './stores/useTutorialStore';
 import { BottomNav } from './components/common/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
 import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
-import { isFreshInstall, consumeSkipSeedDataOnce } from './utils/storageHelpers';
+import { isFreshInstall, consumeSkipSeedDataOnce, markAsInstalled } from './utils/storageHelpers';
 import { useChildStore } from './stores/useChildStore';
 import { useTaskStore } from './stores/useTaskStore';
 import { useGardenStore } from './stores/useGardenStore';
@@ -64,6 +65,8 @@ function SeasonResetModal() {
 }
 
 function AppContent() {
+  const tutorialComplete = useTutorialStore((s) => s.tutorialComplete);
+
   return (
     <div className="pb-16">
       <SeasonResetModal />
@@ -78,44 +81,34 @@ function AppContent() {
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
-      <BottomNav />
+      <BottomNav dimmed={!tutorialComplete} />
+      {!tutorialComplete && <TutorialOverlay />}
     </div>
   );
 }
 
 function App() {
   const [isReady, setIsReady] = useState(false);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [needsCharacter, setNeedsCharacter] = useState(false);
 
   useEffect(() => {
-    // Check character creator
     if (!useCharacterStore.getState().config) {
       setNeedsCharacter(true);
     }
 
-    // Check if user needs onboarding
     if (isFreshInstall()) {
       const skipSeedData = consumeSkipSeedDataOnce();
-      if (skipSeedData) {
-        setNeedsOnboarding(true);
-      } else if (DEV_SKIP_ONBOARDING) {
+      if (DEV_SKIP_ONBOARDING || (import.meta.env.DEV && shouldLoadSeedData() && !skipSeedData)) {
         loadSeedData({
           childStore: useChildStore,
           taskStore: useTaskStore,
           gardenStore: useGardenStore,
         });
-      } else if (import.meta.env.DEV && shouldLoadSeedData()) {
-        // In development, load seed data instead of showing onboarding
-        loadSeedData({
-          childStore: useChildStore,
-          taskStore: useTaskStore,
-          gardenStore: useGardenStore,
-        });
-      } else {
-        setNeedsOnboarding(true);
+        // Mark installed so seed data doesn't reload; tutorial store handles fresh-user flow
+        markAsInstalled();
       }
     }
+
     setIsReady(true);
   }, []);
 
@@ -127,10 +120,6 @@ function App() {
     );
   }
 
-  const handleOnboardingComplete = () => {
-    setNeedsOnboarding(false);
-  };
-
   const handleCharacterComplete = () => {
     setNeedsCharacter(false);
   };
@@ -139,7 +128,6 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/onboarding" element={<Onboarding onComplete={handleOnboardingComplete} />} />
           <Route
             path="/character"
             element={<CharacterCreator onComplete={handleCharacterComplete} />}
@@ -147,9 +135,7 @@ function App() {
           <Route
             path="/*"
             element={
-              needsOnboarding ? (
-                <Navigate to="/onboarding" replace />
-              ) : needsCharacter ? (
+              needsCharacter ? (
                 <Navigate to="/character" replace />
               ) : (
                 <AppContent />
