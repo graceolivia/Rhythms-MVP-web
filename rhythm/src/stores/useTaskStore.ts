@@ -114,6 +114,8 @@ interface TaskState {
   getSeeds: () => TaskInstance[];
   addSeed: (title: string, napContext: Task['napContext'], category?: Task['category'], bestWhen?: AvailabilityState[] | null, scheduledTime?: string | null, dueDate?: string | null) => void;
   promoteToToday: (instanceId: string) => void;
+  scheduleForToday: (taskId: string) => void;
+  scheduleForDate: (taskId: string, date: string) => void;
   dismissSeed: (instanceId: string) => void;
   archiveOldSeeds: () => void;
 
@@ -439,6 +441,63 @@ export const useTaskStore = create<TaskState>()(
         set((state) => ({
           tasks: [...state.tasks, newTask],
           taskInstances: [...state.taskInstances, newInstance],
+        }));
+      },
+
+      scheduleForToday: (taskId) => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const instances = get().taskInstances;
+        // Already pending today → nothing to do
+        if (instances.find(i => i.taskId === taskId && i.date === today && i.status === 'pending')) return;
+        // Has a deferred instance → promote it
+        const deferred = instances.find(i => i.taskId === taskId && i.status === 'deferred');
+        if (deferred) {
+          set((state) => ({
+            taskInstances: state.taskInstances.map(i =>
+              i.id === deferred.id ? { ...i, date: today, status: 'pending' as TaskStatus, deferredTo: null } : i
+            ),
+          }));
+          return;
+        }
+        // No instance at all → create one
+        set((state) => ({
+          taskInstances: [...state.taskInstances, {
+            id: uuidv4(),
+            taskId,
+            date: today,
+            status: 'pending' as TaskStatus,
+            completedAt: null,
+            deferredTo: null,
+          }],
+        }));
+      },
+
+      scheduleForDate: (taskId, date) => {
+        const instances = get().taskInstances;
+        // If there's an existing pending or deferred instance, move it to the new date
+        const existing = instances.find(
+          i => i.taskId === taskId && (i.status === 'pending' || i.status === 'deferred')
+        );
+        if (existing) {
+          set((state) => ({
+            taskInstances: state.taskInstances.map(i =>
+              i.id === existing.id
+                ? { ...i, date, status: 'pending' as TaskStatus, deferredTo: null }
+                : i
+            ),
+          }));
+          return;
+        }
+        // No instance → create one
+        set((state) => ({
+          taskInstances: [...state.taskInstances, {
+            id: uuidv4(),
+            taskId,
+            date,
+            status: 'pending' as TaskStatus,
+            completedAt: null,
+            deferredTo: null,
+          }],
         }));
       },
 

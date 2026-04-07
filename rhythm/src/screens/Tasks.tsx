@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
+import { useTaskStore, getTaskDisplayTitle, shouldTaskOccurOnDate } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
 import type { Task, TaskTier, RecurrenceRule, TaskInput } from '../types';
 
@@ -10,28 +10,8 @@ const TIER_CONFIG: Record<TaskTier, { label: string; color: string; bg: string; 
   'todo': { label: 'To-dos', color: 'text-skyblue', bg: 'bg-skyblue/10', border: 'border-skyblue/30' },
 };
 
-const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const DAY_LABELS_FULL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function getFrequencyDisplay(task: Task): { emoji: string; label: string } {
-  if (!task.recurrence || task.recurrence === 'daily') {
-    return { emoji: '☀️', label: 'Daily' };
-  }
-  if (task.recurrence === 'weekdays') {
-    return { emoji: '💼', label: 'Weekdays' };
-  }
-  if (task.recurrence === 'weekends') {
-    return { emoji: '🌴', label: 'Weekends' };
-  }
-  if (task.recurrence === 'weekly') {
-    if (task.daysOfWeek && task.daysOfWeek.length > 0 && task.daysOfWeek.length < 7) {
-      const days = task.daysOfWeek.sort().map(d => DAY_LABELS[d]).join('');
-      return { emoji: '🔁', label: days };
-    }
-    return { emoji: '🔁', label: 'Weekly' };
-  }
-  return { emoji: '📌', label: 'Once' };
-}
 
 function formatTime12(time: string): string {
   const [h, m] = time.split(':').map(Number);
@@ -43,37 +23,59 @@ function formatTime12(time: string): string {
 interface TaskItemProps {
   task: Task;
   onClick: () => void;
+  onDoToday: () => void;
+  onDelete: () => void;
+  isScheduledToday: boolean;
   getChild: (id: string) => { name: string } | undefined;
 }
 
-function TaskItem({ task, onClick, getChild }: TaskItemProps) {
+function TaskItem({ task, onClick, onDoToday, onDelete, isScheduledToday, getChild }: TaskItemProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const config = TIER_CONFIG[task.tier];
-  const freq = getFrequencyDisplay(task);
   const displayTitle = getTaskDisplayTitle(task, getChild);
 
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left p-3 rounded-lg border ${config.bg} ${config.border} hover:scale-[1.01] transition-all`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <h3 className={`font-medium ${config.color} truncate`}>{displayTitle}</h3>
-          <div className="flex items-center gap-2 text-xs text-bark/50 mt-0.5">
-            {task.scheduledTime && (
-              <span>{formatTime12(task.scheduledTime)}</span>
-            )}
-            {task.duration && (
-              <span>• {task.duration}m</span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1 text-sm" title={freq.label}>
-          <span className="emoji-icon">{freq.emoji}</span>
-          <span className="text-xs text-bark/40 hidden sm:inline">{freq.label}</span>
-        </div>
+  if (confirmDelete) {
+    return (
+      <div className={`flex items-center gap-2 p-3 rounded-lg border ${config.bg} ${config.border}`}>
+        <p className="flex-1 text-sm text-bark/70 truncate">Delete "{displayTitle}"?</p>
+        <button onClick={() => setConfirmDelete(false)} className="text-xs px-2 py-1 rounded-lg bg-bark/10 text-bark">Cancel</button>
+        <button onClick={onDelete} className="text-xs px-2 py-1 rounded-lg bg-red-500 text-white">Delete</button>
       </div>
-    </button>
+    );
+  }
+
+  return (
+    <div className={`flex items-center gap-2 p-3 rounded-lg border ${config.bg} ${config.border}`}>
+      {/* Tappable title area */}
+      <button onClick={onClick} className="flex-1 text-left min-w-0">
+        <h3 className={`font-medium ${config.color} truncate`}>{displayTitle}</h3>
+        {task.scheduledTime && (
+          <p className="text-xs text-bark/50 mt-0.5">{formatTime12(task.scheduledTime)}</p>
+        )}
+      </button>
+
+      {/* Do today */}
+      {isScheduledToday ? (
+        <span className="text-xs text-sage/70 font-medium flex-shrink-0">✓ Today</span>
+      ) : (
+        <button
+          onClick={onDoToday}
+          className="text-xs px-2.5 py-1.5 rounded-lg bg-sage text-cream font-semibold hover:bg-sage/90 transition-colors flex-shrink-0"
+        >
+          Do today
+        </button>
+      )}
+
+      {/* Delete */}
+      <button
+        onClick={() => setConfirmDelete(true)}
+        className="p-1 rounded-lg text-bark/25 hover:text-red-400 transition-colors flex-shrink-0"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+    </div>
   );
 }
 
@@ -82,10 +84,12 @@ interface TaskEditModalProps {
   onClose: () => void;
   onSave: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
+  onScheduleDate: (id: string, date: string) => void;
+  scheduledDate: string | null;
   children: { id: string; name: string }[];
 }
 
-function TaskEditModal({ task, onClose, onSave, onDelete, children }: TaskEditModalProps) {
+function TaskEditModal({ task, onClose, onSave, onDelete, onScheduleDate, scheduledDate, children }: TaskEditModalProps) {
   const [title, setTitle] = useState(task.title);
   const [scheduledTime, setScheduledTime] = useState(task.scheduledTime || '');
   const [duration, setDuration] = useState(task.duration || 30);
@@ -93,6 +97,7 @@ function TaskEditModal({ task, onClose, onSave, onDelete, children }: TaskEditMo
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>(task.daysOfWeek || []);
   const [childId, setChildId] = useState<string | null>(task.childId || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [newDate, setNewDate] = useState(scheduledDate || '');
 
   const config = TIER_CONFIG[task.tier];
 
@@ -105,6 +110,9 @@ function TaskEditModal({ task, onClose, onSave, onDelete, children }: TaskEditMo
       daysOfWeek: recurrence === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
       childId: childId || null,
     });
+    if (task.tier === 'todo' && newDate && newDate !== scheduledDate) {
+      onScheduleDate(task.id, newDate);
+    }
     onClose();
   };
 
@@ -202,6 +210,19 @@ function TaskEditModal({ task, onClose, onSave, onDelete, children }: TaskEditMo
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Date (for todos) */}
+            {task.tier === 'todo' && (
+              <div className="mb-4">
+                <label className="text-xs text-bark/60 block mb-1">Schedule for</label>
+                <input
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
+                />
               </div>
             )}
 
@@ -533,6 +554,8 @@ export function Tasks() {
   const updateTask = useTaskStore((state) => state.updateTask);
   const deleteTask = useTaskStore((state) => state.deleteTask);
   const addTask = useTaskStore((state) => state.addTask);
+  const scheduleForToday = useTaskStore((state) => state.scheduleForToday);
+  const scheduleForDate = useTaskStore((state) => state.scheduleForDate);
   const children = useChildStore((state) => state.children);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -572,9 +595,31 @@ export function Tasks() {
     };
   }, [tasks]);
 
-  // Count deferred seeds
-  const seedCount = useMemo(() => {
-    return taskInstances.filter(i => i.status === 'deferred').length;
+  // Tasks that already have a pending instance for today
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const todayDate = new Date();
+  const todayTaskIds = useMemo(() => {
+    return new Set(
+      taskInstances
+        .filter(i => i.date === today && i.status === 'pending')
+        .map(i => i.taskId)
+    );
+  }, [taskInstances, today]);
+
+  const isDueToday = (task: Task) => {
+    if (task.tier === 'todo') return todayTaskIds.has(task.id);
+    return todayTaskIds.has(task.id) || shouldTaskOccurOnDate(task, todayDate);
+  };
+
+  // Map taskId → scheduled date for pending/deferred instances (for todos)
+  const taskScheduledDates = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const i of taskInstances) {
+      if (i.status === 'pending' || i.status === 'deferred') {
+        map.set(i.taskId, i.date);
+      }
+    }
+    return map;
   }, [taskInstances]);
 
   const handleAddTask = (taskData: TaskInput) => {
@@ -620,20 +665,40 @@ export function Tasks() {
             </div>
           </button>
           {expandedSections.has('todos') && (
-            <div className="mt-2 space-y-2">
+            <div className="mt-2">
               {todos.length === 0 ? (
                 <p className="text-sm text-bark/40 italic py-2 px-3">No to-dos yet</p>
               ) : (
-                todos.map(task => (
-                  <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
-                ))
-              )}
-              {seedCount > 0 && (
-                <div className="p-3 rounded-lg bg-linen/50 border border-bark/10 mt-2">
-                  <p className="text-sm text-bark/60">
-                    <span className="font-medium">{seedCount} deferred</span> waiting to be replanted
-                  </p>
-                </div>
+                <>
+                  {(() => {
+                    const dueToday = todos.filter(t => isDueToday(t));
+                    const noDate = todos.filter(t => !isDueToday(t));
+                    return (
+                      <>
+                        {dueToday.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Due today</p>
+                            <div className="space-y-2">
+                              {dueToday.map(task => (
+                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {noDate.length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">No date</p>
+                            <div className="space-y-2">
+                              {noDate.map(task => (
+                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </>
               )}
             </div>
           )}
@@ -665,13 +730,40 @@ export function Tasks() {
             </div>
           </button>
           {expandedSections.has('routines') && (
-            <div className="mt-2 space-y-2">
+            <div className="mt-2">
               {routines.length === 0 ? (
                 <p className="text-sm text-bark/40 italic py-2 px-3">No routines yet</p>
               ) : (
-                routines.map(task => (
-                  <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
-                ))
+                <>
+                  {(() => {
+                    const dueToday = routines.filter(t => isDueToday(t));
+                    const otherDays = routines.filter(t => !isDueToday(t));
+                    return (
+                      <>
+                        {dueToday.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Due today</p>
+                            <div className="space-y-2">
+                              {dueToday.map(task => (
+                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {otherDays.length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Other days</p>
+                            <div className="space-y-2">
+                              {otherDays.map(task => (
+                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </>
               )}
             </div>
           )}
@@ -703,13 +795,40 @@ export function Tasks() {
             </div>
           </button>
           {expandedSections.has('fixed-schedule') && (
-            <div className="mt-2 space-y-2">
+            <div className="mt-2">
               {fixedSchedule.length === 0 ? (
                 <p className="text-sm text-bark/40 italic py-2 px-3">No fixed schedule items yet</p>
               ) : (
-                fixedSchedule.map(task => (
-                  <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} getChild={getChild} />
-                ))
+                <>
+                  {(() => {
+                    const dueToday = fixedSchedule.filter(t => isDueToday(t));
+                    const otherDays = fixedSchedule.filter(t => !isDueToday(t));
+                    return (
+                      <>
+                        {dueToday.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Due today</p>
+                            <div className="space-y-2">
+                              {dueToday.map(task => (
+                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {otherDays.length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Other days</p>
+                            <div className="space-y-2">
+                              {otherDays.map(task => (
+                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </>
               )}
             </div>
           )}
@@ -753,6 +872,8 @@ export function Tasks() {
           onClose={() => setEditingTask(null)}
           onSave={(id, updates) => updateTask(id, updates)}
           onDelete={(id) => deleteTask(id)}
+          onScheduleDate={(id, date) => scheduleForDate(id, date)}
+          scheduledDate={taskScheduledDates.get(editingTask.id) ?? null}
           children={children}
         />
       )}
