@@ -360,9 +360,9 @@ export const useTaskStore = create<TaskState>()(
             .map((instance) => instance.taskId)
         );
 
-        // Generate new instances for tasks that should occur today
+        // Generate new instances for tasks that should occur today (todos are excluded — they only appear when explicitly scheduled)
         const newInstances: TaskInstance[] = tasks
-          .filter((task) => shouldTaskOccurOnDate(task, date) && !existingTaskIds.has(task.id))
+          .filter((task) => task.tier !== 'todo' && shouldTaskOccurOnDate(task, date) && !existingTaskIds.has(task.id))
           .map((task) => ({
             id: uuidv4(),
             taskId: task.id,
