@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useTaskStore, getTaskDisplayTitle, shouldTaskOccurOnDate } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
 import type { Task, TaskTier, RecurrenceRule, TaskInput } from '../types';
@@ -672,7 +672,20 @@ export function Tasks() {
                 <>
                   {(() => {
                     const dueToday = todos.filter(t => isDueToday(t));
-                    const noDate = todos.filter(t => !isDueToday(t));
+                    const upcoming = todos
+                      .filter(t => !isDueToday(t) && (taskScheduledDates.get(t.id) ?? '') > today)
+                      .sort((a, b) => (taskScheduledDates.get(a.id)! < taskScheduledDates.get(b.id)! ? -1 : 1));
+                    const noDate = todos.filter(t => !isDueToday(t) && !((taskScheduledDates.get(t.id) ?? '') > today));
+
+                    // Group upcoming by date
+                    const upcomingByDate: { dateStr: string; tasks: typeof todos }[] = [];
+                    for (const task of upcoming) {
+                      const d = taskScheduledDates.get(task.id)!;
+                      const last = upcomingByDate[upcomingByDate.length - 1];
+                      if (last && last.dateStr === d) last.tasks.push(task);
+                      else upcomingByDate.push({ dateStr: d, tasks: [task] });
+                    }
+
                     return (
                       <>
                         {dueToday.length > 0 && (
@@ -685,6 +698,18 @@ export function Tasks() {
                             </div>
                           </div>
                         )}
+                        {upcomingByDate.map(({ dateStr, tasks }) => (
+                          <div key={dateStr} className="mb-3">
+                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">
+                              {format(parseISO(dateStr), 'EEE, MMM d')}
+                            </p>
+                            <div className="space-y-2">
+                              {tasks.map(task => (
+                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                         {noDate.length > 0 && (
                           <div className="mb-2">
                             <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">No date</p>
