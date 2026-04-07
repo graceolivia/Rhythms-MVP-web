@@ -92,54 +92,17 @@ function ReceiveSeedsPhase() {
 // ─── Phase: PLANT PROMPT ───────────────────────────────────────────────────────
 
 function PlantPromptPhase() {
-  const setPhase = useTutorialStore((s) => s.setPhase);
-  const markSeedPlanted = useTutorialStore((s) => s.markSeedPlanted);
-  const autoPlaceFlower = useGardenStore((s) => s.autoPlaceFlower);
-  const getUnplacedFlowers = useGardenStore((s) => s.getUnplacedFlowers);
-  const [planted, setPlanted] = useState(false);
-
-  const handlePlant = () => {
-    if (planted) return;
-    // Find an unplaced forget-me-not and place it at the first front-row plot (col 2, row 5)
-    const unplaced = getUnplacedFlowers().find((f) => f.type === 'forget-me-not');
-    if (unplaced) {
-      autoPlaceFlower(unplaced.id, 'forget-me-not', 2, 5);
-    }
-    markSeedPlanted();
-    setPlanted(true);
-    setTimeout(() => setPhase('first_plant_response'), 400);
-  };
-
   return (
     <>
-      {/* Dim overlay — non-interactive except for the plant button */}
-      <div className="fixed inset-0 z-40 pointer-events-none" style={{ background: 'rgba(0,0,0,0.15)' }} />
-
-      {/* Hint banner */}
+      {/* Hint banner — garden interaction happens via TutorialPlotOverlay in GardenPreview */}
       <div
         className="fixed top-4 left-4 right-4 z-50 rounded-xl px-4 py-3 flex items-center gap-3"
         style={{ background: 'rgba(30,22,12,0.88)', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
       >
         <span className="text-xl">🌱</span>
         <p className="text-sm flex-1" style={{ color: '#f0e8d8' }}>
-          Tap the button below to plant your first seed in the garden!
+          Tap a glowing spot in your garden to plant a seed!
         </p>
-      </div>
-
-      {/* Plant button — centered over the garden area */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-        <button
-          onClick={handlePlant}
-          disabled={planted}
-          className="pointer-events-auto px-8 py-4 rounded-2xl font-semibold text-cream text-base transition-all active:scale-95"
-          style={{
-            background: planted ? '#7a9e7e' : 'linear-gradient(135deg, #7a9e7e, #5a7e5e)',
-            boxShadow: '0 4px 16px rgba(90,126,94,0.5)',
-            animation: planted ? 'none' : 'pulse 2s infinite',
-          }}
-        >
-          {planted ? '🌱 Planted!' : '🌱 Plant a seed here'}
-        </button>
       </div>
     </>
   );
@@ -172,7 +135,7 @@ function AddTaskPromptPhase() {
   const handleSubmit = () => {
     const trimmed = taskText.trim();
     if (!trimmed) return;
-    useTaskStore.getState().addTask({
+    const taskId = useTaskStore.getState().addTask({
       type: 'standard',
       title: trimmed,
       tier: 'todo',
@@ -184,6 +147,7 @@ function AddTaskPromptPhase() {
       category: 'other',
       childId: null,
     });
+    useTaskStore.getState().scheduleForToday(taskId);
     markTaskAdded();
     setPhase('wrap_up');
   };

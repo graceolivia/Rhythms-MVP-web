@@ -21,6 +21,7 @@ import { useSunTimes } from '../../hooks/useSunTimes';
 import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_ROW, BLOCKED_CELLS, getCurrentSeason } from '../../stores/useGardenStore';
 import type { FlowerType, Season } from '../../types';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
+import { useTutorialStore } from '../../stores/useTutorialStore';
 import { GrowthSprite } from '../garden/GrowthSprite';
 import { SpriteSheet } from '../garden/SpriteSheet';
 import sunPng from '../../assets/sky/sun2.png';
@@ -171,6 +172,64 @@ const HOUSE_ROWS = 6; // rows 23–28
 // Run `VITE_HIDE_DEV_OVERLAY=1 npm run dev` to hide all dev overlays
 const DEV_OVERLAY = import.meta.env.DEV && !import.meta.env.VITE_HIDE_DEV_OVERLAY;
 const SHOW_GRID_COORDS = DEV_OVERLAY;
+
+// ── Tutorial plot overlay ───────────────────────────────────────────────────────
+// Renders pulsing tappable circles over each front-row plot during the tutorial
+// plant_prompt phase. Lives inside the scaled scene div so it scales with the garden.
+function TutorialPlotOverlay() {
+  const phase = useTutorialStore((s) => s.phase);
+  const setPhase = useTutorialStore((s) => s.setPhase);
+  const markSeedPlanted = useTutorialStore((s) => s.markSeedPlanted);
+  const getUnplacedFlowers = useGardenStore((s) => s.getUnplacedFlowers);
+  const autoPlaceFlower = useGardenStore((s) => s.autoPlaceFlower);
+
+  if (phase !== 'plant_prompt') return null;
+
+  const handlePlantAt = (col: number) => {
+    const unplaced = getUnplacedFlowers().find((f) => f.type === 'forget-me-not');
+    if (unplaced) {
+      autoPlaceFlower(unplaced.id, 'forget-me-not', col, PLOT_ROW);
+    }
+    markSeedPlanted();
+    setPhase('first_plant_response');
+  };
+
+  return (
+    <>
+      <style>{`
+        @keyframes tutorialPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(122,158,126,0.7); transform: scale(1); }
+          50% { box-shadow: 0 0 0 8px rgba(122,158,126,0); transform: scale(1.08); }
+        }
+      `}</style>
+      {PLOT_COLS.map((col) => (
+        <div
+          key={col}
+          onClick={() => handlePlantAt(col)}
+          style={{
+            position: 'absolute',
+            left: FENCE + col * CELL,
+            top: COTTAGE_PAD + PLOT_ROW * CELL,
+            width: CELL,
+            height: CELL,
+            borderRadius: '50%',
+            border: '2px solid rgba(122,158,126,0.9)',
+            background: 'rgba(122,158,126,0.3)',
+            animation: 'tutorialPulse 1.8s ease-in-out infinite',
+            cursor: 'pointer',
+            zIndex: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 14,
+          }}
+        >
+          🌱
+        </div>
+      ))}
+    </>
+  );
+}
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null }) {
@@ -1196,6 +1255,9 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           }
           return cells;
         })()}
+
+        {/* ── Tutorial: tappable plot circles ── */}
+        <TutorialPlotOverlay />
 
         {/* ── Edit mode grid overlay ── */}
         {isEditOpen && (

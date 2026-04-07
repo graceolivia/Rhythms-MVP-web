@@ -1,24 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Sage placeholder — swap src prop for real art when ready
+import sagePng from '../../assets/npcs/sage.png';
+
 export function SagePortrait({ src }: { src?: string }) {
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt="Sage"
-        className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-        style={{ imageRendering: 'pixelated' }}
-      />
-    );
-  }
   return (
-    <div
-      className="w-16 h-16 rounded-lg flex-shrink-0 flex items-center justify-center text-3xl border-2 border-bark/30"
-      style={{ background: 'linear-gradient(135deg, #7a9e7e 0%, #5a7e5e 100%)' }}
-    >
-      🌿
-    </div>
+    <img
+      src={src ?? sagePng}
+      alt="Sage"
+      className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+      style={{ imageRendering: 'pixelated' }}
+    />
   );
 }
 
