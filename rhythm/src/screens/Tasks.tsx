@@ -1,16 +1,8 @@
 import { useState, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
-import { useTaskStore, getTaskDisplayTitle, shouldTaskOccurOnDate } from '../stores/useTaskStore';
+import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
-import type { Task, TaskTier, RecurrenceRule, TaskInput } from '../types';
-
-const TIER_CONFIG: Record<TaskTier, { label: string; color: string; bg: string; border: string }> = {
-  'fixed-schedule': { label: 'Fixed Schedule', color: 'text-terracotta', bg: 'bg-terracotta/10', border: 'border-terracotta/30' },
-  'routine': { label: 'Routines', color: 'text-sage', bg: 'bg-sage/10', border: 'border-sage/30' },
-  'todo': { label: 'To-dos', color: 'text-skyblue', bg: 'bg-skyblue/10', border: 'border-skyblue/30' },
-};
-
-const DAY_LABELS_FULL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+import type { Task, TaskInput } from '../types';
 
 
 function formatTime12(time: string): string {
@@ -31,12 +23,11 @@ interface TaskItemProps {
 
 function TaskItem({ task, onClick, onDoToday, onDelete, isScheduledToday, getChild }: TaskItemProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const config = TIER_CONFIG[task.tier];
   const displayTitle = getTaskDisplayTitle(task, getChild);
 
   if (confirmDelete) {
     return (
-      <div className={`flex items-center gap-2 p-3 rounded-lg border ${config.bg} ${config.border}`}>
+      <div className="flex items-center gap-2 p-3 rounded-lg border bg-skyblue/10 border-skyblue/30">
         <p className="flex-1 text-sm text-bark/70 truncate">Delete "{displayTitle}"?</p>
         <button onClick={() => setConfirmDelete(false)} className="text-xs px-2 py-1 rounded-lg bg-bark/10 text-bark">Cancel</button>
         <button onClick={onDelete} className="text-xs px-2 py-1 rounded-lg bg-red-500 text-white">Delete</button>
@@ -45,10 +36,10 @@ function TaskItem({ task, onClick, onDoToday, onDelete, isScheduledToday, getChi
   }
 
   return (
-    <div className={`flex items-center gap-2 p-3 rounded-lg border ${config.bg} ${config.border}`}>
+    <div className="flex items-center gap-2 p-3 rounded-lg border bg-skyblue/10 border-skyblue/30">
       {/* Tappable title area */}
       <button onClick={onClick} className="flex-1 text-left min-w-0">
-        <h3 className={`font-medium ${config.color} truncate`}>{displayTitle}</h3>
+        <h3 className="font-medium text-skyblue truncate">{displayTitle}</h3>
         {task.scheduledTime && (
           <p className="text-xs text-bark/50 mt-0.5">{formatTime12(task.scheduledTime)}</p>
         )}
@@ -91,26 +82,13 @@ interface TaskEditModalProps {
 
 function TaskEditModal({ task, onClose, onSave, onDelete, onScheduleDate, scheduledDate, children }: TaskEditModalProps) {
   const [title, setTitle] = useState(task.title);
-  const [scheduledTime, setScheduledTime] = useState(task.scheduledTime || '');
-  const [duration, setDuration] = useState(task.duration || 30);
-  const [recurrence, setRecurrence] = useState<RecurrenceRule>(task.recurrence || 'daily');
-  const [daysOfWeek, setDaysOfWeek] = useState<number[]>(task.daysOfWeek || []);
   const [childId, setChildId] = useState<string | null>(task.childId || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newDate, setNewDate] = useState(scheduledDate || '');
 
-  const config = TIER_CONFIG[task.tier];
-
   const handleSave = () => {
-    onSave(task.id, {
-      title,
-      scheduledTime: scheduledTime || null,
-      duration,
-      recurrence,
-      daysOfWeek: recurrence === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
-      childId: childId || null,
-    });
-    if (task.tier === 'todo' && newDate && newDate !== scheduledDate) {
+    onSave(task.id, { title, childId: childId || null });
+    if (newDate && newDate !== scheduledDate) {
       onScheduleDate(task.id, newDate);
     }
     onClose();
@@ -121,18 +99,10 @@ function TaskEditModal({ task, onClose, onSave, onDelete, onScheduleDate, schedu
     onClose();
   };
 
-  const toggleDay = (day: number) => {
-    if (daysOfWeek.includes(day)) {
-      setDaysOfWeek(daysOfWeek.filter(d => d !== day));
-    } else {
-      setDaysOfWeek([...daysOfWeek, day].sort());
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/20" onClick={onClose}>
       <div
-        className="bg-cream rounded-xl shadow-xl p-5 w-full max-w-md border border-bark/10 max-h-[85vh] overflow-y-auto"
+        className="bg-cream rounded-xl shadow-xl p-5 w-full max-w-md border border-bark/10"
         onClick={(e) => e.stopPropagation()}
       >
         {showDeleteConfirm ? (
@@ -140,29 +110,15 @@ function TaskEditModal({ task, onClose, onSave, onDelete, onScheduleDate, schedu
             <p className="text-bark mb-4">Delete "{task.title}"?</p>
             <p className="text-sm text-bark/50 mb-6">This cannot be undone.</p>
             <div className="flex gap-2">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-2 rounded-lg bg-bark/10 text-bark hover:bg-bark/20"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                className="flex-1 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
-              >
-                Delete
-              </button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2 rounded-lg bg-bark/10 text-bark hover:bg-bark/20">Cancel</button>
+              <button onClick={handleDelete} className="flex-1 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600">Delete</button>
             </div>
           </div>
         ) : (
           <>
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
-                  {config.label}
-                </span>
-              </div>
+              <h2 className="font-display text-lg text-bark">Edit to-do</h2>
               <button onClick={onClose} className="p-1 rounded-lg hover:bg-bark/10 text-bark/40">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -172,11 +128,23 @@ function TaskEditModal({ task, onClose, onSave, onDelete, onScheduleDate, schedu
 
             {/* Title */}
             <div className="mb-4">
-              <label className="text-xs text-bark/60 block mb-1">Title</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
+                autoFocus
+              />
+            </div>
+
+            {/* Schedule for date */}
+            <div className="mb-4">
+              <label className="text-xs text-bark/60 block mb-1">Schedule for</label>
+              <input
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
               />
             </div>
@@ -184,15 +152,11 @@ function TaskEditModal({ task, onClose, onSave, onDelete, onScheduleDate, schedu
             {/* Child link */}
             {children.length > 0 && (
               <div className="mb-4">
-                <label className="text-xs text-bark/60 block mb-2">For child (optional)</label>
+                <label className="text-xs text-bark/60 block mb-2">For (optional)</label>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setChildId(null)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      childId === null
-                        ? 'bg-bark/20 text-bark'
-                        : 'bg-bark/5 text-bark/50 hover:bg-bark/10'
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${childId === null ? 'bg-bark/20 text-bark' : 'bg-bark/5 text-bark/50 hover:bg-bark/10'}`}
                   >
                     Everyone
                   </button>
@@ -200,98 +164,9 @@ function TaskEditModal({ task, onClose, onSave, onDelete, onScheduleDate, schedu
                     <button
                       key={child.id}
                       onClick={() => setChildId(child.id)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        childId === child.id
-                          ? 'bg-lavender/30 text-lavender border border-lavender'
-                          : 'bg-bark/5 text-bark/50 hover:bg-bark/10'
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${childId === child.id ? 'bg-lavender/30 text-lavender border border-lavender' : 'bg-bark/5 text-bark/50 hover:bg-bark/10'}`}
                     >
                       {child.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Date (for todos) */}
-            {task.tier === 'todo' && (
-              <div className="mb-4">
-                <label className="text-xs text-bark/60 block mb-1">Schedule for</label>
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
-                />
-              </div>
-            )}
-
-            {/* Time (for anchors and rhythms) */}
-            {task.tier !== 'todo' && (
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div>
-                  <label className="text-xs text-bark/60 block mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-bark/60 block mb-1">Duration (min)</label>
-                  <input
-                    type="number"
-                    min="5"
-                    max="480"
-                    step="5"
-                    value={duration}
-                    onChange={(e) => setDuration(parseInt(e.target.value) || 30)}
-                    className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Recurrence */}
-            <div className="mb-4">
-              <label className="text-xs text-bark/60 block mb-2">Frequency</label>
-              <div className="grid grid-cols-2 gap-2">
-                {(['daily', 'weekdays', 'weekends', 'weekly'] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRecurrence(r)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      recurrence === r
-                        ? 'bg-sage text-cream'
-                        : 'bg-bark/5 text-bark/60 hover:bg-bark/10'
-                    }`}
-                  >
-                    {r === 'daily' && <><span className="emoji-icon">☀️</span> Daily</>}
-                    {r === 'weekdays' && <><span className="emoji-icon">💼</span> Weekdays</>}
-                    {r === 'weekends' && <><span className="emoji-icon">🌴</span> Weekends</>}
-                    {r === 'weekly' && <><span className="emoji-icon">🔁</span> Custom</>}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Day picker for weekly */}
-            {recurrence === 'weekly' && (
-              <div className="mb-4">
-                <label className="text-xs text-bark/60 block mb-2">Days</label>
-                <div className="flex gap-1">
-                  {DAY_LABELS_FULL.map((label, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => toggleDay(idx)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
-                        daysOfWeek.includes(idx)
-                          ? 'bg-terracotta text-cream'
-                          : 'bg-bark/5 text-bark/40 hover:text-bark'
-                      }`}
-                    >
-                      {label.charAt(0)}
                     </button>
                   ))}
                 </div>
@@ -330,30 +205,22 @@ function TaskEditModal({ task, onClose, onSave, onDelete, onScheduleDate, schedu
 interface NewTaskModalProps {
   onClose: () => void;
   onAdd: (task: TaskInput) => void;
-  defaultTier?: TaskTier;
   children: { id: string; name: string }[];
 }
 
-function NewTaskModal({ onClose, onAdd, defaultTier = 'routine', children }: NewTaskModalProps) {
+function NewTaskModal({ onClose, onAdd, children }: NewTaskModalProps) {
   const [title, setTitle] = useState('');
-  const [tier, setTier] = useState<TaskTier>(defaultTier);
-  const [scheduledTime, setScheduledTime] = useState('09:00');
-  const [duration, setDuration] = useState(30);
-  const [recurrence, setRecurrence] = useState<RecurrenceRule>('daily');
-  const [daysOfWeek, setDaysOfWeek] = useState<number[]>([]);
   const [childId, setChildId] = useState<string | null>(null);
 
   const handleAdd = () => {
     if (!title.trim()) return;
-
     onAdd({
       type: 'standard',
       title: title.trim(),
-      tier,
-      scheduledTime: tier !== 'todo' ? scheduledTime : null,
-      duration,
-      recurrence,
-      daysOfWeek: recurrence === 'weekly' && daysOfWeek.length > 0 ? daysOfWeek : null,
+      tier: 'todo',
+      scheduledTime: null,
+      duration: 30,
+      recurrence: 'daily',
       napContext: null,
       isActive: true,
       category: 'other',
@@ -362,23 +229,15 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'routine', children }: New
     onClose();
   };
 
-  const toggleDay = (day: number) => {
-    if (daysOfWeek.includes(day)) {
-      setDaysOfWeek(daysOfWeek.filter(d => d !== day));
-    } else {
-      setDaysOfWeek([...daysOfWeek, day].sort());
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/20" onClick={onClose}>
       <div
-        className="bg-cream rounded-xl shadow-xl p-5 w-full max-w-md border border-bark/10 max-h-[85vh] overflow-y-auto"
+        className="bg-cream rounded-xl shadow-xl p-5 w-full max-w-md border border-bark/10"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-lg text-bark">New Task</h2>
+          <h2 className="font-display text-lg text-bark">New To-do</h2>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-bark/10 text-bark/40">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -388,51 +247,26 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'routine', children }: New
 
         {/* Title */}
         <div className="mb-4">
-          <label className="text-xs text-bark/60 block mb-1">Title</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             placeholder="What needs doing?"
             className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
             autoFocus
           />
         </div>
 
-        {/* Tier */}
-        <div className="mb-4">
-          <label className="text-xs text-bark/60 block mb-2">Type</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(['fixed-schedule', 'routine', 'todo'] as TaskTier[]).map((t) => {
-              const c = TIER_CONFIG[t];
-              return (
-                <button
-                  key={t}
-                  onClick={() => setTier(t)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                    tier === t
-                      ? `${c.bg} ${c.color} ${c.border}`
-                      : 'bg-bark/5 text-bark/60 border-transparent hover:bg-bark/10'
-                  }`}
-                >
-                  {c.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Child link */}
         {children.length > 0 && (
           <div className="mb-4">
-            <label className="text-xs text-bark/60 block mb-2">For child (optional)</label>
+            <label className="text-xs text-bark/60 block mb-2">For (optional)</label>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setChildId(null)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  childId === null
-                    ? 'bg-bark/20 text-bark'
-                    : 'bg-bark/5 text-bark/50 hover:bg-bark/10'
+                  childId === null ? 'bg-bark/20 text-bark' : 'bg-bark/5 text-bark/50 hover:bg-bark/10'
                 }`}
               >
                 Everyone
@@ -454,85 +288,10 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'routine', children }: New
           </div>
         )}
 
-        {/* Time (for anchors and rhythms) */}
-        {tier !== 'todo' && (
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div>
-              <label className="text-xs text-bark/60 block mb-1">Time</label>
-              <input
-                type="time"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-bark/60 block mb-1">Duration (min)</label>
-              <input
-                type="number"
-                min="5"
-                max="480"
-                step="5"
-                value={duration}
-                onChange={(e) => setDuration(parseInt(e.target.value) || 30)}
-                className="w-full px-3 py-2 rounded-lg border border-bark/20 bg-white focus:outline-none focus:border-sage"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Recurrence */}
-        <div className="mb-4">
-          <label className="text-xs text-bark/60 block mb-2">Frequency</label>
-          <div className="grid grid-cols-2 gap-2">
-            {(['daily', 'weekdays', 'weekends', 'weekly'] as const).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRecurrence(r)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  recurrence === r
-                    ? 'bg-sage text-cream'
-                    : 'bg-bark/5 text-bark/60 hover:bg-bark/10'
-                }`}
-              >
-                {r === 'daily' && <><span className="emoji-icon">☀️</span> Daily</>}
-                {r === 'weekdays' && <><span className="emoji-icon">💼</span> Weekdays</>}
-                {r === 'weekends' && <><span className="emoji-icon">🌴</span> Weekends</>}
-                {r === 'weekly' && <><span className="emoji-icon">🔁</span> Custom</>}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Day picker for weekly */}
-        {recurrence === 'weekly' && (
-          <div className="mb-4">
-            <label className="text-xs text-bark/60 block mb-2">Days</label>
-            <div className="flex gap-1">
-              {DAY_LABELS_FULL.map((label, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => toggleDay(idx)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
-                    daysOfWeek.includes(idx)
-                      ? 'bg-terracotta text-cream'
-                      : 'bg-bark/5 text-bark/40 hover:text-bark'
-                  }`}
-                >
-                  {label.charAt(0)}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Actions */}
         <div className="flex gap-2 pt-2 border-t border-bark/10">
           <div className="flex-1" />
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-bark/10 text-bark hover:bg-bark/20 text-sm"
-          >
+          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-bark/10 text-bark hover:bg-bark/20 text-sm">
             Cancel
           </button>
           <button
@@ -540,7 +299,7 @@ function NewTaskModal({ onClose, onAdd, defaultTier = 'routine', children }: New
             disabled={!title.trim()}
             className="px-4 py-2 rounded-lg bg-sage text-white hover:bg-sage/90 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Add Task
+            Add
           </button>
         </div>
       </div>
@@ -560,8 +319,7 @@ export function Tasks() {
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
-  const [newTaskTier, setNewTaskTier] = useState<TaskTier>('routine');
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['todos', 'routines']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['todos']));
 
   // Helper to get child by ID
   const getChild = (id: string) => children.find(c => c.id === id);
@@ -569,35 +327,18 @@ export function Tasks() {
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
       const next = new Set(prev);
-      if (next.has(section)) {
-        next.delete(section);
-      } else {
-        next.add(section);
-      }
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
       return next;
     });
   };
 
-  // Group active tasks by tier
-  const { fixedSchedule, routines, todos } = useMemo(() => {
-    const active = tasks.filter(t => t.isActive);
-    const fixed = active
-      .filter(t => t.tier === 'fixed-schedule')
-      .sort((a, b) => {
-        if (!a.scheduledTime) return 1;
-        if (!b.scheduledTime) return -1;
-        return a.scheduledTime.localeCompare(b.scheduledTime);
-      });
-    return {
-      fixedSchedule: fixed,
-      routines: active.filter(t => t.tier === 'routine'),
-      todos: active.filter(t => t.tier === 'todo'),
-    };
-  }, [tasks]);
+  const todos = useMemo(() =>
+    tasks.filter(t => t.isActive && t.tier === 'todo'),
+  [tasks]);
 
   // Tasks that already have a pending instance for today
   const today = format(new Date(), 'yyyy-MM-dd');
-  const todayDate = new Date();
   const todayTaskIds = useMemo(() => {
     return new Set(
       taskInstances
@@ -605,11 +346,6 @@ export function Tasks() {
         .map(i => i.taskId)
     );
   }, [taskInstances, today]);
-
-  const isDueToday = (task: Task) => {
-    if (task.tier === 'todo') return todayTaskIds.has(task.id);
-    return todayTaskIds.has(task.id) || shouldTaskOccurOnDate(task, todayDate);
-  };
 
   // Map taskId → scheduled date for pending/deferred instances (for todos)
   const taskScheduledDates = useMemo(() => {
@@ -624,11 +360,6 @@ export function Tasks() {
 
   const handleAddTask = (taskData: TaskInput) => {
     addTask(taskData);
-  };
-
-  const openNewTaskModal = (tier: TaskTier) => {
-    setNewTaskTier(tier);
-    setShowNewTask(true);
   };
 
   return (
@@ -651,7 +382,7 @@ export function Tasks() {
             </h2>
             <div className="flex items-center gap-2">
               <button
-                onClick={(e) => { e.stopPropagation(); openNewTaskModal('todo'); }}
+                onClick={(e) => { e.stopPropagation(); setShowNewTask(true); }}
                 className="text-xs px-2 py-1 rounded-lg bg-skyblue/10 text-skyblue hover:bg-skyblue/20"
               >
                 + Add
@@ -671,11 +402,11 @@ export function Tasks() {
               ) : (
                 <>
                   {(() => {
-                    const dueToday = todos.filter(t => isDueToday(t));
+                    const dueToday = todos.filter(t => todayTaskIds.has(t.id));
                     const upcoming = todos
-                      .filter(t => !isDueToday(t) && (taskScheduledDates.get(t.id) ?? '') > today)
+                      .filter(t => !todayTaskIds.has(t.id) && (taskScheduledDates.get(t.id) ?? '') > today)
                       .sort((a, b) => (taskScheduledDates.get(a.id)! < taskScheduledDates.get(b.id)! ? -1 : 1));
-                    const noDate = todos.filter(t => !isDueToday(t) && !((taskScheduledDates.get(t.id) ?? '') > today));
+                    const noDate = todos.filter(t => !todayTaskIds.has(t.id) && !((taskScheduledDates.get(t.id) ?? '') > today));
 
                     // Group upcoming by date
                     const upcomingByDate: { dateStr: string; tasks: typeof todos }[] = [];
@@ -715,136 +446,6 @@ export function Tasks() {
                             <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">No date</p>
                             <div className="space-y-2">
                               {noDate.map(task => (
-                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* Routines */}
-        <section className="mb-3">
-          <button
-            onClick={() => toggleSection('routines')}
-            className="w-full flex items-center justify-between p-3 rounded-lg bg-sage/5 hover:bg-sage/10 transition-colors"
-          >
-            <h2 className="font-medium text-sage flex items-center gap-2">
-              <span className="emoji-icon">🌿</span> Routines
-              <span className="text-xs text-bark/40 font-normal">({routines.length})</span>
-            </h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => { e.stopPropagation(); openNewTaskModal('routine'); }}
-                className="text-xs px-2 py-1 rounded-lg bg-sage/10 text-sage hover:bg-sage/20"
-              >
-                + Add
-              </button>
-              <svg
-                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('routines') ? 'rotate-180' : ''}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </button>
-          {expandedSections.has('routines') && (
-            <div className="mt-2">
-              {routines.length === 0 ? (
-                <p className="text-sm text-bark/40 italic py-2 px-3">No routines yet</p>
-              ) : (
-                <>
-                  {(() => {
-                    const dueToday = routines.filter(t => isDueToday(t));
-                    const otherDays = routines.filter(t => !isDueToday(t));
-                    return (
-                      <>
-                        {dueToday.length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Due today</p>
-                            <div className="space-y-2">
-                              {dueToday.map(task => (
-                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {otherDays.length > 0 && (
-                          <div className="mb-2">
-                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Other days</p>
-                            <div className="space-y-2">
-                              {otherDays.map(task => (
-                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* Fixed Schedule */}
-        <section className="mb-3">
-          <button
-            onClick={() => toggleSection('fixed-schedule')}
-            className="w-full flex items-center justify-between p-3 rounded-lg bg-terracotta/5 hover:bg-terracotta/10 transition-colors"
-          >
-            <h2 className="font-medium text-terracotta flex items-center gap-2">
-              <span className="emoji-icon">⏰</span> Fixed Schedule
-              <span className="text-xs text-bark/40 font-normal">({fixedSchedule.length})</span>
-            </h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => { e.stopPropagation(); openNewTaskModal('fixed-schedule'); }}
-                className="text-xs px-2 py-1 rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20"
-              >
-                + Add
-              </button>
-              <svg
-                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('fixed-schedule') ? 'rotate-180' : ''}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </button>
-          {expandedSections.has('fixed-schedule') && (
-            <div className="mt-2">
-              {fixedSchedule.length === 0 ? (
-                <p className="text-sm text-bark/40 italic py-2 px-3">No fixed schedule items yet</p>
-              ) : (
-                <>
-                  {(() => {
-                    const dueToday = fixedSchedule.filter(t => isDueToday(t));
-                    const otherDays = fixedSchedule.filter(t => !isDueToday(t));
-                    return (
-                      <>
-                        {dueToday.length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Due today</p>
-                            <div className="space-y-2">
-                              {dueToday.map(task => (
-                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {otherDays.length > 0 && (
-                          <div className="mb-2">
-                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Other days</p>
-                            <div className="space-y-2">
-                              {otherDays.map(task => (
                                 <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
                               ))}
                             </div>
@@ -908,7 +509,6 @@ export function Tasks() {
         <NewTaskModal
           onClose={() => setShowNewTask(false)}
           onAdd={handleAddTask}
-          defaultTier={newTaskTier}
           children={children}
         />
       )}
