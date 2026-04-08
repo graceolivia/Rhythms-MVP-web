@@ -195,7 +195,6 @@ export function TutorialOverlay() {
   const phase = useTutorialStore((s) => s.phase);
   const tutorialComplete = useTutorialStore((s) => s.tutorialComplete);
   const startTutorial = useTutorialStore((s) => s.startTutorial);
-  const setPhase = useTutorialStore((s) => s.setPhase);
   const earnFlower = useGardenStore((s) => s.earnFlower);
   const markSeedsReceived = useTutorialStore((s) => s.markSeedsReceived);
   const hasReceivedStarterSeeds = useTutorialStore((s) => s.hasReceivedStarterSeeds);
