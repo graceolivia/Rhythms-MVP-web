@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 
 export type TutorialPhase =
   | 'not_started'
+  | 'entrance'
   | 'intro'
   | 'name_input'
   | 'receive_seeds'
@@ -40,7 +41,7 @@ export const useTutorialStore = create<TutorialState>()(
       hasAddedFirstTask: false,
       tutorialComplete: false,
 
-      startTutorial: () => set({ phase: 'intro' }),
+      startTutorial: () => set({ phase: 'entrance' }),
       setPhase: (phase) => set({ phase }),
       setPlayerName: (name) => set({ playerName: name }),
       markSeedsReceived: () => set({ hasReceivedStarterSeeds: true }),

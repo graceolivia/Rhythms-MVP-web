@@ -5,6 +5,7 @@ import { useGardenStore } from '../../stores/useGardenStore';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { markAsInstalled } from '../../utils/storageHelpers';
 import { DialogueBox } from './DialogueBox';
+import witchIdlePng from '../../assets/npcs/witch_idle.png';
 
 // ─── Phase: INTRO ──────────────────────────────────────────────────────────────
 
@@ -14,8 +15,9 @@ function IntroPhase() {
   return (
     <DialogueBox
       speakerName="Sage"
+      portrait={witchIdlePng}
       lines={[
-        "Hey there! I don't think we've met — I'm Sage. I help tend the gardens around here.",
+        "It's the new neighbor! Oh, hi, sorry to startle you. I'm Sage, the garden witch.",
         "What's your name?",
       ]}
       onComplete={() => setPhase('name_input')}
@@ -42,6 +44,7 @@ function NameInputPhase() {
   return (
     <DialogueBox
       speakerName="Sage"
+      portrait={witchIdlePng}
       lines={["What's your name?"]}
       onComplete={() => {}}
       showInputSlot
@@ -79,9 +82,10 @@ function ReceiveSeedsPhase() {
   return (
     <DialogueBox
       speakerName="Sage"
+      portrait={witchIdlePng}
       lines={[
-        `Welcome, ${playerName}! I love it here — it's quiet, there's good dirt, and things just... grow.`,
-        'Here — I brought you a few seeds to get started. 🌱🌱🌱',
+        `Welcome, ${playerName}! I'm so glad you moved in. I hope you don't mind me saying so, but your yard looks a bit... bare.`,
+        'Hey! Do you like gardening? I brought you a few seeds to get started. 🌱🌱🌱',
         'You can plant these anywhere in your garden. Want to try? Tap the button below to plant one!',
       ]}
       onComplete={() => setPhase('plant_prompt')}
@@ -116,6 +120,7 @@ function FirstPlantResponsePhase() {
   return (
     <DialogueBox
       speakerName="Sage"
+      portrait={witchIdlePng}
       lines={[
         "Look at that little sprout! It'll grow bigger every time you get things done.",
         "Speaking of which — what's one thing on your plate today? Laundry, dishes, a phone call... anything counts.",
@@ -155,6 +160,7 @@ function AddTaskPromptPhase() {
   return (
     <DialogueBox
       speakerName="Sage"
+      portrait={witchIdlePng}
       lines={[
         "What's one thing on your plate today?",
       ]}
@@ -199,6 +205,7 @@ function WrapUpPhase() {
   return (
     <DialogueBox
       speakerName="Sage"
+      portrait={witchIdlePng}
       lines={[
         'Perfect! Check it off when you\'re done and your garden will thank you.',
         `I'll be around if you need me. Happy growing, ${playerName}! 🌿`,
@@ -214,6 +221,7 @@ export function TutorialOverlay() {
   const phase = useTutorialStore((s) => s.phase);
   const tutorialComplete = useTutorialStore((s) => s.tutorialComplete);
   const startTutorial = useTutorialStore((s) => s.startTutorial);
+  const setPhase = useTutorialStore((s) => s.setPhase);
   const earnFlower = useGardenStore((s) => s.earnFlower);
   const markSeedsReceived = useTutorialStore((s) => s.markSeedsReceived);
   const hasReceivedStarterSeeds = useTutorialStore((s) => s.hasReceivedStarterSeeds);
@@ -225,6 +233,9 @@ export function TutorialOverlay() {
     startTutorial();
     return null;
   }
+
+  // Entrance animation plays inside GardenPreview — nothing to render here
+  if (phase === 'entrance') return null;
 
   // Award seeds when entering receive_seeds phase (idempotent)
   if (phase === 'receive_seeds' && !hasReceivedStarterSeeds) {

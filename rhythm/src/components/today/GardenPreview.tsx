@@ -37,6 +37,9 @@ import { autumn_pine_tree, autumn_house, autumn_mailbox, autumn_fencePieces, aut
 import { CharacterSprite, ROW_IDLE_BOUNCE_FRONT, ROW_IDLE_BOUNCE_SIDE, ROW_IDLE_BOUNCE_BACK } from '../character/CharacterSprite';
 import { useCharacterStore } from '../../stores/useCharacterStore';
 import { useCoinStore } from '../../stores/useCoinStore';
+import witchBroomSheet    from '../../assets/npcs/witch_idle_on_a_broom-Sheet.png';
+import witchWalkLeftSheet from '../../assets/npcs/witch_walk_left-Sheet.png';
+import witchIdlePng       from '../../assets/npcs/witch_idle.png';
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 const CELL = 32;
@@ -172,6 +175,129 @@ const HOUSE_ROWS = 6; // rows 23–28
 // Run `VITE_HIDE_DEV_OVERLAY=1 npm run dev` to hide all dev overlays
 const DEV_OVERLAY = import.meta.env.DEV && !import.meta.env.VITE_HIDE_DEV_OVERLAY;
 const SHOW_GRID_COORDS = DEV_OVERLAY;
+
+// ── Witch — scene-coordinate constants ───────────────────────────────────────
+// All values are unscaled scene pixels (same space as CELL, FENCE, etc.)
+const WITCH_SCALE = 2;
+const WITCH_FRAME = 32;
+const WITCH_W = WITCH_FRAME * WITCH_SCALE; // 64
+const WITCH_H = WITCH_FRAME * WITCH_SCALE; // 64
+// Player feet in scene coords
+const PLAYER_FEET_SCENE_Y = COTTAGE_PAD + PLAYER_START_Y + PLAYER_CHAR_FEET_Y; // 240
+// Witch sprite top when standing on ground (feet match player ground level)
+const WITCH_GROUND_TOP = PLAYER_FEET_SCENE_Y - WITCH_H; // 176
+// Fly-right: enters from just off the left edge, glides slowly to near the right edge
+const WITCH_FLY_START_LEFT = -WITCH_W;               // -64 — off left edge
+const WITCH_FLY_TOP        = 36;                     // cruising altitude in the sky
+const WITCH_PEAK_LEFT      = FULL_W - WITCH_W - 12;  // 404 — near right edge, past the house
+// Fly-down: flips around and swoops diagonally to land right of the player
+const WITCH_LAND_LEFT  = FENCE + 10 * CELL; // 352 — col 10, a few paces right of player
+// Walk-left: strolls back to stand just right of the player (col 7)
+const WITCH_FINAL_LEFT = FENCE +  8 * CELL; // 288 — col 8, beside player
+
+type WitchStep = 'fly_right' | 'fly_down' | 'landing' | 'walking' | 'arrived';
+
+/**
+ * Witch NPC — visible for the full tutorial lifecycle.
+ *
+ * Entrance sequence (phase === 'entrance'):
+ *   fly_right  slow sweep L→R across the sky (broom faces right)
+ *   fly_down   flips around, swoops diagonally down to land right of the player
+ *   landing    hops off broom, idle sprite
+ *   walking    walks LEFT back to the player (walk_left sheet)
+ *   arrived    stands idle beside player → dialogue starts
+ *
+ * Dialogue phases: idle sprite stays at WITCH_FINAL_LEFT / WITCH_GROUND_TOP.
+ * Returns null when tutorial hasn't started or is complete.
+ */
+function WitchInScene() {
+  const tutorialPhase    = useTutorialStore((s) => s.phase);
+  const tutorialComplete = useTutorialStore((s) => s.tutorialComplete);
+
+  const [step,  setStep]  = useState<WitchStep>('fly_right');
+  const [left,  setLeft]  = useState(WITCH_FLY_START_LEFT);
+  const [top,   setTop]   = useState(WITCH_FLY_TOP);
+  const [frame, setFrame] = useState(0);
+
+  const isEntrance = tutorialPhase === 'entrance';
+
+  // Entrance animation state machine
+  useEffect(() => {
+    if (!isEntrance) return;
+    const t: ReturnType<typeof setTimeout>[] = [];
+
+    // ① Slow sweep right across the sky (3 s ease-in-out)
+    t.push(setTimeout(() => setLeft(WITCH_PEAK_LEFT), 50));
+
+    // ② At peak: flip around, then swoop diagonally down-left to landing spot
+    t.push(setTimeout(() => setStep('fly_down'),                              3150));
+    t.push(setTimeout(() => { setLeft(WITCH_LAND_LEFT); setTop(WITCH_GROUND_TOP); }, 3250));
+
+    // ③ Hop off broom
+    t.push(setTimeout(() => setStep('landing'), 4350));
+
+    // ④ Walk left toward player
+    t.push(setTimeout(() => setStep('walking'),         4850));
+    t.push(setTimeout(() => setLeft(WITCH_FINAL_LEFT),  4950));
+
+    // ⑤ Arrive — start dialogue
+    t.push(setTimeout(() => setStep('arrived'),                               5950));
+    t.push(setTimeout(() => useTutorialStore.getState().setPhase('intro'),    6450));
+
+    return () => t.forEach(clearTimeout);
+  }, [isEntrance]);
+
+  // Frame cycling for animated steps
+  useEffect(() => {
+    const animated = step === 'fly_right' || step === 'fly_down' || step === 'walking';
+    setFrame(0);
+    if (!animated) return;
+    const id = setInterval(() => setFrame((f) => (f + 1) % 4), 125); // 8 fps
+    return () => clearInterval(id);
+  }, [step]);
+
+  if (tutorialPhase === 'not_started' || tutorialComplete) return null;
+
+  // Dialogue phases: snap witch to her final resting spot (handles page re-mounts too)
+  const isDialogue = !isEntrance && tutorialPhase !== 'complete';
+  const displayLeft = isDialogue ? WITCH_FINAL_LEFT : left;
+  const displayTop  = isDialogue ? WITCH_GROUND_TOP : top;
+  const displayStep = isDialogue ? 'arrived'        : step;
+
+  const transition = isDialogue        ? 'none' :
+    step === 'fly_right' ? 'left 3.0s ease-in-out' :
+    step === 'fly_down'  ? 'left 1.0s ease-out, top 1.0s ease-out' :
+    step === 'walking'   ? 'left 1.0s linear' :
+    'none';
+
+  // Sprite selection
+  const isBroom   = displayStep === 'fly_right' || displayStep === 'fly_down';
+  const isWalking = displayStep === 'walking';
+  const src       = isBroom ? witchBroomSheet : isWalking ? witchWalkLeftSheet : null;
+  const bgSize    = src ? `${4 * WITCH_W}px ${WITCH_H}px` : `${WITCH_W}px ${WITCH_H}px`;
+  const bgPos     = src ? `-${frame * WITCH_W}px 0` : '0 0';
+  // Broom faces left by default; flip when flying right, no flip when descending left
+  const flipX     = displayStep === 'fly_right';
+
+  return (
+    <div
+      style={{
+        position:    'absolute',
+        left:        displayLeft,
+        top:         displayTop,
+        width:       WITCH_W,
+        height:      WITCH_H,
+        transition,
+        backgroundImage:    `url(${src ?? witchIdlePng})`,
+        backgroundSize:     bgSize,
+        backgroundPosition: bgPos,
+        imageRendering: 'pixelated',
+        transform:   flipX ? 'scaleX(-1)' : undefined,
+        pointerEvents: 'none',
+      }}
+    />
+  );
+}
 
 // ── Tutorial plot overlay ───────────────────────────────────────────────────────
 // Renders pulsing tappable circles over each front-row plot during the tutorial
@@ -1111,6 +1237,9 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
               </div>
             </div>
           )}
+
+          {/* 2b. Witch NPC — visible throughout the tutorial */}
+          <WitchInScene />
 
           {/* 3. Flowers at/below character's row */}
           {frontFlowers}

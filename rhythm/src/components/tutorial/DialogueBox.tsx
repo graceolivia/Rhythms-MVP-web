@@ -24,6 +24,7 @@ interface DialogueBoxProps {
   showInputSlot?: boolean;
 }
 
+const DEV_MODE = import.meta.env.DEV;
 const CHARS_PER_SEC = 30;
 
 export function DialogueBox({
@@ -45,7 +46,8 @@ export function DialogueBox({
     setDisplayed('');
     setRevealed(false);
 
-    if (showInputSlot) {
+    if (showInputSlot || DEV_MODE) {
+      setDisplayed(currentLine);
       setRevealed(true);
       return;
     }
