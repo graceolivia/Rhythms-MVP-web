@@ -182,6 +182,7 @@ function WrapUpPhase() {
       blocked={!taskDone}
       onComplete={() => {
         useTutorialStore.getState().completeTutorial();
+        useGardenStore.getState().dismissSeasonReset();
         markAsInstalled();
       }}
     />

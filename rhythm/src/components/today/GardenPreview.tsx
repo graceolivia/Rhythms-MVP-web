@@ -195,20 +195,15 @@ const WITCH_LAND_LEFT  = FENCE + 10 * CELL; // 352 — col 10, a few paces right
 // Walk-left: strolls back to stand just right of the player (col 7)
 const WITCH_FINAL_LEFT = FENCE +  8 * CELL; // 288 — col 8, beside player
 
-type WitchStep = 'fly_right' | 'fly_down' | 'landing' | 'walking' | 'arrived';
+type WitchStep = 'fly_right' | 'fly_down' | 'landing' | 'walking' | 'arrived' | 'fly_away';
 
 /**
  * Witch NPC — visible for the full tutorial lifecycle.
  *
- * Entrance sequence (phase === 'entrance'):
- *   fly_right  slow sweep L→R across the sky (broom faces right)
- *   fly_down   flips around, swoops diagonally down to land right of the player
- *   landing    hops off broom, idle sprite
- *   walking    walks LEFT back to the player (walk_left sheet)
- *   arrived    stands idle beside player → dialogue starts
+ * Entrance:  fly_right → fly_down → landing → walking → arrived → dialogue
+ * Exit:      tutorialComplete fires → fly_away (broom, upper-left) → gone
  *
  * Dialogue phases: idle sprite stays at WITCH_FINAL_LEFT / WITCH_GROUND_TOP.
- * Returns null when tutorial hasn't started or is complete.
  */
 function WitchInScene() {
   const tutorialPhase    = useTutorialStore((s) => s.phase);
@@ -218,6 +213,7 @@ function WitchInScene() {
   const [left,  setLeft]  = useState(WITCH_FLY_START_LEFT);
   const [top,   setTop]   = useState(WITCH_FLY_TOP);
   const [frame, setFrame] = useState(0);
+  const [gone,  setGone]  = useState(false);
 
   const isEntrance = tutorialPhase === 'entrance';
 
@@ -247,19 +243,34 @@ function WitchInScene() {
     return () => t.forEach(clearTimeout);
   }, [isEntrance]);
 
+  // Fly-away when tutorial completes
+  useEffect(() => {
+    if (!tutorialComplete) return;
+    const t: ReturnType<typeof setTimeout>[] = [];
+    // Snap position to ground before animating (handles the isDialogue override)
+    setLeft(WITCH_FINAL_LEFT);
+    setTop(WITCH_GROUND_TOP);
+    setStep('fly_away');
+    // Brief pause (she's hopping on), then lift off up-left
+    t.push(setTimeout(() => { setLeft(WITCH_FLY_START_LEFT); setTop(-WITCH_H); }, 400));
+    // Unmount after she's off-screen
+    t.push(setTimeout(() => setGone(true), 2200));
+    return () => t.forEach(clearTimeout);
+  }, [tutorialComplete]);
+
   // Frame cycling for animated steps
   useEffect(() => {
-    const animated = step === 'fly_right' || step === 'fly_down' || step === 'walking';
+    const animated = step === 'fly_right' || step === 'fly_down' || step === 'walking' || step === 'fly_away';
     setFrame(0);
     if (!animated) return;
     const id = setInterval(() => setFrame((f) => (f + 1) % 4), 125); // 8 fps
     return () => clearInterval(id);
   }, [step]);
 
-  if (tutorialPhase === 'not_started' || tutorialComplete) return null;
+  if (gone || tutorialPhase === 'not_started') return null;
 
   // Dialogue phases: snap witch to her final resting spot (handles page re-mounts too)
-  const isDialogue = !isEntrance && tutorialPhase !== 'complete';
+  const isDialogue = !isEntrance && !tutorialComplete && tutorialPhase !== 'complete';
   const displayLeft = isDialogue ? WITCH_FINAL_LEFT : left;
   const displayTop  = isDialogue ? WITCH_GROUND_TOP : top;
   const displayStep = isDialogue ? 'arrived'        : step;
@@ -268,15 +279,16 @@ function WitchInScene() {
     step === 'fly_right' ? 'left 3.0s ease-in-out' :
     step === 'fly_down'  ? 'left 1.0s ease-out, top 1.0s ease-out' :
     step === 'walking'   ? 'left 1.0s linear' :
+    step === 'fly_away'  ? 'left 1.6s ease-in, top 1.6s ease-in' :
     'none';
 
   // Sprite selection
-  const isBroom   = displayStep === 'fly_right' || displayStep === 'fly_down';
+  const isBroom   = displayStep === 'fly_right' || displayStep === 'fly_down' || displayStep === 'fly_away';
   const isWalking = displayStep === 'walking';
   const src       = isBroom ? witchBroomSheet : isWalking ? witchWalkLeftSheet : null;
   const bgSize    = src ? `${4 * WITCH_W}px ${WITCH_H}px` : `${WITCH_W}px ${WITCH_H}px`;
   const bgPos     = src ? `-${frame * WITCH_W}px 0` : '0 0';
-  // Broom faces left by default; flip when flying right, no flip when descending left
+  // Broom faces left by default; flip only when flying right
   const flipX     = displayStep === 'fly_right';
 
   return (
