@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 
-import sagePng from '../../assets/npcs/sage.png';
+import witchIdlePng from '../../assets/npcs/witch_idle.png';
 
 export function SagePortrait({ src }: { src?: string }) {
   return (
     <img
-      src={src ?? sagePng}
+      src={src ?? witchIdlePng}
       alt="Sage"
       className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
       style={{ imageRendering: 'pixelated' }}
