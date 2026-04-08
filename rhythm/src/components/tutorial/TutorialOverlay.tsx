@@ -153,60 +153,38 @@ function FirstPlantResponsePhase() {
 // ─── Phase: WRAP UP ────────────────────────────────────────────────────────────
 
 function WrapUpPhase() {
-  const setPhase = useTutorialStore((s) => s.setPhase);
+  const playerName = useTutorialStore((s) => s.playerName);
+  const [taskDone, setTaskDone] = useState(false);
+
+  useEffect(() => {
+    const check = (state: ReturnType<typeof useTaskStore.getState>) => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const task  = state.tasks.find((t) => t.title === 'Check off your first task!');
+      if (!task) return false;
+      return state.taskInstances.some(
+        (i) => i.taskId === task.id && i.date === today && i.status === 'completed'
+      );
+    };
+    // Check current state immediately (task may already be done)
+    if (check(useTaskStore.getState())) { setTaskDone(true); return; }
+    // Subscribe to future changes
+    return useTaskStore.subscribe((state) => { if (check(state)) setTaskDone(true); });
+  }, []);
 
   return (
     <DialogueBox
       speakerName="Sage"
       portrait={witchIdlePng}
-      lines={['Perfect! Check it off right now and see what happens!']}
-      onComplete={() => setPhase('awaiting_first_task')}
+      lines={[
+        'Perfect! Check it off right now and see what happens!',
+        `Look, it already grew a bit! Each day that you complete even one task, all your plants grow. You can buy more seeds from the store. I can't wait to see what you grow, ${playerName}! 🌿`,
+      ]}
+      blocked={!taskDone}
+      onComplete={() => {
+        useTutorialStore.getState().completeTutorial();
+        markAsInstalled();
+      }}
     />
-  );
-}
-
-// ─── Phase: AWAITING FIRST TASK ────────────────────────────────────────────────
-
-function AwaitingFirstTaskPhase() {
-  const playerName = useTutorialStore((s) => s.playerName);
-  const [taskDone, setTaskDone] = useState(false);
-
-  useEffect(() => {
-    return useTaskStore.subscribe((state) => {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const task  = state.tasks.find((t) => t.title === 'Check off your first task!');
-      if (!task) return;
-      const done  = state.taskInstances.some(
-        (i) => i.taskId === task.id && i.date === today && i.status === 'completed'
-      );
-      if (done) setTaskDone(true);
-    });
-  }, []);
-
-  if (taskDone) {
-    return (
-      <DialogueBox
-        speakerName="Sage"
-        portrait={witchIdlePng}
-        lines={[`Look, it already grew a bit! Each day that you complete even one task, all your plants grow. You can buy more seeds from the store.  I can't wait to see what you grow, ${playerName}! 🌿`]}
-        onComplete={() => {
-          useTutorialStore.getState().completeTutorial();
-          markAsInstalled();
-        }}
-      />
-    );
-  }
-
-  return (
-    <div
-      className="fixed top-4 left-4 right-4 z-50 rounded-xl px-4 py-3 flex items-center gap-3"
-      style={{ background: 'rgba(30,22,12,0.88)', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
-    >
-      <span className="text-xl">☑️</span>
-      <p className="text-sm flex-1" style={{ color: '#f0e8d8' }}>
-        Tap the checkbox next to your task below!
-      </p>
-    </div>
   );
 }
 
@@ -242,8 +220,8 @@ export function TutorialOverlay() {
 
   return (
     <>
-      {/* Background dim during dialogue phases only */}
-      {phase !== 'plant_prompt' && phase !== 'awaiting_first_task' && (
+      {/* Background dim during dialogue phases */}
+      {phase !== 'plant_prompt' && (
         <div
           className="fixed inset-0 z-40 pointer-events-none"
           style={{ background: 'rgba(0,0,0,0.1)' }}
@@ -255,8 +233,7 @@ export function TutorialOverlay() {
       {phase === 'receive_seeds' && <ReceiveSeedsPhase />}
       {phase === 'plant_prompt' && <PlantPromptPhase />}
       {phase === 'first_plant_response' && <FirstPlantResponsePhase />}
-      {phase === 'wrap_up' && <WrapUpPhase />}
-      {phase === 'awaiting_first_task' && <AwaitingFirstTaskPhase />}
+      {(phase === 'wrap_up' || phase === 'awaiting_first_task') && <WrapUpPhase />}
     </>
   );
 }

@@ -22,6 +22,8 @@ interface DialogueBoxProps {
   inputSlot?: React.ReactNode;
   // If true, shows inputSlot instead of text + advance hint
   showInputSlot?: boolean;
+  // If true, hides the advance hint and prevents tapping past the current revealed line
+  blocked?: boolean;
 }
 
 const DEV_MODE = import.meta.env.DEV;
@@ -34,6 +36,7 @@ export function DialogueBox({
   onComplete,
   inputSlot,
   showInputSlot = false,
+  blocked = false,
 }: DialogueBoxProps) {
   const [lineIndex, setLineIndex] = useState(0);
   const [displayed, setDisplayed] = useState('');
@@ -76,13 +79,15 @@ export function DialogueBox({
       return;
     }
 
+    if (blocked) return; // waiting for external condition — don't advance
+
     // Advance to next line or complete
     if (lineIndex < lines.length - 1) {
       setLineIndex((i) => i + 1);
     } else {
       onComplete();
     }
-  }, [revealed, lineIndex, lines.length, currentLine, onComplete, showInputSlot]);
+  }, [revealed, lineIndex, lines.length, currentLine, onComplete, showInputSlot, blocked]);
 
   // Reset when lines change
   useEffect(() => {
@@ -135,8 +140,8 @@ export function DialogueBox({
                   )}
                 </p>
 
-                {/* Advance hint */}
-                {revealed && (
+                {/* Advance hint — hidden while blocked */}
+                {revealed && !blocked && (
                   <div className="flex justify-end mt-2">
                     <span
                       className="text-xs animate-bounce"

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useCoinStore } from './useCoinStore';
 
 export type TutorialPhase =
   | 'not_started'
@@ -42,7 +43,10 @@ export const useTutorialStore = create<TutorialState>()(
       hasAddedFirstTask: false,
       tutorialComplete: false,
 
-      startTutorial: () => set({ phase: 'entrance' }),
+      startTutorial: () => {
+        useCoinStore.setState((s) => ({ coins: s.coins + 50 }));
+        set({ phase: 'entrance' });
+      },
       setPhase: (phase) => set({ phase }),
       setPlayerName: (name) => set({ playerName: name }),
       markSeedsReceived: () => set({ hasReceivedStarterSeeds: true }),
