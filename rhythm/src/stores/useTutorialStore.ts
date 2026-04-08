@@ -11,6 +11,7 @@ export type TutorialPhase =
   | 'first_plant_response'
   | 'add_task_prompt'
   | 'wrap_up'
+  | 'awaiting_first_task'
   | 'complete';
 
 interface TutorialState {

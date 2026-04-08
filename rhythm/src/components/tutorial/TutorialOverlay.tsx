@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { useTutorialStore } from '../../stores/useTutorialStore';
 import { useCharacterStore } from '../../stores/useCharacterStore';
 import { useGardenStore } from '../../stores/useGardenStore';
@@ -115,34 +116,13 @@ function PlantPromptPhase() {
 // ─── Phase: FIRST PLANT RESPONSE ──────────────────────────────────────────────
 
 function FirstPlantResponsePhase() {
-  const setPhase = useTutorialStore((s) => s.setPhase);
-
-  return (
-    <DialogueBox
-      speakerName="Sage"
-      portrait={witchIdlePng}
-      lines={[
-        "Look at that little sprout! It'll grow bigger every time you get things done.",
-        "Speaking of which — what's one thing on your plate today? Laundry, dishes, a phone call... anything counts.",
-      ]}
-      onComplete={() => setPhase('add_task_prompt')}
-    />
-  );
-}
-
-// ─── Phase: ADD TASK PROMPT ────────────────────────────────────────────────────
-
-function AddTaskPromptPhase() {
-  const [taskText, setTaskText] = useState('');
-  const setPhase = useTutorialStore((s) => s.setPhase);
+  const setPhase      = useTutorialStore((s) => s.setPhase);
   const markTaskAdded = useTutorialStore((s) => s.markTaskAdded);
 
-  const handleSubmit = () => {
-    const trimmed = taskText.trim();
-    if (!trimmed) return;
+  const handleComplete = () => {
     const taskId = useTaskStore.getState().addTask({
       type: 'standard',
-      title: trimmed,
+      title: 'Check off your first task!',
       tier: 'todo',
       scheduledTime: null,
       duration: 30,
@@ -162,31 +142,10 @@ function AddTaskPromptPhase() {
       speakerName="Sage"
       portrait={witchIdlePng}
       lines={[
-        "What's one thing on your plate today?",
+        "Look at those little seeds! Here, our plants grow when they are watered with PRODUCTIVITY! Let me show you.",
+        "Here's your first task. It's just: 'check off your first task!'",
       ]}
-      onComplete={() => {}}
-      showInputSlot
-      inputSlot={
-        <div className="flex gap-2 items-center">
-          <input
-            autoFocus
-            type="text"
-            maxLength={80}
-            value={taskText}
-            onChange={(e) => setTaskText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-            placeholder="Laundry, a phone call..."
-            className="flex-1 px-3 py-2 rounded-lg text-sm text-bark bg-cream/90 border-2 border-sage/40 focus:outline-none focus:border-sage"
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={!taskText.trim()}
-            className="px-4 py-2 rounded-lg bg-sage text-cream text-sm font-semibold disabled:opacity-40 transition-opacity"
-          >
-            Add it!
-          </button>
-        </div>
-      }
+      onComplete={handleComplete}
     />
   );
 }
@@ -194,24 +153,60 @@ function AddTaskPromptPhase() {
 // ─── Phase: WRAP UP ────────────────────────────────────────────────────────────
 
 function WrapUpPhase() {
-  const playerName = useTutorialStore((s) => s.playerName);
-  const completeTutorial = useTutorialStore((s) => s.completeTutorial);
-
-  const handleComplete = () => {
-    completeTutorial();
-    markAsInstalled();
-  };
+  const setPhase = useTutorialStore((s) => s.setPhase);
 
   return (
     <DialogueBox
       speakerName="Sage"
       portrait={witchIdlePng}
-      lines={[
-        'Perfect! Check it off when you\'re done and your garden will thank you.',
-        `I'll be around if you need me. Happy growing, ${playerName}! 🌿`,
-      ]}
-      onComplete={handleComplete}
+      lines={['Perfect! Check it off right now and see what happens!']}
+      onComplete={() => setPhase('awaiting_first_task')}
     />
+  );
+}
+
+// ─── Phase: AWAITING FIRST TASK ────────────────────────────────────────────────
+
+function AwaitingFirstTaskPhase() {
+  const playerName = useTutorialStore((s) => s.playerName);
+  const [taskDone, setTaskDone] = useState(false);
+
+  useEffect(() => {
+    return useTaskStore.subscribe((state) => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const task  = state.tasks.find((t) => t.title === 'Check off your first task!');
+      if (!task) return;
+      const done  = state.taskInstances.some(
+        (i) => i.taskId === task.id && i.date === today && i.status === 'completed'
+      );
+      if (done) setTaskDone(true);
+    });
+  }, []);
+
+  if (taskDone) {
+    return (
+      <DialogueBox
+        speakerName="Sage"
+        portrait={witchIdlePng}
+        lines={[`Look, it already grew a bit! Each day that you complete even one task, all your plants grow. You can buy more seeds from the store.  I can't wait to see what you grow, ${playerName}! 🌿`]}
+        onComplete={() => {
+          useTutorialStore.getState().completeTutorial();
+          markAsInstalled();
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="fixed top-4 left-4 right-4 z-50 rounded-xl px-4 py-3 flex items-center gap-3"
+      style={{ background: 'rgba(30,22,12,0.88)', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
+    >
+      <span className="text-xl">☑️</span>
+      <p className="text-sm flex-1" style={{ color: '#f0e8d8' }}>
+        Tap the checkbox next to your task below!
+      </p>
+    </div>
   );
 }
 
@@ -247,8 +242,8 @@ export function TutorialOverlay() {
 
   return (
     <>
-      {/* Background dim during dialogue phases */}
-      {phase !== 'plant_prompt' && (
+      {/* Background dim during dialogue phases only */}
+      {phase !== 'plant_prompt' && phase !== 'awaiting_first_task' && (
         <div
           className="fixed inset-0 z-40 pointer-events-none"
           style={{ background: 'rgba(0,0,0,0.1)' }}
@@ -260,8 +255,8 @@ export function TutorialOverlay() {
       {phase === 'receive_seeds' && <ReceiveSeedsPhase />}
       {phase === 'plant_prompt' && <PlantPromptPhase />}
       {phase === 'first_plant_response' && <FirstPlantResponsePhase />}
-      {phase === 'add_task_prompt' && <AddTaskPromptPhase />}
       {phase === 'wrap_up' && <WrapUpPhase />}
+      {phase === 'awaiting_first_task' && <AwaitingFirstTaskPhase />}
     </>
   );
 }
