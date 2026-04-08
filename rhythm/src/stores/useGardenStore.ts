@@ -89,6 +89,7 @@ export interface PlacedFlower {
   col: number;
   row: number;
   placedAt: string;
+  growthTicks: number; // increments once per day you complete at least one task
 }
 
 type GardenMode = 'place' | 'move' | 'remove';
@@ -148,6 +149,7 @@ interface GardenState extends Garden {
   setMode: (mode: GardenMode) => void;
   placeFlower: (col: number, row: number) => boolean;
   autoPlaceFlower: (flowerId: string, flowerType: FlowerType, col: number, row: number) => void;
+  tickAllFlowers: () => void;
   removeFlowerFromGrid: (placedId: string) => void;
   moveFlower: (placedId: string, newCol: number, newRow: number) => boolean;
   startMoving: (placedId: string) => void;
@@ -284,6 +286,7 @@ export const useGardenStore = create<GardenState>()(
           col,
           row,
           placedAt: new Date().toISOString(),
+          growthTicks: 0,
         };
 
         set({
@@ -305,8 +308,18 @@ export const useGardenStore = create<GardenState>()(
             col,
             row,
             placedAt: new Date().toISOString(),
+            growthTicks: 0,
           }],
         });
+      },
+
+      tickAllFlowers: () => {
+        set((state) => ({
+          placedFlowers: state.placedFlowers.map((pf) => ({
+            ...pf,
+            growthTicks: (pf.growthTicks ?? 0) + 1,
+          })),
+        }));
       },
 
       removeFlowerFromGrid: (placedId) => {

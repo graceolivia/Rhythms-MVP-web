@@ -231,10 +231,6 @@ export function Garden() {
   const getFlowerAt = useGardenStore((s) => s.getFlowerAt);
   const getUnplacedByType = useGardenStore((s) => s.getUnplacedByType);
 
-  const seedFlowerIds = useMemo(
-    () => new Set(flowers.filter((f) => f.challengeId === null).map((f) => f.id)),
-    [flowers]
-  );
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -432,11 +428,11 @@ export function Garden() {
             >
               {(() => {
                 const entry = FLOWER_CATALOG[placedFlower.flowerType];
-                const isSeed = seedFlowerIds.has(placedFlower.flowerId);
+                const frame = Math.min(placedFlower.growthTicks ?? 0, entry.sheetBloomFrame ?? 4);
                 return (
                   <SpriteSheet
                     src={entry.sheet ?? entry.sprite}
-                    frame={isSeed ? 1 : (entry.sheetBloomFrame ?? 0)}
+                    frame={frame}
                     frameSize={16}
                     scale={2}
                     shadow

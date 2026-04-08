@@ -729,8 +729,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       if (!e) continue;
       const x     = FENCE + col * CELL;
       const y     = COTTAGE_PAD + row * CELL;
-      const src   = e.sheet ?? e.sprite;
-      const frame = e.sheetBloomFrame ?? 0;
+      const src        = e.sheet ?? e.sprite;
+      const frame      = Math.min(pf.growthTicks ?? 0, e.sheetBloomFrame ?? 4);
 
       // Rustle: triggered when character's same row and within horizontal radius
       const key = `${col}-${row}`;

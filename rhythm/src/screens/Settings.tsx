@@ -4,11 +4,9 @@ import { format, addDays } from 'date-fns';
 import { useChildStore } from '../stores/useChildStore';
 import { useCareBlockStore } from '../stores/useCareBlockStore';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
-import { useResetSeedData } from '../hooks/useResetSeedData';
 import { useResetAppData } from '../hooks/useResetAppData';
 import { useAuth } from '../contexts/AuthContext';
 import { useSync } from '../hooks/useSync';
-import { DEV_MODE } from '../config/devMode';
 import type { ChildColor, CareStatus, CareBlockType, RecurrenceRule } from '../types';
 
 const COLOR_OPTIONS: { value: ChildColor; label: string; bgClass: string; borderClass: string }[] = [
@@ -61,7 +59,6 @@ export function Settings() {
   const getLeaveByTime = useCareBlockStore((state) => state.getLeaveByTime);
   const tasks = useTaskStore((state) => state.tasks);
   const ensureChildcareTasksExist = useTaskStore((state) => state.ensureChildcareTasksExist);
-  const resetSeedData = useResetSeedData();
   const resetAppData = useResetAppData();
 
   // Auth and sync
@@ -663,20 +660,6 @@ export function Settings() {
         )}
       </section>
 
-      {DEV_MODE && (
-        <section className="mb-8">
-          <h2 className="font-display text-lg text-bark mb-4">Dev Tools</h2>
-          <button
-            onClick={resetSeedData}
-            className="w-full py-2 rounded-xl bg-terracotta text-cream hover:bg-terracotta/90 transition-colors"
-          >
-            Reset Seed Data
-          </button>
-          <p className="text-xs text-bark/50 mt-2">
-            Clears local data and reloads seed content.
-          </p>
-        </section>
-      )}
 
       <section className="mb-8">
         <h2 className="font-display text-lg text-bark mb-4">Reset</h2>

@@ -12,15 +12,11 @@ import { Settings } from './screens/Settings';
 import { CharacterCreator } from './screens/CharacterCreator';
 import { TutorialOverlay } from './components/tutorial/TutorialOverlay';
 import { useTutorialStore } from './stores/useTutorialStore';
+
 import { BottomNav } from './components/common/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
-import { shouldLoadSeedData, loadSeedData } from './utils/seedData';
-import { isFreshInstall, consumeSkipSeedDataOnce, markAsInstalled } from './utils/storageHelpers';
-import { useChildStore } from './stores/useChildStore';
-import { useTaskStore } from './stores/useTaskStore';
-import { useGardenStore } from './stores/useGardenStore';
 import { useCharacterStore } from './stores/useCharacterStore';
-import { DEV_SKIP_ONBOARDING } from './config/devMode';
+import { useGardenStore } from './stores/useGardenStore';
 
 const SEASON_LABELS: Record<string, string> = {
   spring: 'Spring',
@@ -33,8 +29,9 @@ function SeasonResetModal() {
   const seasonResetPending = useGardenStore(s => s.seasonResetPending);
   const dismissSeasonReset = useGardenStore(s => s.dismissSeasonReset);
   const currentSeason      = useGardenStore(s => s.currentSeason);
+  const tutorialComplete   = useTutorialStore(s => s.tutorialComplete);
 
-  if (!seasonResetPending) return null;
+  if (!seasonResetPending || !tutorialComplete) return null;
 
   return (
     <div
@@ -94,19 +91,6 @@ function App() {
   useEffect(() => {
     if (!useCharacterStore.getState().config) {
       setNeedsCharacter(true);
-    }
-
-    if (isFreshInstall()) {
-      const skipSeedData = consumeSkipSeedDataOnce();
-      if (DEV_SKIP_ONBOARDING || (import.meta.env.DEV && shouldLoadSeedData() && !skipSeedData)) {
-        loadSeedData({
-          childStore: useChildStore,
-          taskStore: useTaskStore,
-          gardenStore: useGardenStore,
-        });
-        // Mark installed so seed data doesn't reload; tutorial store handles fresh-user flow
-        markAsInstalled();
-      }
     }
 
     setIsReady(true);

@@ -6,6 +6,7 @@ import type { Task, TaskInput, TaskInstance, TaskStatus, CareStatus, ChildTaskTy
 import { useChildStore } from './useChildStore';
 import { useEventStore } from './useEventStore';
 import { useCoinStore } from './useCoinStore';
+import { useGardenStore } from './useGardenStore';
 
 /**
  * Check if a task is suggested for the current availability state.
@@ -246,8 +247,16 @@ export const useTaskStore = create<TaskState>()(
         // Earn a coin for completing a task
         useCoinStore.getState().earnCoin();
 
-        // Check if all today's tasks are now done → award daily bonus
+        // If this is the first task completed today, grow all flowers one step
         const today = format(new Date(), 'yyyy-MM-dd');
+        const wasFirstTaskToday = !get().taskInstances.some(
+          (i) => i.id !== instanceId && i.date === today && i.status === 'completed'
+        );
+        if (wasFirstTaskToday) {
+          useGardenStore.getState().tickAllFlowers();
+        }
+
+        // Check if all today's tasks are now done → award daily bonus
         const allTasks = get().tasks;
         const todayInstances = get().taskInstances.filter((i) => {
           if (i.date !== today) return false;
