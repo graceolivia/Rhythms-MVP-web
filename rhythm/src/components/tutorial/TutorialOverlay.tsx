@@ -18,6 +18,7 @@ function IntroPhase() {
     <DialogueBox
       speakerName="Sage"
       portrait={witchIdlePng}
+      contained
       lines={[
         "It's the new neighbor! Oh, hi, sorry to startle you. I'm Sage, the garden witch.",
         "What's your name?",
@@ -47,6 +48,7 @@ function NameInputPhase() {
     <DialogueBox
       speakerName="Sage"
       portrait={witchIdlePng}
+      contained
       lines={["What's your name?"]}
       onComplete={() => {}}
       showInputSlot
@@ -85,6 +87,7 @@ function ReceiveSeedsPhase() {
     <DialogueBox
       speakerName="Sage"
       portrait={witchIdlePng}
+      contained
       lines={[
         `Welcome, ${playerName}! I'm so glad you moved in. I hope you don't mind me saying so, but your yard looks a bit... bare.`,
         'Hey! Do you like gardening? I brought you a few seeds to get started. 🌱🌱🌱',
@@ -142,6 +145,7 @@ function FirstPlantResponsePhase() {
     <DialogueBox
       speakerName="Sage"
       portrait={witchIdlePng}
+      contained
       lines={[
         "Look at those little seeds! Here, our plants grow when they are watered with PRODUCTIVITY! Let me show you.",
         "Here's your first task. It's just: 'check off your first task!'",
@@ -171,9 +175,9 @@ function GrowthDemoPhase() {
     <>
       {/* Animated flower preview card — floats above the dialogue box */}
       <div
-        className="fixed z-50 flex flex-col items-center gap-2 rounded-2xl px-6 py-4"
+        className="absolute z-50 flex flex-col items-center gap-2 rounded-2xl px-6 py-4"
         style={{
-          bottom: 176,
+          bottom: 96,
           left: '50%',
           transform: 'translateX(-50%)',
           background: 'rgba(30,22,12,0.88)',
@@ -195,6 +199,7 @@ function GrowthDemoPhase() {
       <DialogueBox
         speakerName="Sage"
         portrait={witchIdlePng}
+        contained
         lines={[
           "Each day that you return and complete at least ONE task, your flower will grow!",
           `You can buy more seeds from the store. I can't wait to see what you grow, ${playerName}! 🌿`,
@@ -233,6 +238,7 @@ function WrapUpPhase() {
     <DialogueBox
       speakerName="Sage"
       portrait={witchIdlePng}
+      contained
       lines={[
         'Perfect! Check it off right now and see what happens!',
         'Look, it already grew a bit!',
@@ -277,7 +283,7 @@ export function TutorialOverlay() {
       {/* Background dim during dialogue phases */}
       {phase !== 'plant_prompt' && (
         <div
-          className="fixed inset-0 z-40 pointer-events-none"
+          className="absolute inset-0 z-40 pointer-events-none"
           style={{ background: 'rgba(0,0,0,0.1)' }}
         />
       )}

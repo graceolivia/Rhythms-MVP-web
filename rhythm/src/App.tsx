@@ -10,7 +10,6 @@ import { Shop } from './screens/Shop';
 import { Challenges } from './screens/Challenges';
 import { Settings } from './screens/Settings';
 import { CharacterCreator } from './screens/CharacterCreator';
-import { TutorialOverlay } from './components/tutorial/TutorialOverlay';
 import { useTutorialStore } from './stores/useTutorialStore';
 
 import { BottomNav } from './components/common/BottomNav';
@@ -79,7 +78,6 @@ function AppContent() {
         <Route path="/settings" element={<Settings />} />
       </Routes>
       <BottomNav dimmed={!tutorialComplete} />
-      {!tutorialComplete && <TutorialOverlay />}
     </div>
   );
 }

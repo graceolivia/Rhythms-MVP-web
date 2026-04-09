@@ -7,7 +7,7 @@ export function SagePortrait({ src }: { src?: string }) {
     <img
       src={src ?? witchIdlePng}
       alt="Sage"
-      className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+      className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
       style={{ imageRendering: 'pixelated' }}
     />
   );
@@ -24,6 +24,8 @@ interface DialogueBoxProps {
   showInputSlot?: boolean;
   // If true, hides the advance hint and prevents tapping past the current revealed line
   blocked?: boolean;
+  // If true, use absolute positioning (relative to a container) instead of fixed (viewport)
+  contained?: boolean;
 }
 
 const DEV_MODE = import.meta.env.DEV;
@@ -37,6 +39,7 @@ export function DialogueBox({
   inputSlot,
   showInputSlot = false,
   blocked = false,
+  contained = false,
 }: DialogueBoxProps) {
   const [lineIndex, setLineIndex] = useState(0);
   const [displayed, setDisplayed] = useState('');
@@ -98,7 +101,7 @@ export function DialogueBox({
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 select-none"
+      className={`${contained ? 'absolute' : 'fixed'} bottom-0 left-0 right-0 z-50 select-none`}
       onClick={handleTap}
     >
       {/* Pixel-style border top */}
@@ -107,10 +110,10 @@ export function DialogueBox({
         style={{
           boxShadow: 'inset 0 4px 0 0 rgba(93,78,55,0.6)',
           background: 'rgba(30, 22, 12, 0.93)',
-          minHeight: '160px',
+          minHeight: '80px',
         }}
       >
-        <div className="flex gap-3 p-4 pb-6 max-w-lg mx-auto">
+        <div className="flex gap-3 p-2 pb-3 max-w-lg mx-auto">
           {/* Portrait */}
           <div className="flex-shrink-0 mt-1">
             <SagePortrait src={portrait} />

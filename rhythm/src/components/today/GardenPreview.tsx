@@ -22,6 +22,7 @@ import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_R
 import type { FlowerType, Season } from '../../types';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
 import { useTutorialStore } from '../../stores/useTutorialStore';
+import { TutorialOverlay } from '../tutorial/TutorialOverlay';
 import { GrowthSprite } from '../garden/GrowthSprite';
 import { SpriteSheet } from '../garden/SpriteSheet';
 import sunPng from '../../assets/sky/sun2.png';
@@ -40,6 +41,7 @@ import { useCoinStore } from '../../stores/useCoinStore';
 import witchBroomSheet    from '../../assets/npcs/witch_idle_on_a_broom-Sheet.png';
 import witchWalkLeftSheet from '../../assets/npcs/witch_walk_left-Sheet.png';
 import witchIdlePng       from '../../assets/npcs/witch_idle.png';
+import arrowPng           from '../../assets/effects/arrow.png';
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 const CELL = 32;
@@ -184,8 +186,10 @@ const WITCH_W = WITCH_FRAME * WITCH_SCALE; // 64
 const WITCH_H = WITCH_FRAME * WITCH_SCALE; // 64
 // Player feet in scene coords
 const PLAYER_FEET_SCENE_Y = COTTAGE_PAD + PLAYER_START_Y + PLAYER_CHAR_FEET_Y; // 240
+// Witch sprite has bottom padding so her visual feet aren't at the sprite's bottom edge
+const WITCH_FEET_OFFSET = 12; // px to raise so she visually lines up with the player
 // Witch sprite top when standing on ground (feet match player ground level)
-const WITCH_GROUND_TOP = PLAYER_FEET_SCENE_Y - WITCH_H; // 176
+const WITCH_GROUND_TOP = PLAYER_FEET_SCENE_Y - WITCH_H - WITCH_FEET_OFFSET; // 156
 // Fly-right: enters from just off the left edge, glides slowly to near the right edge
 const WITCH_FLY_START_LEFT = -WITCH_W;               // -64 — off left edge
 const WITCH_FLY_TOP        = 36;                     // cruising altitude in the sky
@@ -323,14 +327,22 @@ function TutorialPlotOverlay() {
 
   if (phase !== 'plant_prompt') return null;
 
-  const handlePlantAt = (col: number) => {
+  // Plant at the same row as the player (row 3 = COTTAGE_PAD + 3*CELL = player feet Y)
+  // and one cell to the left (col 6; player stands at col 7 on the path)
+  const TUTORIAL_PLANT_COL = 6;
+  const TUTORIAL_PLANT_ROW = 1;
+
+  const handlePlant = () => {
     const unplaced = getUnplacedFlowers().find((f) => f.type === 'forget-me-not');
     if (unplaced) {
-      autoPlaceFlower(unplaced.id, 'forget-me-not', col, PLOT_ROW);
+      autoPlaceFlower(unplaced.id, 'forget-me-not', TUTORIAL_PLANT_COL, TUTORIAL_PLANT_ROW);
     }
     markSeedPlanted();
     setPhase('first_plant_response');
   };
+
+  const spotLeft = FENCE + TUTORIAL_PLANT_COL * CELL;
+  const spotTop  = COTTAGE_PAD + TUTORIAL_PLANT_ROW * CELL;
 
   return (
     <>
@@ -339,32 +351,47 @@ function TutorialPlotOverlay() {
           0%, 100% { box-shadow: 0 0 0 0 rgba(122,158,126,0.7); transform: scale(1); }
           50% { box-shadow: 0 0 0 8px rgba(122,158,126,0); transform: scale(1.08); }
         }
+        @keyframes tutorialBounce {
+          0%, 100% { transform: translateY(0); }
+          50%       { transform: translateY(-4px); }
+        }
       `}</style>
-      {PLOT_COLS.map((col) => (
-        <div
-          key={col}
-          onClick={() => handlePlantAt(col)}
-          style={{
-            position: 'absolute',
-            left: FENCE + col * CELL,
-            top: COTTAGE_PAD + PLOT_ROW * CELL,
-            width: CELL,
-            height: CELL,
-            borderRadius: '50%',
-            border: '2px solid rgba(122,158,126,0.9)',
-            background: 'rgba(122,158,126,0.3)',
-            animation: 'tutorialPulse 1.8s ease-in-out infinite',
-            cursor: 'pointer',
-            zIndex: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 14,
-          }}
-        >
-          🌱
-        </div>
-      ))}
+
+      {/* Pulsing highlight on the cell */}
+      <div
+        onClick={handlePlant}
+        style={{
+          position: 'absolute',
+          left: spotLeft,
+          top: spotTop,
+          width: CELL,
+          height: CELL,
+          borderRadius: '50%',
+          border: '2px solid rgba(122,158,126,0.9)',
+          background: 'rgba(122,158,126,0.3)',
+          animation: 'tutorialPulse 1.8s ease-in-out infinite',
+          cursor: 'pointer',
+          zIndex: 20,
+        }}
+      />
+
+      {/* Arrow pointing down at the spot */}
+      <img
+        src={arrowPng}
+        onClick={handlePlant}
+        style={{
+          position: 'absolute',
+          left: spotLeft + CELL / 2 - 16,
+          top: spotTop - 36,
+          width: 32,
+          height: 32,
+          imageRendering: 'pixelated',
+          animation: 'tutorialBounce 1.0s ease-in-out infinite',
+          cursor: 'pointer',
+          zIndex: 21,
+          pointerEvents: 'auto',
+        }}
+      />
     </>
   );
 }
@@ -632,6 +659,12 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   // Game loop
   useEffect(() => {
     const loop = () => {
+      // Freeze the player during the tutorial
+      if (!useTutorialStore.getState().tutorialComplete) {
+        targetRef.current = null;
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
       const keys = keysRef.current;
       if (keys.size > 0) {
         // Keyboard clears any tap-to-walk target
@@ -775,6 +808,13 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   // ── Edit garden state ──────────────────────────────────────────────────────
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editToast, setEditToast] = useState<string | null>(null);
+
+  // Auto-open the palette when the witch gives seeds so the player can see them
+  const tutorialPhase = useTutorialStore((s) => s.phase);
+  useEffect(() => {
+    if (tutorialPhase === 'receive_seeds') setIsEditOpen(true);
+    if (tutorialPhase === 'plant_prompt')  setIsEditOpen(false);
+  }, [tutorialPhase]);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [draggingGridId, setDraggingGridId] = useState<string | null>(null);
 
@@ -975,6 +1015,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           ◎ {coins}
         </span>
       </div>
+      <div style={{ position: 'relative' }}>
       <div style={{ width: '100%', height: FULL_H * scale, overflow: 'hidden' }}>
       <div
         style={{
@@ -1462,6 +1503,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
 
       </div>
       </div>
+      <TutorialOverlay />
+      </div>{/* end position:relative scene wrapper */}
 
       {/* ── Sun times bar ── */}
       <div style={{ padding: '5px 14px', display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'rgba(93,78,55,0.45)', background: 'rgba(254,246,236,0.6)' }}>
