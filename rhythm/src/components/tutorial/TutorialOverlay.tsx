@@ -7,6 +7,7 @@ import { useTaskStore } from '../../stores/useTaskStore';
 import { markAsInstalled } from '../../utils/storageHelpers';
 import { DialogueBox } from './DialogueBox';
 import witchIdlePng from '../../assets/npcs/witch_idle.png';
+import forgetmenotSheet from '../../assets/flowers/sheets/1_spring/forgetmenot.png';
 
 // ─── Phase: INTRO ──────────────────────────────────────────────────────────────
 
@@ -150,10 +151,67 @@ function FirstPlantResponsePhase() {
   );
 }
 
+// ─── Phase: GROWTH DEMO ────────────────────────────────────────────────────────
+
+const FORGET_ME_NOT_FRAMES = 6;
+const FLOWER_SCALE = 6; // 16 * 6 = 96px
+const FLOWER_PX = 16 * FLOWER_SCALE;
+
+function GrowthDemoPhase() {
+  const playerName = useTutorialStore((s) => s.playerName);
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    if (frame >= FORGET_ME_NOT_FRAMES - 1) return;
+    const id = setTimeout(() => setFrame((f) => f + 1), 700);
+    return () => clearTimeout(id);
+  }, [frame]);
+
+  return (
+    <>
+      {/* Animated flower preview card — floats above the dialogue box */}
+      <div
+        className="fixed z-50 flex flex-col items-center gap-2 rounded-2xl px-6 py-4"
+        style={{
+          bottom: 176,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(30,22,12,0.88)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+        }}
+      >
+        <div
+          style={{
+            width: FLOWER_PX,
+            height: FLOWER_PX,
+            backgroundImage: `url(${forgetmenotSheet})`,
+            backgroundSize: `${FORGET_ME_NOT_FRAMES * FLOWER_PX}px ${FLOWER_PX}px`,
+            backgroundPosition: `-${frame * FLOWER_PX}px 0`,
+            imageRendering: 'pixelated',
+          }}
+        />
+      </div>
+
+      <DialogueBox
+        speakerName="Sage"
+        portrait={witchIdlePng}
+        lines={[
+          "Each day that you return and complete at least ONE task, your flower will grow!",
+          `You can buy more seeds from the store. I can't wait to see what you grow, ${playerName}! 🌿`,
+        ]}
+        onComplete={() => {
+          useTutorialStore.getState().completeTutorial();
+          useGardenStore.getState().dismissSeasonReset();
+          markAsInstalled();
+        }}
+      />
+    </>
+  );
+}
+
 // ─── Phase: WRAP UP ────────────────────────────────────────────────────────────
 
 function WrapUpPhase() {
-  const playerName = useTutorialStore((s) => s.playerName);
   const [taskDone, setTaskDone] = useState(false);
 
   useEffect(() => {
@@ -177,14 +235,10 @@ function WrapUpPhase() {
       portrait={witchIdlePng}
       lines={[
         'Perfect! Check it off right now and see what happens!',
-        `Look, it already grew a bit! Each day that you complete even one task, all your plants grow. You can buy more seeds from the store. I can't wait to see what you grow, ${playerName}! 🌿`,
+        'Look, it already grew a bit!',
       ]}
       blocked={!taskDone}
-      onComplete={() => {
-        useTutorialStore.getState().completeTutorial();
-        useGardenStore.getState().dismissSeasonReset();
-        markAsInstalled();
-      }}
+      onComplete={() => useTutorialStore.getState().setPhase('growth_demo')}
     />
   );
 }
@@ -233,6 +287,7 @@ export function TutorialOverlay() {
       {phase === 'receive_seeds' && <ReceiveSeedsPhase />}
       {phase === 'plant_prompt' && <PlantPromptPhase />}
       {phase === 'first_plant_response' && <FirstPlantResponsePhase />}
+      {phase === 'growth_demo' && <GrowthDemoPhase />}
       {(phase === 'wrap_up' || phase === 'awaiting_first_task') && <WrapUpPhase />}
     </>
   );

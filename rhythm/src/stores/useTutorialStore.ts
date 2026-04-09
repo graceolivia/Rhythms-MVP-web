@@ -10,7 +10,7 @@ export type TutorialPhase =
   | 'receive_seeds'
   | 'plant_prompt'
   | 'first_plant_response'
-  | 'add_task_prompt'
+  | 'growth_demo'
   | 'wrap_up'
   | 'awaiting_first_task'
   | 'complete';
