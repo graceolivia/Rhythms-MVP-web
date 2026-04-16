@@ -8,6 +8,7 @@ export type TutorialPhase =
   | 'intro'
   | 'name_input'
   | 'receive_seeds'
+  | 'seeds_revealed'
   | 'plant_prompt'
   | 'first_plant_response'
   | 'growth_demo'

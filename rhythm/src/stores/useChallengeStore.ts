@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { useGardenStore, PLOT_COLS, PLOT_ROW, getCurrentSeason } from './useGardenStore';
 import { useTaskStore } from './useTaskStore';
+import { useSettingsStore, getChallengeWitherLevel } from './useSettingsStore';
 import type { ChallengeTemplate, ActiveChallenge, GrowthStage, Season } from '../types';
 
 import pinkroseSheet from '../assets/flowers/sheets/2_summer/pinkrose.png';
@@ -128,6 +129,7 @@ interface ChallengeState {
   plantChallenge: (templateId: string, plotIndex: number, customStepTitles?: string[], repeatInterval?: 'daily' | 'weekly') => string | null;
   recordProgress: (challengeId: string) => 'progressed' | 'bloomed' | 'already-recorded' | 'not-found';
   abandonChallenge: (challengeId: string) => void;
+  witherAllGrowing: () => void;
   getActiveByPlot: (plotIndex: number) => ActiveChallenge | undefined;
   getTemplate: (templateId: string) => ChallengeTemplate | undefined;
   clearChallengeState: () => void;
@@ -302,6 +304,14 @@ export const useChallengeStore = create<ChallengeState>()(
         }));
       },
 
+      witherAllGrowing: () => {
+        set((s) => ({
+          activeChallenges: s.activeChallenges.map(c =>
+            c.status === 'growing' ? { ...c, status: 'wilted' } : c
+          ),
+        }));
+      },
+
       getActiveByPlot: (plotIndex) => {
         return get().activeChallenges.find(
           c => c.plotIndex === plotIndex && c.status === 'growing'
@@ -421,6 +431,19 @@ export const useChallengeStore = create<ChallengeState>()(
       name: 'rhythm_challenges',
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+
+        // Wither mode: wilt growing challenges that have exceeded their per-challenge threshold
+        const settings = useSettingsStore.getState();
+        if (settings.witherModeEnabled) {
+          const daysMissed = settings.getDaysMissed();
+          state.activeChallenges = state.activeChallenges.map(c => {
+            if (c.status !== 'growing') return c;
+            return getChallengeWitherLevel(c.id, daysMissed) >= 3
+              ? { ...c, status: 'wilted' }
+              : c;
+          });
+        }
+
         const currentSeason = getCurrentSeason();
         if (state.lastSeasonReset !== currentSeason) {
           // Abandon any growing challenges that belong to the old season

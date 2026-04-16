@@ -43,6 +43,8 @@ interface GrowthSpriteProps {
   spriteSheet?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   animate?: 'idle' | 'grow' | 'bloom' | 'none';
+  /** 0=healthy, 1=slightly grey (1 day missed), 2=greyer (2 days), 3=dead (wilted) */
+  witherLevel?: 0 | 1 | 2 | 3;
 }
 
 const SIZE_CLASSES = {
@@ -73,8 +75,18 @@ const ANIM_CLASSES = {
   none: '',
 };
 
-export function GrowthSprite({ stage, flowerType, sprites, spriteSheet, size = 'md', animate = 'idle' }: GrowthSpriteProps) {
+// CSS filter values for each wither level
+const WITHER_FILTER: Record<0 | 1 | 2 | 3, string> = {
+  0: '',
+  1: 'grayscale(35%) brightness(0.9)',
+  2: 'grayscale(70%) brightness(0.8) sepia(0.2)',
+  3: 'grayscale(100%) brightness(0.6) sepia(0.3)',
+};
+
+export function GrowthSprite({ stage, flowerType, sprites, spriteSheet, size = 'md', animate = 'idle', witherLevel = 0 }: GrowthSpriteProps) {
   const frameIndex = STAGE_INDEX[stage];
+  const witherFilter = WITHER_FILTER[witherLevel];
+  const animClass = witherLevel >= 3 ? '' : ANIM_CLASSES[animate];
 
   // Sprite sheet: frames 0–4 map to planted/seed/sprout/budding/bloom
   if (spriteSheet) {
@@ -84,8 +96,9 @@ export function GrowthSprite({ stage, flowerType, sprites, spriteSheet, size = '
         frame={frameIndex}
         frameSize={16}
         scale={SHEET_SCALE[size]}
-        className={ANIM_CLASSES[animate]}
+        className={animClass}
         shadow
+        style={witherFilter ? { filter: witherFilter } : undefined}
       />
     );
   }
@@ -96,21 +109,27 @@ export function GrowthSprite({ stage, flowerType, sprites, spriteSheet, size = '
       <img
         src={sprites[frameIndex]}
         alt={`${stage} plant`}
-        className={`${IMG_SIZE_CLASSES[size]} ${ANIM_CLASSES[animate]} select-none block`}
-        style={{ imageRendering: 'pixelated', filter: 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))' }}
+        className={`${IMG_SIZE_CLASSES[size]} ${animClass} select-none block`}
+        style={{
+          imageRendering: 'pixelated',
+          filter: `drop-shadow(2px 3px 1px rgba(0,0,0,0.25))${witherFilter ? ` ${witherFilter}` : ''}`,
+        }}
       />
     );
   }
 
-  const emoji = stage === 'bloom' && flowerType
-    ? BLOOM_EMOJI[flowerType]
-    : STAGE_EMOJI[stage];
+  const emoji = witherLevel >= 3
+    ? '🥀'
+    : stage === 'bloom' && flowerType
+      ? BLOOM_EMOJI[flowerType]
+      : STAGE_EMOJI[stage];
 
   return (
     <span
-      className={`inline-block ${SIZE_CLASSES[size]} ${ANIM_CLASSES[animate]} select-none`}
+      className={`inline-block ${SIZE_CLASSES[size]} ${animClass} select-none`}
       role="img"
       aria-label={`${stage} plant`}
+      style={witherFilter && witherLevel < 3 ? { filter: witherFilter } : undefined}
     >
       {emoji}
     </span>

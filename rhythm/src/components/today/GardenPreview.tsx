@@ -16,11 +16,12 @@
 
 import { useRef, useLayoutEffect, useState, useMemo, useEffect, useCallback } from 'react';
 
-import { format } from 'date-fns';
+import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { useSunTimes } from '../../hooks/useSunTimes';
 import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_ROW, BLOCKED_CELLS, getCurrentSeason } from '../../stores/useGardenStore';
 import type { FlowerType, Season } from '../../types';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
+import { useSettingsStore, getChallengeWitherLevel } from '../../stores/useSettingsStore';
 import { useTutorialStore } from '../../stores/useTutorialStore';
 import { TutorialOverlay } from '../tutorial/TutorialOverlay';
 import { GrowthSprite } from '../garden/GrowthSprite';
@@ -42,6 +43,7 @@ import witchBroomSheet    from '../../assets/npcs/witch_idle_on_a_broom-Sheet.pn
 import witchWalkLeftSheet from '../../assets/npcs/witch_walk_left-Sheet.png';
 import witchIdlePng       from '../../assets/npcs/witch_idle.png';
 import arrowPng           from '../../assets/effects/arrow.png';
+import sparklePng         from '../../assets/effects/sparkle.png';
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 const CELL = 32;
@@ -312,6 +314,74 @@ function WitchInScene() {
         pointerEvents: 'none',
       }}
     />
+  );
+}
+
+// ── Sparkle overlay ────────────────────────────────────────────────────────────
+// Plays a 3-frame sparkle animation at a flower's cell whenever it is planted or grows.
+
+const SPARKLE_FRAMES   = 3;
+const SPARKLE_FRAME_MS = 130;  // ms per frame → ~390ms total
+const SPARKLE_SCALE    = 3;    // 16 * 3 = 48px — slightly larger than a cell for drama
+const SPARKLE_PX       = 16 * SPARKLE_SCALE;
+
+type SparkleInstance = { id: string; col: number; row: number };
+
+function SparkleOverlay() {
+  const [sparkles, setSparkles] = useState<SparkleInstance[]>([]);
+  const [frame, setFrame]       = useState(0);
+
+  // Global frame ticker
+  useEffect(() => {
+    const id = setInterval(() => setFrame((f) => (f + 1) % SPARKLE_FRAMES), SPARKLE_FRAME_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  // Subscribe to garden store — detect new placements and growth ticks
+  useEffect(() => {
+    return useGardenStore.subscribe((state, prev) => {
+      const added: SparkleInstance[] = [];
+      state.placedFlowers.forEach((pf) => {
+        const prevPf = prev.placedFlowers.find((p) => p.id === pf.id);
+        if (!prevPf || pf.growthTicks > (prevPf.growthTicks ?? 0)) {
+          added.push({ id: `${pf.id}-${Date.now()}`, col: pf.col, row: pf.row });
+        }
+      });
+      if (added.length === 0) return;
+      setSparkles((s) => [...s, ...added]);
+      setTimeout(
+        () => setSparkles((s) => s.filter((sp) => !added.some((a) => a.id === sp.id))),
+        SPARKLE_FRAME_MS * SPARKLE_FRAMES + 50,
+      );
+    });
+  }, []);
+
+  if (sparkles.length === 0) return null;
+
+  // Center the sparkle sprite over the cell
+  const offset = (SPARKLE_PX - CELL) / 2;
+
+  return (
+    <>
+      {sparkles.map((s) => (
+        <div
+          key={s.id}
+          style={{
+            position:          'absolute',
+            left:              FENCE + s.col * CELL - offset,
+            top:               COTTAGE_PAD + s.row * CELL - offset,
+            width:             SPARKLE_PX,
+            height:            SPARKLE_PX,
+            backgroundImage:   `url(${sparklePng})`,
+            backgroundSize:    `${SPARKLE_FRAMES * SPARKLE_PX}px ${SPARKLE_PX}px`,
+            backgroundPosition:`-${frame * SPARKLE_PX}px 0`,
+            imageRendering:    'pixelated',
+            pointerEvents:     'none',
+            zIndex:            25,
+          }}
+        />
+      ))}
+    </>
   );
 }
 
@@ -659,8 +729,9 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   // Game loop
   useEffect(() => {
     const loop = () => {
-      // Freeze the player during the tutorial
-      if (!useTutorialStore.getState().tutorialComplete) {
+      // Freeze the player during the tutorial; allow movement once complete
+      const { tutorialComplete, phase: tutorialPhase } = useTutorialStore.getState();
+      if (!tutorialComplete && tutorialPhase !== 'complete') {
         targetRef.current = null;
         rafRef.current = requestAnimationFrame(loop);
         return;
@@ -812,7 +883,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   // Auto-open the palette when the witch gives seeds so the player can see them
   const tutorialPhase = useTutorialStore((s) => s.phase);
   useEffect(() => {
-    if (tutorialPhase === 'receive_seeds') setIsEditOpen(true);
+    if (tutorialPhase === 'seeds_revealed') setIsEditOpen(true);
     if (tutorialPhase === 'plant_prompt')  setIsEditOpen(false);
   }, [tutorialPhase]);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
@@ -874,8 +945,14 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
 
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const growing = activeChallenges.filter(
-    c => c.status === 'growing' || c.id === justBloomedId
+    c => c.status === 'growing' || c.status === 'wilted' || c.id === justBloomedId
   );
+
+  const witherModeEnabled = useSettingsStore(s => s.witherModeEnabled);
+  const lastActivityDate = useSettingsStore(s => s.lastActivityDate);
+  const daysMissed = witherModeEnabled && lastActivityDate
+    ? Math.max(0, differenceInCalendarDays(new Date(), parseISO(lastActivityDate)))
+    : 0;
 
   // Pixel-precise feet Y for depth sorting — fires swap when feet are 85% down the flower's
   // cell so the bloom clears the character's lower body before she pops in front.
@@ -1258,7 +1335,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
             if (col === undefined || feetY <= PLOT_ROW * CELL + DEPTH_THRESHOLD) return null;
             const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
             const isBlooming = justBloomedId === challenge.id;
-            const animate = isBlooming ? 'bloom' : challenge.status === 'bloomed' ? 'none' : 'idle';
+            const animate = isBlooming ? 'bloom' : (challenge.status === 'bloomed' || challenge.status === 'wilted') ? 'none' : 'idle';
+            const challengeWitherLevel = challenge.status === 'wilted' ? 3 : getChallengeWitherLevel(challenge.id, daysMissed);
             return (
               <div key={`gb-${challenge.id}`} style={{
                 position: 'absolute',
@@ -1268,7 +1346,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
               }}>
                 <GrowthSprite stage={challenge.growthStage} flowerType={template?.flowerReward}
                   sprites={template?.sprites} spriteSheet={template?.spriteSheet}
-                  size="xs" animate={animate} />
+                  size="xs" animate={animate} witherLevel={challengeWitherLevel} />
               </div>
             );
           })}
@@ -1294,6 +1372,9 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           {/* 2b. Witch NPC — visible throughout the tutorial */}
           <WitchInScene />
 
+          {/* 2c. Sparkle effects — on plant and on growth */}
+          <SparkleOverlay />
+
           {/* 3. Flowers at/below character's row */}
           {frontFlowers}
 
@@ -1303,7 +1384,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
             if (col === undefined || feetY > PLOT_ROW * CELL + DEPTH_THRESHOLD) return null;
             const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
             const isBlooming = justBloomedId === challenge.id;
-            const animate = isBlooming ? 'bloom' : challenge.status === 'bloomed' ? 'none' : 'idle';
+            const animate = isBlooming ? 'bloom' : (challenge.status === 'bloomed' || challenge.status === 'wilted') ? 'none' : 'idle';
+            const challengeWitherLevel = challenge.status === 'wilted' ? 3 : getChallengeWitherLevel(challenge.id, daysMissed);
             return (
               <div key={`gf-${challenge.id}`} style={{
                 position: 'absolute',
@@ -1313,7 +1395,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
               }}>
                 <GrowthSprite stage={challenge.growthStage} flowerType={template?.flowerReward}
                   sprites={template?.sprites} spriteSheet={template?.spriteSheet}
-                  size="xs" animate={animate} />
+                  size="xs" animate={animate} witherLevel={challengeWitherLevel} />
               </div>
             );
           })}

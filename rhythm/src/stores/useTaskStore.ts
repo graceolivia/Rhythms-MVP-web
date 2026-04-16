@@ -7,6 +7,7 @@ import { useChildStore } from './useChildStore';
 import { useEventStore } from './useEventStore';
 import { useCoinStore } from './useCoinStore';
 import { useGardenStore } from './useGardenStore';
+import { useSettingsStore } from './useSettingsStore';
 
 /**
  * Check if a task is suggested for the current availability state.
@@ -246,6 +247,9 @@ export const useTaskStore = create<TaskState>()(
 
         // Earn a coin for completing a task
         useCoinStore.getState().earnCoin();
+
+        // Record activity for wither mode
+        useSettingsStore.getState().recordActivity();
 
         // If this is the first task completed today, grow all flowers one step
         const today = format(new Date(), 'yyyy-MM-dd');

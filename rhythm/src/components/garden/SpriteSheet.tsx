@@ -1,3 +1,5 @@
+import type React from 'react';
+
 /**
  * Renders a single frame from a horizontal sprite sheet.
  *
@@ -14,6 +16,7 @@ export function SpriteSheet({
   scale = 2,
   className = '',
   shadow = false,
+  style,
 }: {
   src: string;
   frame: number;
@@ -21,8 +24,12 @@ export function SpriteSheet({
   scale?: number;
   className?: string;
   shadow?: boolean;
+  style?: React.CSSProperties;
 }) {
   const displaySize = frameSize * scale;
+  const shadowFilter = shadow ? 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))' : undefined;
+  const extraFilter = style?.filter as string | undefined;
+  const combinedFilter = [shadowFilter, extraFilter].filter(Boolean).join(' ') || undefined;
 
   return (
     <div
@@ -35,7 +42,8 @@ export function SpriteSheet({
         backgroundSize: `auto ${displaySize}px`,
         imageRendering: 'pixelated',
         flexShrink: 0,
-        filter: shadow ? 'drop-shadow(2px 3px 1px rgba(0,0,0,0.25))' : undefined,
+        ...style,
+        filter: combinedFilter,
       }}
     />
   );

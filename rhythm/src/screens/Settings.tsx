@@ -7,6 +7,7 @@ import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useResetAppData } from '../hooks/useResetAppData';
 import { useAuth } from '../contexts/AuthContext';
 import { useSync } from '../hooks/useSync';
+import { useSettingsStore } from '../stores/useSettingsStore';
 import type { ChildColor, CareStatus, CareBlockType, RecurrenceRule } from '../types';
 
 const COLOR_OPTIONS: { value: ChildColor; label: string; bgClass: string; borderClass: string }[] = [
@@ -60,6 +61,10 @@ export function Settings() {
   const tasks = useTaskStore((state) => state.tasks);
   const ensureChildcareTasksExist = useTaskStore((state) => state.ensureChildcareTasksExist);
   const resetAppData = useResetAppData();
+
+  // Garden settings
+  const witherModeEnabled = useSettingsStore(s => s.witherModeEnabled);
+  const setWitherMode = useSettingsStore(s => s.setWitherMode);
 
   // Auth and sync
   const { user, isLoading: authLoading, isConfigured, signInWithEmail, signOut } = useAuth();
@@ -566,6 +571,31 @@ export function Settings() {
       </section>
 
       {/* Habit Blocks Section */}
+
+      {/* Garden Section */}
+      <section className="mb-8">
+        <h2 className="font-display text-lg text-bark mb-4">Garden</h2>
+        <div className="bg-parchment rounded-xl p-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <div className="relative mt-0.5">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={witherModeEnabled}
+                onChange={(e) => setWitherMode(e.target.checked)}
+              />
+              <div className={`w-10 h-6 rounded-full transition-colors ${witherModeEnabled ? 'bg-terracotta' : 'bg-bark/20'}`} />
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${witherModeEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-bark">Wither Mode</p>
+              <p className="text-xs text-bark/60 mt-0.5 leading-relaxed">
+                If you miss a day, your growing plants start to grey. Miss three days and they wilt. A little stick to go with the carrot.
+              </p>
+            </div>
+          </label>
+        </div>
+      </section>
 
       {/* Cloud Sync Section */}
       <section className="mb-8">

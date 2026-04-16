@@ -16,6 +16,8 @@ import { BottomNav } from './components/common/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
 import { useCharacterStore } from './stores/useCharacterStore';
 import { useGardenStore } from './stores/useGardenStore';
+import { DEV_MODE } from './config/devMode';
+import { DevOverlay } from './components/DevOverlay';
 
 const SEASON_LABELS: Record<string, string> = {
   spring: 'Spring',
@@ -108,6 +110,7 @@ function App() {
 
   return (
     <AuthProvider>
+      {DEV_MODE && <DevOverlay />}
       <BrowserRouter>
         <Routes>
           <Route

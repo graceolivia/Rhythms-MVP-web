@@ -90,8 +90,25 @@ function ReceiveSeedsPhase() {
       contained
       lines={[
         `Welcome, ${playerName}! I'm so glad you moved in. I hope you don't mind me saying so, but your yard looks a bit... bare.`,
+      ]}
+      onComplete={() => setPhase('seeds_revealed')}
+    />
+  );
+}
+
+// ─── Phase: SEEDS REVEALED ─────────────────────────────────────────────────────
+
+function SeedsRevealedPhase() {
+  const setPhase = useTutorialStore((s) => s.setPhase);
+
+  return (
+    <DialogueBox
+      speakerName="Sage"
+      portrait={witchIdlePng}
+      contained
+      lines={[
         'Hey! Do you like gardening? I brought you a few seeds to get started. 🌱🌱🌱',
-        'You can plant these anywhere in your garden. Want to try? Tap the button below to plant one!',
+        'You can plant these anywhere in your garden. Want to try? Tap a glowing spot to plant one!',
       ]}
       onComplete={() => setPhase('plant_prompt')}
     />
@@ -270,8 +287,8 @@ export function TutorialOverlay() {
   // Entrance animation plays inside GardenPreview — nothing to render here
   if (phase === 'entrance') return null;
 
-  // Award seeds when entering receive_seeds phase (idempotent)
-  if (phase === 'receive_seeds' && !hasReceivedStarterSeeds) {
+  // Award seeds when Sage reveals them (idempotent)
+  if (phase === 'seeds_revealed' && !hasReceivedStarterSeeds) {
     earnFlower('forget-me-not');
     earnFlower('forget-me-not');
     earnFlower('forget-me-not');
@@ -291,6 +308,7 @@ export function TutorialOverlay() {
       {phase === 'intro' && <IntroPhase />}
       {phase === 'name_input' && <NameInputPhase />}
       {phase === 'receive_seeds' && <ReceiveSeedsPhase />}
+      {phase === 'seeds_revealed' && <SeedsRevealedPhase />}
       {phase === 'plant_prompt' && <PlantPromptPhase />}
       {phase === 'first_plant_response' && <FirstPlantResponsePhase />}
       {phase === 'growth_demo' && <GrowthDemoPhase />}
