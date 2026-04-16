@@ -342,8 +342,9 @@ function SparkleOverlay() {
     return useGardenStore.subscribe((state, prev) => {
       const added: SparkleInstance[] = [];
       state.placedFlowers.forEach((pf) => {
-        const prevPf = prev.placedFlowers.find((p) => p.id === pf.id);
-        if (!prevPf || pf.growthTicks > (prevPf.growthTicks ?? 0)) {
+        const flower     = state.flowers.find((f) => f.id === pf.flowerId);
+        const prevFlower = prev.flowers.find((f) => f.id === pf.flowerId);
+        if (!prevFlower || (flower?.growthTicks ?? 0) > (prevFlower.growthTicks ?? 0)) {
           added.push({ id: `${pf.id}-${Date.now()}`, col: pf.col, row: pf.row });
         }
       });
@@ -985,7 +986,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       const x     = FENCE + col * CELL;
       const y     = COTTAGE_PAD + row * CELL;
       const src        = e.sheet ?? e.sprite;
-      const frame      = Math.min(pf.growthTicks ?? 0, e.sheetBloomFrame ?? 4);
+      const sourceFlower = flowers.find(f => f.id === pf.flowerId);
+      const frame      = Math.min(sourceFlower?.growthTicks ?? 0, e.sheetBloomFrame ?? 4);
 
       // Rustle: triggered when character's same row and within horizontal radius
       const key = `${col}-${row}`;

@@ -283,6 +283,8 @@ export interface Flower {
   challengeId: string | null;
   /** Pixel art sprite for this specific flower (bloom stage) */
   sprite?: string;
+  /** Growth progress — increments once per day at least one task is completed */
+  growthTicks?: number;
 }
 
 export interface Garden {

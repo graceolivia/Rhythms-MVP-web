@@ -314,11 +314,13 @@ export const useGardenStore = create<GardenState>()(
       },
 
       tickAllFlowers: () => {
+        const placedFlowerIds = new Set(get().placedFlowers.map((pf) => pf.flowerId));
         set((state) => ({
-          placedFlowers: state.placedFlowers.map((pf) => ({
-            ...pf,
-            growthTicks: (pf.growthTicks ?? 0) + 1,
-          })),
+          flowers: state.flowers.map((f) =>
+            placedFlowerIds.has(f.id)
+              ? { ...f, growthTicks: (f.growthTicks ?? 0) + 1 }
+              : f
+          ),
         }));
       },
 

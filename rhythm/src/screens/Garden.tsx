@@ -428,7 +428,9 @@ export function Garden() {
             >
               {(() => {
                 const entry = FLOWER_CATALOG[placedFlower.flowerType];
-                const frame = Math.min(placedFlower.growthTicks ?? 0, entry.sheetBloomFrame ?? 4);
+                const sourceFlower = flowers.find(f => f.id === placedFlower.flowerId);
+                const ticks = sourceFlower?.growthTicks ?? 0;
+                const frame = Math.min(ticks, entry.sheetBloomFrame ?? 4);
                 return (
                   <SpriteSheet
                     src={entry.sheet ?? entry.sprite}
