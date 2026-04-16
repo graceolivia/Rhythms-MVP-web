@@ -342,9 +342,10 @@ function SparkleOverlay() {
     return useGardenStore.subscribe((state, prev) => {
       const added: SparkleInstance[] = [];
       state.placedFlowers.forEach((pf) => {
+        const prevPf     = prev.placedFlowers.find((p) => p.id === pf.id);
         const flower     = state.flowers.find((f) => f.id === pf.flowerId);
         const prevFlower = prev.flowers.find((f) => f.id === pf.flowerId);
-        if (!prevFlower || (flower?.growthTicks ?? 0) > (prevFlower.growthTicks ?? 0)) {
+        if (!prevPf || (flower?.growthTicks ?? 0) > (prevFlower?.growthTicks ?? 0)) {
           added.push({ id: `${pf.id}-${Date.now()}`, col: pf.col, row: pf.row });
         }
       });
