@@ -1223,13 +1223,15 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           }}
         />
 
-        {/* ── Right tree — 5×5 tiles at 1× scale, right of house ── */}
+        {/* ── Right tree — 5×5 tiles at 2× CSS, right of house ──
+             Left = FENCE + GRID_COLS*CELL - 5*CELL = 448 - 160 = 288
+             so the right edge aligns exactly with the fence boundary. */}
         <canvas
           ref={rightTreeRef}
           width={5 * HOUSE_TILE} height={5 * HOUSE_TILE}
           style={{
             position: 'absolute',
-            left: FENCE + 11 * CELL + 2 * HOUSE_TILE - 3 * CELL - HOUSE_TILE,
+            left: FENCE + GRID_COLS * CELL - 5 * CELL + HOUSE_TILE,
             top: COTTAGE_PAD - 3 * CELL - 4 * HOUSE_TILE + 3 * CELL - 2 * CELL - HOUSE_TILE,
             width: 5 * CELL, height: 5 * CELL,
             imageRendering: 'pixelated',

@@ -108,7 +108,6 @@ export const pine_tree = [
 ];
 
 export const right_tree = [
-  { col: 4, row: 13, sx: 64, sy: 208 },
   { col: 4, row: 11, sx: 64, sy: 176 },
   { col: 4, row: 10, sx: 64, sy: 160 },
   { col: 4, row: 12, sx: 64, sy: 192 },
