@@ -6,7 +6,7 @@
 // - Pre-seed flowers for garden testing
 // - Skip onboarding flow
 
-export const DEV_MODE = true;
+export const DEV_MODE = import.meta.env.DEV;
 export const DEV_SKIP_ONBOARDING = false;
 
 // You can also use environment-based dev mode:
