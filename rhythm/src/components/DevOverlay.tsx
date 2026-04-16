@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { getDevDayOffset, setDevDayOffset } from '../utils/devTime';
 
 const STEPS = [
@@ -14,8 +14,7 @@ const STEPS = [
 export function DevOverlay() {
   const [offset, setOffset] = useState(getDevDayOffset);
 
-  const virtualNow = addDays(new Date(), 0); // already patched if offset != 0
-  const realNow = new Date(Date.now()); // same as virtualNow when patched; used for display
+  const realNow = new Date(Date.now()); // used for display
 
   function apply(newOffset: number) {
     setOffset(newOffset); // optimistic — reload will replace this anyway
