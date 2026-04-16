@@ -219,7 +219,7 @@ function WitchInScene() {
   const [left,  setLeft]  = useState(WITCH_FLY_START_LEFT);
   const [top,   setTop]   = useState(WITCH_FLY_TOP);
   const [frame, setFrame] = useState(0);
-  const [gone,  setGone]  = useState(false);
+  const [gone,  setGone]  = useState(() => tutorialComplete);
 
   const isEntrance = tutorialPhase === 'entrance';
 
