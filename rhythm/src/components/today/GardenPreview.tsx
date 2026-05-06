@@ -939,11 +939,6 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     () => Object.values(availableByType).reduce((a, b) => a + b, 0),
     [availableByType]
   );
-  // IDs of shop-bought flowers — shown as seeds in the grid
-  const seedFlowerIds = useMemo(
-    () => new Set(flowers.filter(f => f.challengeId === null).map(f => f.id)),
-    [flowers]
-  );
 
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const growing = activeChallenges.filter(
