@@ -1572,7 +1572,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
                     {pf && (
                       <SpriteSheet
                         src={FLOWER_CATALOG[pf.flowerType].sheet ?? FLOWER_CATALOG[pf.flowerType].sprite}
-                        frame={seedFlowerIds.has(pf.flowerId) ? 1 : (FLOWER_CATALOG[pf.flowerType].sheetBloomFrame ?? 0)}
+                        frame={Math.min(flowers.find(f => f.id === pf.flowerId)?.growthTicks ?? 0, FLOWER_CATALOG[pf.flowerType].sheetBloomFrame ?? 4)}
                         frameSize={16} scale={2} shadow
                       />
                     )}
