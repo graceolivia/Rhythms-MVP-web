@@ -28,8 +28,6 @@ interface DialogueBoxProps {
   contained?: boolean;
 }
 
-const DEV_MODE = import.meta.env.DEV;
-const CHARS_PER_SEC = 30;
 
 export function DialogueBox({
   speakerName,
@@ -47,30 +45,11 @@ export function DialogueBox({
 
   const currentLine = lines[lineIndex] ?? '';
 
-  // Typewriter effect
+  // Show text instantly
   useEffect(() => {
-    setDisplayed('');
-    setRevealed(false);
-
-    if (showInputSlot || DEV_MODE) {
-      setDisplayed(currentLine);
-      setRevealed(true);
-      return;
-    }
-
-    let i = 0;
-    const ms = 1000 / CHARS_PER_SEC;
-    const id = setInterval(() => {
-      i++;
-      setDisplayed(currentLine.slice(0, i));
-      if (i >= currentLine.length) {
-        clearInterval(id);
-        setRevealed(true);
-      }
-    }, ms);
-
-    return () => clearInterval(id);
-  }, [lineIndex, currentLine, showInputSlot]);
+    setDisplayed(currentLine);
+    setRevealed(true);
+  }, [lineIndex, currentLine]);
 
   const handleTap = useCallback(() => {
     if (showInputSlot) return; // input slot handles its own advance

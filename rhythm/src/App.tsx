@@ -13,7 +13,6 @@ import { CharacterCreator } from './screens/CharacterCreator';
 import { useTutorialStore } from './stores/useTutorialStore';
 
 import { BottomNav } from './components/common/BottomNav';
-import { AuthProvider } from './contexts/AuthContext';
 import { useCharacterStore } from './stores/useCharacterStore';
 import { useGardenStore } from './stores/useGardenStore';
 import { DEV_MODE } from './config/devMode';
@@ -109,7 +108,7 @@ function App() {
   };
 
   return (
-    <AuthProvider>
+    <>
       {DEV_MODE && <DevOverlay />}
       <BrowserRouter>
         <Routes>
@@ -129,7 +128,7 @@ function App() {
           />
         </Routes>
       </BrowserRouter>
-    </AuthProvider>
+    </>
   );
 }
 
