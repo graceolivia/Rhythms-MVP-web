@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
@@ -315,6 +315,11 @@ export function Tasks() {
   const addTask = useTaskStore((state) => state.addTask);
   const scheduleForToday = useTaskStore((state) => state.scheduleForToday);
   const scheduleForDate = useTaskStore((state) => state.scheduleForDate);
+  const generateDailyInstances = useTaskStore((state) => state.generateDailyInstances);
+
+  useEffect(() => {
+    generateDailyInstances(new Date());
+  }, [generateDailyInstances]);
   const children = useChildStore((state) => state.children);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -347,13 +352,23 @@ export function Tasks() {
     );
   }, [taskInstances, today]);
 
-  // Map taskId → scheduled date for pending/deferred instances (for todos)
+  // Tasks completed today
+  const completedTodayIds = useMemo(() => {
+    return new Set(
+      taskInstances
+        .filter(i => i.date === today && i.status === 'completed')
+        .map(i => i.taskId)
+    );
+  }, [taskInstances, today]);
+
+  // Map taskId → latest pending scheduled date (deferred/seeds-queue instances excluded
+  // so past deferred dates don't shadow a newly-scheduled future date)
   const taskScheduledDates = useMemo(() => {
     const map = new Map<string, string>();
     for (const i of taskInstances) {
-      if (i.status === 'pending' || i.status === 'deferred') {
-        map.set(i.taskId, i.date);
-      }
+      if (i.status !== 'pending') continue;
+      const existing = map.get(i.taskId);
+      if (!existing || i.date > existing) map.set(i.taskId, i.date);
     }
     return map;
   }, [taskInstances]);
@@ -402,11 +417,29 @@ export function Tasks() {
               ) : (
                 <>
                   {(() => {
-                    const dueToday = todos.filter(t => todayTaskIds.has(t.id));
-                    const upcoming = todos
-                      .filter(t => !todayTaskIds.has(t.id) && (taskScheduledDates.get(t.id) ?? '') > today)
+                    const activeTodos = todos.filter(t => !completedTodayIds.has(t.id));
+
+                    // A task is overdue if it has a past pending date, OR a deferred instance
+                    // with a past date (generateDailyInstances converts yesterday's pending → deferred).
+                    // Pending future dates (upcoming) always win over deferred past dates.
+                    const getOverdueDate = (taskId: string): string | undefined => {
+                      const pendingDate = taskScheduledDates.get(taskId);
+                      if (pendingDate && pendingDate < today) return pendingDate;
+                      if (pendingDate) return undefined; // pending future date — not overdue
+                      const deferred = taskInstances.find(i => i.taskId === taskId && i.status === 'deferred' && i.date < today);
+                      return deferred?.date;
+                    };
+
+                    const overdue = activeTodos
+                      .filter(t => !todayTaskIds.has(t.id) && !!getOverdueDate(t.id))
+                      .sort((a, b) => (getOverdueDate(a.id)! < getOverdueDate(b.id)! ? -1 : 1));
+                    const overdueIds = new Set(overdue.map(t => t.id));
+                    const dueToday = activeTodos.filter(t => todayTaskIds.has(t.id));
+                    const upcoming = activeTodos
+                      .filter(t => !todayTaskIds.has(t.id) && !overdueIds.has(t.id) && (taskScheduledDates.get(t.id) ?? '') > today)
                       .sort((a, b) => (taskScheduledDates.get(a.id)! < taskScheduledDates.get(b.id)! ? -1 : 1));
-                    const noDate = todos.filter(t => !todayTaskIds.has(t.id) && !((taskScheduledDates.get(t.id) ?? '') > today));
+                    const noDate = activeTodos.filter(t => !todayTaskIds.has(t.id) && !overdueIds.has(t.id) && !((taskScheduledDates.get(t.id) ?? '') > today));
+                    const completedToday = todos.filter(t => completedTodayIds.has(t.id));
 
                     // Group upcoming by date
                     const upcomingByDate: { dateStr: string; tasks: typeof todos }[] = [];
@@ -419,6 +452,32 @@ export function Tasks() {
 
                     return (
                       <>
+                        {overdue.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs font-semibold text-terracotta/70 uppercase tracking-wide px-1 mb-1.5">Overdue</p>
+                            <div className="space-y-2">
+                              {overdue.map(task => (
+                                <div key={task.id} className="flex items-center gap-2 p-3 rounded-lg border bg-terracotta/5 border-terracotta/20">
+                                  <button onClick={() => setEditingTask(task)} className="flex-1 text-left min-w-0">
+                                    <h3 className="font-medium text-bark truncate">{getTaskDisplayTitle(task, getChild)}</h3>
+                                    <p className="text-xs text-terracotta/70 mt-0.5">{format(parseISO(getOverdueDate(task.id)!), 'EEE, MMM d')}</p>
+                                  </button>
+                                  <button
+                                    onClick={() => scheduleForToday(task.id)}
+                                    className="text-xs px-2.5 py-1.5 rounded-lg bg-terracotta text-cream font-semibold hover:bg-terracotta/90 transition-colors flex-shrink-0"
+                                  >
+                                    Do today
+                                  </button>
+                                  <button onClick={() => deleteTask(task.id)} className="p-1 rounded-lg text-bark/25 hover:text-red-400 transition-colors flex-shrink-0">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {dueToday.length > 0 && (
                           <div className="mb-3">
                             <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Due today</p>
@@ -447,6 +506,19 @@ export function Tasks() {
                             <div className="space-y-2">
                               {noDate.map(task => (
                                 <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {completedToday.length > 0 && (
+                          <div className="mt-4 pt-3 border-t border-bark/10">
+                            <p className="text-xs font-semibold text-bark/30 uppercase tracking-wide px-1 mb-1.5">✓ Done today</p>
+                            <div className="space-y-2">
+                              {completedToday.map(task => (
+                                <div key={task.id} className="flex items-center gap-2 p-3 rounded-lg border bg-sage/5 border-sage/15 opacity-60">
+                                  <span className="text-sage text-sm">✓</span>
+                                  <span className="flex-1 text-sm text-bark/50 line-through">{getTaskDisplayTitle(task, getChild)}</span>
+                                </div>
                               ))}
                             </div>
                           </div>
