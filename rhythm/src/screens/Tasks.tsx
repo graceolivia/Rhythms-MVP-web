@@ -325,6 +325,13 @@ export function Tasks() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['todos']));
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const t = setTimeout(() => setToastMessage(null), 2500);
+    return () => clearTimeout(t);
+  }, [toastMessage]);
 
   // Helper to get child by ID
   const getChild = (id: string) => children.find(c => c.id === id);
@@ -488,18 +495,38 @@ export function Tasks() {
                             </div>
                           </div>
                         )}
-                        {upcomingByDate.map(({ dateStr, tasks }) => (
-                          <div key={dateStr} className="mb-3">
-                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">
-                              {format(parseISO(dateStr), 'EEE, MMM d')}
-                            </p>
-                            <div className="space-y-2">
-                              {tasks.map(task => (
-                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
-                              ))}
-                            </div>
+                        {upcoming.length > 0 && (
+                          <div className="mb-3">
+                            <button
+                              onClick={() => toggleSection('tray')}
+                              className="w-full flex items-center justify-between px-1 mb-1.5"
+                            >
+                              <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide">
+                                Tray <span className="font-normal">({upcoming.length})</span>
+                              </p>
+                              <svg
+                                className={`w-4 h-4 text-bark/30 transition-transform ${expandedSections.has('tray') ? 'rotate-180' : ''}`}
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            {expandedSections.has('tray') && (
+                              <>
+                                {upcomingByDate.map(({ dateStr, tasks: trayTasks }) => (
+                                  <div key={dateStr} className="mb-2">
+                                    <p className="text-xs text-bark/30 px-1 mb-1">{format(parseISO(dateStr), 'EEE, MMM d')}</p>
+                                    <div className="space-y-2">
+                                      {trayTasks.map(task => (
+                                        <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </>
+                            )}
                           </div>
-                        ))}
+                        )}
                         {noDate.length > 0 && (
                           <div className="mb-2">
                             <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">No date</p>
@@ -570,7 +597,12 @@ export function Tasks() {
           onClose={() => setEditingTask(null)}
           onSave={(id, updates) => updateTask(id, updates)}
           onDelete={(id) => deleteTask(id)}
-          onScheduleDate={(id, date) => scheduleForDate(id, date)}
+          onScheduleDate={(id, date) => {
+            scheduleForDate(id, date);
+            if (date > today) {
+              setToastMessage(`Added to tray for ${format(parseISO(date), 'EEE, MMM d')}`);
+            }
+          }}
           scheduledDate={taskScheduledDates.get(editingTask.id) ?? null}
           children={children}
         />
@@ -583,6 +615,13 @@ export function Tasks() {
           onAdd={handleAddTask}
           children={children}
         />
+      )}
+
+      {/* Tray toast */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-bark/90 text-cream text-sm rounded-full shadow-lg whitespace-nowrap pointer-events-none">
+          {toastMessage}
+        </div>
       )}
     </div>
   );
