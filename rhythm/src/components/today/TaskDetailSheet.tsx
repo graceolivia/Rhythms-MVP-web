@@ -29,7 +29,6 @@ export function TaskDetailSheet({ task, onClose }: TaskDetailSheetProps) {
   const [dueDate, setDueDate] = useState('');
   const [category, setCategory] = useState<TaskCategory>('other');
 
-  // Sync local state when task changes
   useEffect(() => {
     if (task) {
       setTitle(task.title);
@@ -42,8 +41,15 @@ export function TaskDetailSheet({ task, onClose }: TaskDetailSheetProps) {
 
   if (!task) return null;
 
-  const save = (updates: Partial<Task>) => {
-    updateTask(task.id, updates);
+  const handleSave = () => {
+    updateTask(task.id, {
+      title: title.trim() || task.title,
+      notes: notes || undefined,
+      scheduledTime: scheduledTime || null,
+      dueDate: dueDate || undefined,
+      category,
+    });
+    onClose();
   };
 
   return (
@@ -69,7 +75,7 @@ export function TaskDetailSheet({ task, onClose }: TaskDetailSheetProps) {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => { if (title.trim() && title !== task.title) save({ title: title.trim() }); }}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             className="w-full px-4 py-3 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark"
           />
         </div>
@@ -80,7 +86,6 @@ export function TaskDetailSheet({ task, onClose }: TaskDetailSheetProps) {
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            onBlur={() => { if (notes !== (task.notes ?? '')) save({ notes: notes || undefined }); }}
             placeholder="Add notes..."
             rows={3}
             className="w-full px-4 py-3 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark resize-none"
@@ -94,16 +99,13 @@ export function TaskDetailSheet({ task, onClose }: TaskDetailSheetProps) {
             <input
               type="time"
               value={scheduledTime}
-              onChange={(e) => {
-                setScheduledTime(e.target.value);
-                save({ scheduledTime: e.target.value || null });
-              }}
+              onChange={(e) => setScheduledTime(e.target.value)}
               className="flex-1 px-4 py-2 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark text-sm"
             />
             {scheduledTime && (
               <button
                 type="button"
-                onClick={() => { setScheduledTime(''); save({ scheduledTime: null }); }}
+                onClick={() => setScheduledTime('')}
                 className="text-bark/40 hover:text-bark text-sm"
               >
                 Clear
@@ -119,31 +121,41 @@ export function TaskDetailSheet({ task, onClose }: TaskDetailSheetProps) {
             <input
               type="date"
               value={dueDate}
-              onChange={(e) => {
-                setDueDate(e.target.value);
-                save({ dueDate: e.target.value || undefined });
-              }}
+              onChange={(e) => setDueDate(e.target.value)}
               className="w-full px-4 py-2 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark text-sm"
             />
           </div>
         )}
 
         {/* Category */}
-        <div className="mb-4">
+        <div className="mb-6">
           <label className="block text-sm text-bark/70 mb-1">Category</label>
           <select
             value={category}
-            onChange={(e) => {
-              const val = e.target.value as TaskCategory;
-              setCategory(val);
-              save({ category: val });
-            }}
+            onChange={(e) => setCategory(e.target.value as TaskCategory)}
             className="w-full px-4 py-2 rounded-xl border border-bark/20 bg-white focus:outline-none focus:border-sage text-bark text-sm"
           >
             {CATEGORY_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-2 border-t border-bark/10">
+          <div className="flex-1" />
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-bark/10 text-bark hover:bg-bark/20 text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 rounded-lg bg-sage text-white hover:bg-sage/90 text-sm font-semibold"
+          >
+            Save
+          </button>
         </div>
       </div>
     </div>

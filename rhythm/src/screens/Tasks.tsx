@@ -81,6 +81,7 @@ interface TaskEditModalProps {
 }
 
 function TaskEditModal({ task, onClose, onSave, onDelete, onScheduleDate, scheduledDate, children }: TaskEditModalProps) {
+  const today = format(new Date(), 'yyyy-MM-dd');
   const [title, setTitle] = useState(task.title);
   const [childId, setChildId] = useState<string | null>(task.childId || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -190,9 +191,9 @@ function TaskEditModal({ task, onClose, onSave, onDelete, onScheduleDate, schedu
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 rounded-lg bg-sage text-white hover:bg-sage/90 text-sm"
+                className="px-4 py-2 rounded-lg bg-sage text-white hover:bg-sage/90 text-sm font-semibold"
               >
-                Save
+                {newDate > today ? 'Add to Tray' : 'Save'}
               </button>
             </div>
           </>
@@ -598,9 +599,13 @@ export function Tasks() {
           onSave={(id, updates) => updateTask(id, updates)}
           onDelete={(id) => deleteTask(id)}
           onScheduleDate={(id, date) => {
+            const existingDate = taskScheduledDates.get(id) ?? null;
             scheduleForDate(id, date);
             if (date > today) {
-              setToastMessage(`Added to tray for ${format(parseISO(date), 'EEE, MMM d')}`);
+              const wasAlreadyInTray = existingDate !== null && existingDate > today;
+              setToastMessage(
+                `${wasAlreadyInTray ? 'Moved' : 'Added'} to tray for ${format(parseISO(date), 'EEE, MMM d')}`
+              );
             }
           }}
           scheduledDate={taskScheduledDates.get(editingTask.id) ?? null}

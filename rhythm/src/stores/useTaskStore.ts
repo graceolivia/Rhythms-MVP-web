@@ -462,12 +462,12 @@ export const useTaskStore = create<TaskState>()(
         const instances = get().taskInstances;
         // Already pending today → nothing to do
         if (instances.find(i => i.taskId === taskId && i.date === today && i.status === 'pending')) return;
-        // Has a deferred instance → promote it
-        const deferred = instances.find(i => i.taskId === taskId && i.status === 'deferred');
-        if (deferred) {
+        // Has any pending or deferred instance → move it to today (covers tray tasks and seeds)
+        const scheduled = instances.find(i => i.taskId === taskId && (i.status === 'pending' || i.status === 'deferred'));
+        if (scheduled) {
           set((state) => ({
             taskInstances: state.taskInstances.map(i =>
-              i.id === deferred.id ? { ...i, date: today, status: 'pending' as TaskStatus, deferredTo: null } : i
+              i.id === scheduled.id ? { ...i, date: today, status: 'pending' as TaskStatus, deferredTo: null } : i
             ),
           }));
           return;
@@ -486,32 +486,34 @@ export const useTaskStore = create<TaskState>()(
       },
 
       scheduleForDate: (taskId, date) => {
-        const instances = get().taskInstances;
-        // If there's an existing pending or deferred instance, move it to the new date
-        const existing = instances.find(
-          i => i.taskId === taskId && (i.status === 'pending' || i.status === 'deferred')
-        );
-        if (existing) {
-          set((state) => ({
-            taskInstances: state.taskInstances.map(i =>
-              i.id === existing.id
+        set((state) => {
+          const scheduled = state.taskInstances.filter(
+            i => i.taskId === taskId && (i.status === 'pending' || i.status === 'deferred')
+          );
+          if (scheduled.length === 0) {
+            return {
+              taskInstances: [...state.taskInstances, {
+                id: uuidv4(),
+                taskId,
+                date,
+                status: 'pending' as TaskStatus,
+                completedAt: null,
+                deferredTo: null,
+              }],
+            };
+          }
+          // Keep the first instance, update its date; remove any extras
+          const [keep, ...extras] = scheduled;
+          const extraIds = new Set(extras.map(i => i.id));
+          return {
+            taskInstances: state.taskInstances
+              .filter(i => !extraIds.has(i.id))
+              .map(i => i.id === keep.id
                 ? { ...i, date, status: 'pending' as TaskStatus, deferredTo: null }
                 : i
-            ),
-          }));
-          return;
-        }
-        // No instance → create one
-        set((state) => ({
-          taskInstances: [...state.taskInstances, {
-            id: uuidv4(),
-            taskId,
-            date,
-            status: 'pending' as TaskStatus,
-            completedAt: null,
-            deferredTo: null,
-          }],
-        }));
+              ),
+          };
+        });
       },
 
       promoteToToday: (instanceId) => {
