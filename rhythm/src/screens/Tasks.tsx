@@ -327,11 +327,14 @@ export function Tasks() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['todos']));
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastFading, setToastFading] = useState(false);
 
   useEffect(() => {
     if (!toastMessage) return;
-    const t = setTimeout(() => setToastMessage(null), 2500);
-    return () => clearTimeout(t);
+    setToastFading(false);
+    const fadeTimer = setTimeout(() => setToastFading(true), 1000);
+    const removeTimer = setTimeout(() => { setToastMessage(null); setToastFading(false); }, 1350);
+    return () => { clearTimeout(fadeTimer); clearTimeout(removeTimer); };
   }, [toastMessage]);
 
   // Helper to get child by ID
@@ -604,7 +607,7 @@ export function Tasks() {
             if (date > today) {
               const wasAlreadyInTray = existingDate !== null && existingDate > today;
               setToastMessage(
-                `${wasAlreadyInTray ? 'Moved' : 'Added'} to tray for ${format(parseISO(date), 'EEE, MMM d')}`
+                `${wasAlreadyInTray ? 'Moved' : 'Added'} to tray due ${format(parseISO(date), 'EEE, MMM d')}`
               );
             }
           }}
@@ -624,8 +627,10 @@ export function Tasks() {
 
       {/* Tray toast */}
       {toastMessage && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-bark/90 text-cream text-sm rounded-full shadow-lg whitespace-nowrap pointer-events-none">
-          {toastMessage}
+        <div className={`fixed inset-0 z-50 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${toastFading ? 'opacity-0' : 'opacity-100'}`}>
+          <div className="bg-terracotta text-cream px-8 py-6 rounded-2xl shadow-2xl text-center mx-6">
+            <p className="font-display text-xl">{toastMessage}</p>
+          </div>
         </div>
       )}
     </div>

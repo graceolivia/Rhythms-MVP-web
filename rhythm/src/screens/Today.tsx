@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
@@ -196,6 +196,8 @@ export function Today() {
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
   const [expandedDoneSections, setExpandedDoneSections] = useState<Set<string>>(new Set());
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [trayToast, setTrayToast] = useState<string | null>(null);
+  const [trayToastFading, setTrayToastFading] = useState(false);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>[]>>(new Map());
 
   const tasks = useTaskStore((state) => state.tasks);
@@ -230,6 +232,15 @@ export function Today() {
     const t = setTimeout(() => setShowBonusToast(false), 2500);
     return () => clearTimeout(t);
   }, [pendingBonus, clearPendingBonus]);
+
+  // Tray toast auto-dismiss with fade
+  useEffect(() => {
+    if (!trayToast) return;
+    setTrayToastFading(false);
+    const fadeTimer = setTimeout(() => setTrayToastFading(true), 1000);
+    const removeTimer = setTimeout(() => { setTrayToast(null); setTrayToastFading(false); }, 1350);
+    return () => { clearTimeout(fadeTimer); clearTimeout(removeTimer); };
+  }, [trayToast]);
 
   // Generate today's instances on mount
   useEffect(() => {
@@ -473,7 +484,19 @@ export function Today() {
         <TaskEditor tier={editingTier} isOpen={true} onClose={() => { setEditingTier(null); generateDailyInstances(new Date()); }} />
       )}
 
-      <TaskDetailSheet task={editingTask} onClose={() => setEditingTask(null)} />
+      <TaskDetailSheet
+        task={editingTask}
+        onClose={() => setEditingTask(null)}
+        onMoveToTray={(date) => setTrayToast(`Added to tray due ${format(parseISO(date), 'EEE, MMM d')}`)}
+      />
+
+      {trayToast && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${trayToastFading ? 'opacity-0' : 'opacity-100'}`}>
+          <div className="bg-terracotta text-cream px-8 py-6 rounded-2xl shadow-2xl text-center mx-6">
+            <p className="font-display text-xl">{trayToast}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { useTaskStore } from '../../stores/useTaskStore';
 import type { Task, TaskCategory } from '../../types';
 
@@ -18,10 +19,12 @@ const CATEGORY_OPTIONS: { value: TaskCategory; label: string }[] = [
 interface TaskDetailSheetProps {
   task: Task | null;
   onClose: () => void;
+  onMoveToTray?: (date: string) => void;
 }
 
-export function TaskDetailSheet({ task, onClose }: TaskDetailSheetProps) {
+export function TaskDetailSheet({ task, onClose, onMoveToTray }: TaskDetailSheetProps) {
   const updateTask = useTaskStore((state) => state.updateTask);
+  const scheduleForDate = useTaskStore((state) => state.scheduleForDate);
 
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
@@ -42,6 +45,7 @@ export function TaskDetailSheet({ task, onClose }: TaskDetailSheetProps) {
   if (!task) return null;
 
   const handleSave = () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
     updateTask(task.id, {
       title: title.trim() || task.title,
       notes: notes || undefined,
@@ -49,6 +53,14 @@ export function TaskDetailSheet({ task, onClose }: TaskDetailSheetProps) {
       dueDate: dueDate || undefined,
       category,
     });
+    if (task.tier === 'todo' && dueDate && dueDate !== today) {
+      scheduleForDate(task.id, dueDate);
+      if (dueDate > today) {
+        onMoveToTray?.(dueDate);
+        onClose();
+        return;
+      }
+    }
     onClose();
   };
 
