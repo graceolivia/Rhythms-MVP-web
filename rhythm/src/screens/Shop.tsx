@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCoinStore } from '../stores/useCoinStore';
 import { useGardenStore, FLOWER_CATALOG, getCurrentSeason } from '../stores/useGardenStore';
 import { SpriteSheet } from '../components/garden/SpriteSheet';
+import { ChallengesPanel } from './Challenges';
 import type { FlowerType, Season } from '../types';
 
 const FLOWER_PRICE = 10;
@@ -22,7 +23,7 @@ export function Shop() {
   const currentSeason = getCurrentSeason();
   const { label: seasonLabel, emoji: seasonEmoji } = SEASON_DISPLAY[currentSeason];
 
-  // Flash state: tracks which flower type just got bought
+  const [tab, setTab] = useState<'shop' | 'challenges'>('shop');
   const [justBought, setJustBought] = useState<FlowerType | null>(null);
 
   const seasonFlowers = (Object.entries(FLOWER_CATALOG) as [FlowerType, typeof FLOWER_CATALOG[FlowerType]][])
@@ -39,89 +40,110 @@ export function Shop() {
 
   return (
     <div className="min-h-screen bg-parchment/30">
-      <div className="max-w-lg mx-auto px-4 pt-8 pb-24">
-        <h1 className="font-display text-2xl text-bark mb-1">Shop</h1>
-        <p className="text-bark/50 text-sm mb-6">Spend your coins on flowers</p>
+      <div className="max-w-lg mx-auto px-4 pt-8">
 
-        {/* Coin balance */}
-        <div className="bg-cream rounded-2xl p-5 mb-6 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-terracotta/10 flex items-center justify-center text-2xl">
-            ◎
-          </div>
-          <div>
-            <p className="text-xs text-bark/50 uppercase tracking-wide font-medium">Your balance</p>
-            <p className="font-display text-3xl text-bark">{coins}</p>
-          </div>
+        {/* Top-level tab bar */}
+        <div className="flex gap-1 bg-cream rounded-lg p-1 mb-6">
+          <button
+            onClick={() => setTab('shop')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              tab === 'shop' ? 'bg-parchment text-bark shadow-sm' : 'text-bark/40 hover:text-bark/60'
+            }`}
+          >
+            Shop
+          </button>
+          <button
+            onClick={() => setTab('challenges')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              tab === 'challenges' ? 'bg-parchment text-bark shadow-sm' : 'text-bark/40 hover:text-bark/60'
+            }`}
+          >
+            Challenges
+          </button>
         </div>
 
-        {/* Season collection header */}
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-base">{seasonEmoji}</span>
-          <h2 className="font-semibold text-bark text-sm">{seasonLabel} Collection</h2>
-          <span className="ml-auto text-xs text-bark/40">{FLOWER_PRICE} coins each</span>
-        </div>
+        {tab === 'shop' ? (
+          <>
+            {/* Coin balance */}
+            <div className="bg-cream rounded-2xl p-5 mb-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-terracotta/10 flex items-center justify-center text-2xl">
+                ◎
+              </div>
+              <div>
+                <p className="text-xs text-bark/50 uppercase tracking-wide font-medium">Your balance</p>
+                <p className="font-display text-3xl text-bark">{coins}</p>
+              </div>
+            </div>
 
-        {/* Flower grid */}
-        {seasonFlowers.length === 0 ? (
-          <div className="bg-cream rounded-2xl p-6 text-center">
-            <p className="text-bark/40 text-sm">No flowers available this season.</p>
-          </div>
+            {/* Season collection header */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-base">{seasonEmoji}</span>
+              <h2 className="font-semibold text-bark text-sm">{seasonLabel} Collection</h2>
+              <span className="ml-auto text-xs text-bark/40">{FLOWER_PRICE} coins each</span>
+            </div>
+
+            {/* Flower grid */}
+            {seasonFlowers.length === 0 ? (
+              <div className="bg-cream rounded-2xl p-6 text-center">
+                <p className="text-bark/40 text-sm">No flowers available this season.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {seasonFlowers.map(([type, info]) => {
+                  const owned = ownedCount(type);
+                  const canAfford = coins >= FLOWER_PRICE;
+                  const bought = justBought === type;
+
+                  return (
+                    <div
+                      key={type}
+                      className="bg-cream rounded-2xl p-4 flex flex-col items-center gap-3"
+                    >
+                      <div className="relative">
+                        <SpriteSheet
+                          src={info.sheet ?? info.sprite}
+                          frame={1}
+                          frameSize={16}
+                          scale={4}
+                          shadow
+                        />
+                        {owned > 0 && (
+                          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-sage text-cream text-[10px] font-semibold rounded-full flex items-center justify-center">
+                            ×{owned}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-bark font-medium text-sm text-center leading-tight">
+                        {info.label}
+                      </p>
+
+                      <button
+                        onClick={() => handleBuy(type)}
+                        disabled={!canAfford}
+                        className={`w-full py-2 rounded-xl text-sm font-semibold transition-all ${
+                          bought
+                            ? 'bg-sage text-cream'
+                            : canAfford
+                              ? 'bg-terracotta text-cream hover:bg-terracotta/90 active:scale-95'
+                              : 'bg-bark/10 text-bark/30 cursor-not-allowed'
+                        }`}
+                      >
+                        {bought ? 'Added!' : `◎ ${FLOWER_PRICE}`}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <p className="text-center text-xs text-bark/30 mt-6 mb-24">
+              Collection refreshes each season
+            </p>
+          </>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {seasonFlowers.map(([type, info]) => {
-              const owned = ownedCount(type);
-              const canAfford = coins >= FLOWER_PRICE;
-              const bought = justBought === type;
-
-              return (
-                <div
-                  key={type}
-                  className="bg-cream rounded-2xl p-4 flex flex-col items-center gap-3"
-                >
-                  {/* Sprite preview at bloom frame */}
-                  <div className="relative">
-                    <SpriteSheet
-                      src={info.sheet ?? info.sprite}
-                      frame={1}
-                      frameSize={16}
-                      scale={4}
-                      shadow
-                    />
-                    {owned > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-sage text-cream text-[10px] font-semibold rounded-full flex items-center justify-center">
-                        ×{owned}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Name */}
-                  <p className="text-bark font-medium text-sm text-center leading-tight">
-                    {info.label}
-                  </p>
-
-                  {/* Buy button */}
-                  <button
-                    onClick={() => handleBuy(type)}
-                    disabled={!canAfford}
-                    className={`w-full py-2 rounded-xl text-sm font-semibold transition-all ${
-                      bought
-                        ? 'bg-sage text-cream'
-                        : canAfford
-                          ? 'bg-terracotta text-cream hover:bg-terracotta/90 active:scale-95'
-                          : 'bg-bark/10 text-bark/30 cursor-not-allowed'
-                    }`}
-                  >
-                    {bought ? 'Added!' : `◎ ${FLOWER_PRICE}`}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+          <ChallengesPanel />
         )}
-
-        <p className="text-center text-xs text-bark/30 mt-6">
-          Collection refreshes each season
-        </p>
       </div>
     </div>
   );

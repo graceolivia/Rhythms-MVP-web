@@ -467,7 +467,7 @@ const SEASON_LABEL: Record<string, string> = {
   spring: 'Spring', summer: 'Summer', fall: 'Fall', winter: 'Winter',
 };
 
-export function Challenges() {
+export function ChallengesPanel() {
   const navigate = useNavigate();
   const activeChallenges = useChallengeStore(s => s.activeChallenges);
   const plantChallenge = useChallengeStore(s => s.plantChallenge);
@@ -480,18 +480,15 @@ export function Challenges() {
   const usedPlots = [...new Set(growing.map(c => c.plotIndex))];
   const activeTemplateIds = new Set(growing.map(c => c.templateId));
 
-  // Available = not currently growing, matches current season or year-round, and either never bloomed or repeatable
   const available = CHALLENGE_TEMPLATES.filter(
     t => !activeTemplateIds.has(t.id)
       && (!t.season || t.season === currentSeason)
       && (t.repeatable || !activeChallenges.some(c => c.templateId === t.id && c.status === 'bloomed'))
   );
 
-  // Times completed per template (for repeatable badge)
   const completionCount = (templateId: string) =>
     activeChallenges.filter(c => c.templateId === templateId && c.status === 'bloomed').length;
 
-  // Completed challenges with their templates
   const completed = activeChallenges
     .filter(c => c.status === 'bloomed')
     .map(c => ({
@@ -500,11 +497,9 @@ export function Challenges() {
     }))
     .filter((x): x is { challenge: ActiveChallenge; template: ChallengeTemplate } => !!x.template);
 
-  // Group available by category
   const categories = Array.from(new Set(available.map(t => t.category)));
 
   const handlePlant = (template: ChallengeTemplate, customStepTitles?: string[], repeatInterval?: 'daily' | 'weekly') => {
-    // Find first available plot
     const nextPlot = [0, 1, 2, 3].find(i => !usedPlots.includes(i));
     if (nextPlot === undefined) return;
 
@@ -516,134 +511,123 @@ export function Challenges() {
   const noSlotsAvailable = usedPlots.length >= 4;
 
   return (
-    <div className="min-h-screen bg-parchment/30">
-      <div className="max-w-lg mx-auto p-4">
-        <header className="mb-4">
-          <h1 className="font-display text-2xl text-bark">Challenges</h1>
-          <p className="text-xs text-bark/50 mt-1">Plant a seed, grow a habit, bloom a flower</p>
-        </header>
+    <>
+      {/* Growing / Completed tab bar */}
+      <div className="flex gap-1 bg-cream rounded-lg p-1 mb-6">
+        <button
+          onClick={() => setTab('growing')}
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+            tab === 'growing'
+              ? 'bg-parchment text-bark shadow-sm'
+              : 'text-bark/40 hover:text-bark/60'
+          }`}
+        >
+          Growing{growing.length > 0 ? ` (${growing.length})` : ''}
+        </button>
+        <button
+          onClick={() => setTab('completed')}
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+            tab === 'completed'
+              ? 'bg-parchment text-bark shadow-sm'
+              : 'text-bark/40 hover:text-bark/60'
+          }`}
+        >
+          Completed{completed.length > 0 ? ` (${completed.length})` : ''}
+        </button>
+      </div>
 
-        {/* Tab bar */}
-        <div className="flex gap-1 bg-cream rounded-lg p-1 mb-6">
-          <button
-            onClick={() => setTab('growing')}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-              tab === 'growing'
-                ? 'bg-parchment text-bark shadow-sm'
-                : 'text-bark/40 hover:text-bark/60'
-            }`}
-          >
-            Growing{growing.length > 0 ? ` (${growing.length})` : ''}
-          </button>
-          <button
-            onClick={() => setTab('completed')}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-              tab === 'completed'
-                ? 'bg-parchment text-bark shadow-sm'
-                : 'text-bark/40 hover:text-bark/60'
-            }`}
-          >
-            Completed{completed.length > 0 ? ` (${completed.length})` : ''}
-          </button>
-        </div>
-
-        {tab === 'growing' ? (
-          <>
-            {/* Active Growing Challenges */}
-            {growing.length > 0 && (
-              <section className="mb-6">
-                <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-3">
-                  Growing ({growing.length}/4)
-                </h2>
-                <div className="space-y-3">
-                  {growing.map(c => (
-                    <ActiveChallengeCard key={c.id} challenge={c} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Available Challenges */}
+      {tab === 'growing' ? (
+        <>
+          {growing.length > 0 && (
             <section className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide">
-                  Available
-                </h2>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-sage/15 text-sage font-medium">
-                  {SEASON_LABEL[currentSeason]}
-                </span>
-              </div>
-              {categories.length === 0 ? (
-                <p className="text-sm text-bark/40 text-center py-4">You've tried them all!</p>
-              ) : (
-                <div className="space-y-4">
-                  {categories.map(category => (
-                    <div key={category}>
-                      <h3 className="text-xs font-medium text-bark/40 mb-2">
-                        {CATEGORY_LABEL[category] ?? category}
-                      </h3>
-                      <div className="space-y-2">
-                        {available
-                          .filter(t => t.category === category)
-                          .map(template => (
-                            <AvailableChallengeCard
-                              key={template.id}
-                              template={template}
-                              onTap={() => setSelectedTemplate(template)}
-                              timesCompleted={completionCount(template.id)}
-                            />
-                          ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          </>
-        ) : (
-          /* Completed tab */
-          <section className="mb-6">
-            {completed.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-sm text-bark/40">No bloomed challenges yet.</p>
-                <p className="text-xs text-bark/30 mt-1">Complete a challenge to see it here.</p>
-              </div>
-            ) : (
+              <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide mb-3">
+                Growing ({growing.length}/4)
+              </h2>
               <div className="space-y-3">
-                {completed.map(({ challenge, template }) => (
-                  <div
-                    key={challenge.id}
-                    className="bg-cream rounded-xl p-4 flex items-center gap-3 border border-bark/5"
-                  >
-                    {(() => {
-                      const info = FLOWER_CATALOG[template.flowerReward];
-                      return (
-                        <SpriteSheet
-                          src={info.sheet ?? info.sprite}
-                          frame={info.sheetBloomFrame ?? 0}
-                          frameSize={16}
-                          scale={2.5}
-                          shadow
-                        />
-                      );
-                    })()}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-bark truncate">{template.title}</p>
-                      <p className="text-xs text-bark/40">
-                        Bloomed {challenge.bloomedDate ?? ''}
-                      </p>
+                {growing.map(c => (
+                  <ActiveChallengeCard key={c.id} challenge={c} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-xs font-medium text-bark/50 uppercase tracking-wide">
+                Available
+              </h2>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-sage/15 text-sage font-medium">
+                {SEASON_LABEL[currentSeason]}
+              </span>
+            </div>
+            {categories.length === 0 ? (
+              <p className="text-sm text-bark/40 text-center py-4">You've tried them all!</p>
+            ) : (
+              <div className="space-y-4">
+                {categories.map(category => (
+                  <div key={category}>
+                    <h3 className="text-xs font-medium text-bark/40 mb-2">
+                      {CATEGORY_LABEL[category] ?? category}
+                    </h3>
+                    <div className="space-y-2">
+                      {available
+                        .filter(t => t.category === category)
+                        .map(template => (
+                          <AvailableChallengeCard
+                            key={template.id}
+                            template={template}
+                            onTap={() => setSelectedTemplate(template)}
+                            timesCompleted={completionCount(template.id)}
+                          />
+                        ))}
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </section>
-        )}
+        </>
+      ) : (
+        <section className="mb-6">
+          {completed.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-sm text-bark/40">No bloomed challenges yet.</p>
+              <p className="text-xs text-bark/30 mt-1">Complete a challenge to see it here.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {completed.map(({ challenge, template }) => (
+                <div
+                  key={challenge.id}
+                  className="bg-cream rounded-xl p-4 flex items-center gap-3 border border-bark/5"
+                >
+                  {(() => {
+                    const info = FLOWER_CATALOG[template.flowerReward];
+                    return (
+                      <SpriteSheet
+                        src={info.sheet ?? info.sprite}
+                        frame={info.sheetBloomFrame ?? 0}
+                        frameSize={16}
+                        scale={2.5}
+                        shadow
+                      />
+                    );
+                  })()}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-bark truncate">{template.title}</p>
+                    <p className="text-xs text-bark/40">
+                      Bloomed {challenge.bloomedDate ?? ''}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
-        <div className="h-20" />
-      </div>
+      <div className="h-20" />
 
-      {/* Challenge Detail Modal */}
       {selectedTemplate && (
         <ChallengeDetailModal
           template={selectedTemplate}
@@ -653,6 +637,6 @@ export function Challenges() {
           noSlotsAvailable={noSlotsAvailable}
         />
       )}
-    </div>
+    </>
   );
 }

@@ -12,7 +12,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Today', icon: '○', activeIcon: '●' },
-  { to: '/challenges', label: 'Challenges', icon: '🌱', activeIcon: '🌱' },
+  { to: '/collections', label: 'Collections', icon: '◻', activeIcon: '◼' },
   { to: '/tasks', label: 'Tasks', icon: '◠', activeIcon: '☽' },
   { to: '/shop', label: 'Shop', icon: '◎', activeIcon: '◎' },
   { to: '/settings', label: 'Settings', icon: '⚙', activeIcon: '⚙' },

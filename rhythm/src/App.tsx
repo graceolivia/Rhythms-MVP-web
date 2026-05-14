@@ -7,7 +7,6 @@ import { Tasks } from './screens/Tasks';
 import { Garden } from './screens/Garden';
 import { Collections } from './screens/Collections';
 import { Shop } from './screens/Shop';
-import { Challenges } from './screens/Challenges';
 import { Settings } from './screens/Settings';
 import { CharacterCreator } from './screens/CharacterCreator';
 import { useTutorialStore } from './stores/useTutorialStore';
@@ -75,7 +74,7 @@ function AppContent() {
         <Route path="/garden" element={<Garden />} />
         <Route path="/collections" element={<Collections />} />
         <Route path="/shop" element={<Shop />} />
-        <Route path="/challenges" element={<Challenges />} />
+        <Route path="/challenges" element={<Navigate to="/shop" replace />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
       <BottomNav dimmed={!tutorialComplete} />
