@@ -325,6 +325,7 @@ export function Tasks() {
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
+  const [todoTab, setTodoTab] = useState<'active' | 'completed'>('active');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['todos']));
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastFading, setToastFading] = useState(false);
@@ -384,6 +385,22 @@ export function Tasks() {
     return map;
   }, [taskInstances]);
 
+  // Lifetime history: every to-do that has ever been completed at least once,
+  // with its most recent completion timestamp. Completed instances persist in
+  // storage and are never pruned, so this is a reliable "ever done" record.
+  const completedHistory = useMemo(() => {
+    const latest = new Map<string, string>();
+    for (const i of taskInstances) {
+      if (i.status !== 'completed' || !i.completedAt) continue;
+      const existing = latest.get(i.taskId);
+      if (!existing || i.completedAt > existing) latest.set(i.taskId, i.completedAt);
+    }
+    return tasks
+      .filter(t => t.tier === 'todo' && latest.has(t.id))
+      .map(t => ({ task: t, completedAt: latest.get(t.id)! }))
+      .sort((a, b) => (a.completedAt < b.completedAt ? 1 : -1));
+  }, [tasks, taskInstances]);
+
   const handleAddTask = (taskData: TaskInput) => {
     addTask(taskData);
   };
@@ -423,7 +440,35 @@ export function Tasks() {
           </button>
           {expandedSections.has('todos') && (
             <div className="mt-2">
-              {todos.length === 0 ? (
+              <div className="flex gap-1 mb-3 p-0.5 rounded-lg bg-bark/5">
+                <button
+                  onClick={() => setTodoTab('active')}
+                  className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${todoTab === 'active' ? 'bg-skyblue/20 text-skyblue' : 'text-bark/50 hover:text-bark/70'}`}
+                >
+                  Active <span className="font-normal">({todos.length})</span>
+                </button>
+                <button
+                  onClick={() => setTodoTab('completed')}
+                  className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${todoTab === 'completed' ? 'bg-sage/20 text-sage' : 'text-bark/50 hover:text-bark/70'}`}
+                >
+                  Completed <span className="font-normal">({completedHistory.length})</span>
+                </button>
+              </div>
+              {todoTab === 'completed' ? (
+                completedHistory.length === 0 ? (
+                  <p className="text-sm text-bark/40 italic py-2 px-3">Nothing completed yet</p>
+                ) : (
+                  <div className="space-y-2">
+                    {completedHistory.map(({ task, completedAt }) => (
+                      <div key={task.id} className="flex items-center gap-2 p-3 rounded-lg border bg-sage/5 border-sage/15">
+                        <span className="text-sage text-sm flex-shrink-0">✓</span>
+                        <span className="flex-1 text-sm text-bark/60 truncate">{getTaskDisplayTitle(task, getChild)}</span>
+                        <span className="text-xs text-bark/35 flex-shrink-0">{format(parseISO(completedAt), 'MMM d')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : todos.length === 0 ? (
                 <p className="text-sm text-bark/40 italic py-2 px-3">No to-dos yet</p>
               ) : (
                 <>
