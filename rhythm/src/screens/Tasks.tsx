@@ -495,7 +495,6 @@ export function Tasks() {
                       .filter(t => !todayTaskIds.has(t.id) && !overdueIds.has(t.id) && (taskScheduledDates.get(t.id) ?? '') > today)
                       .sort((a, b) => (taskScheduledDates.get(a.id)! < taskScheduledDates.get(b.id)! ? -1 : 1));
                     const noDate = activeTodos.filter(t => !todayTaskIds.has(t.id) && !overdueIds.has(t.id) && !((taskScheduledDates.get(t.id) ?? '') > today));
-                    const completedToday = todos.filter(t => completedTodayIds.has(t.id));
 
                     // Group upcoming by date
                     const upcomingByDate: { dateStr: string; tasks: typeof todos }[] = [];
@@ -582,19 +581,6 @@ export function Tasks() {
                             <div className="space-y-2">
                               {noDate.map(task => (
                                 <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {completedToday.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-bark/10">
-                            <p className="text-xs font-semibold text-bark/30 uppercase tracking-wide px-1 mb-1.5">✓ Done today</p>
-                            <div className="space-y-2">
-                              {completedToday.map(task => (
-                                <div key={task.id} className="flex items-center gap-2 p-3 rounded-lg border bg-sage/5 border-sage/15 opacity-60">
-                                  <span className="text-sage text-sm">✓</span>
-                                  <span className="flex-1 text-sm text-bark/50 line-through">{getTaskDisplayTitle(task, getChild)}</span>
-                                </div>
                               ))}
                             </div>
                           </div>
