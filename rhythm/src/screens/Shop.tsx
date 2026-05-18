@@ -194,7 +194,7 @@ export function Shop() {
 
                 return (
                   <div key={item.id} className="bg-cream rounded-2xl p-4 flex flex-col items-center gap-3">
-                    <div className="relative">
+                    <div className="relative flex items-end justify-center" style={{ height: 64 }}>
                       <SpriteSheet
                         src={item.src}
                         frame={frame}

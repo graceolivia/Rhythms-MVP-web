@@ -21,7 +21,7 @@ export const DECOR_CATALOG: readonly DecorItem[] = [
     price: 20,
     src: gnomeSprite,
     frameSize: 16,
-    shopScale: 4,
+    shopScale: 2,
     frames: 1,
     gridCols: 1,
     gridRows: 1,
