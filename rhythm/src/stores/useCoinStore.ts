@@ -7,6 +7,7 @@ interface CoinState {
   bonusEarnedDate: string | null;
   pendingBonus: boolean;
   earnCoin: () => void;
+  addCoins: (amount: number) => void;
   spendCoins: (amount: number) => boolean;
   earnDailyBonus: () => void;
   clearPendingBonus: () => void;
@@ -19,6 +20,7 @@ export const useCoinStore = create<CoinState>()(
       bonusEarnedDate: null,
       pendingBonus: false,
       earnCoin: () => set((state) => ({ coins: state.coins + 1 })),
+      addCoins: (amount) => set((state) => ({ coins: state.coins + amount })),
       spendCoins: (amount) => {
         if (get().coins < amount) return false;
         set((state) => ({ coins: state.coins - amount }));

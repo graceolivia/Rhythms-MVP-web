@@ -167,6 +167,7 @@ interface GardenState extends Garden {
   placeFlower: (col: number, row: number) => boolean;
   autoPlaceFlower: (flowerId: string, flowerType: FlowerType, col: number, row: number) => void;
   tickAllFlowers: () => void;
+  bloomAllFlowers: () => void;
   removeFlowerFromGrid: (placedId: string) => void;
   moveFlower: (placedId: string, newCol: number, newRow: number) => boolean;
   startMoving: (placedId: string) => void;
@@ -353,6 +354,15 @@ export const useGardenStore = create<GardenState>()(
               ? { ...f, growthTicks: (f.growthTicks ?? 0) + 1 }
               : f
           ),
+        }));
+      },
+
+      bloomAllFlowers: () => {
+        set((state) => ({
+          flowers: state.flowers.map((f) => ({
+            ...f,
+            growthTicks: FLOWER_CATALOG[f.type]?.sheetBloomFrame ?? 4,
+          })),
         }));
       },
 
