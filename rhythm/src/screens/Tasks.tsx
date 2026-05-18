@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { useTaskStore, getTaskDisplayTitle } from '../stores/useTaskStore';
 import { useChildStore } from '../stores/useChildStore';
-import type { Task, TaskInput } from '../types';
+import type { Task, TaskInput, TaskInstance } from '../types';
 
 
 function formatTime12(time: string): string {
@@ -308,6 +308,13 @@ function NewTaskModal({ onClose, onAdd, children }: NewTaskModalProps) {
   );
 }
 
+function formatCompletedDate(dateStr: string): string {
+  const dateObj = parseISO(dateStr);
+  if (isToday(dateObj)) return 'Today';
+  if (isYesterday(dateObj)) return 'Yesterday';
+  return format(dateObj, 'EEE, MMM d');
+}
+
 export function Tasks() {
   const tasks = useTaskStore((state) => state.tasks);
   const taskInstances = useTaskStore((state) => state.taskInstances);
@@ -325,10 +332,10 @@ export function Tasks() {
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
-  const [todoTab, setTodoTab] = useState<'active' | 'completed'>('active');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['todos']));
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastFading, setToastFading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'todos' | 'completed'>('todos');
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -385,258 +392,304 @@ export function Tasks() {
     return map;
   }, [taskInstances]);
 
-  // Lifetime history: every to-do that has ever been completed at least once,
-  // with its most recent completion timestamp. Completed instances persist in
-  // storage and are never pruned, so this is a reliable "ever done" record.
-  const completedHistory = useMemo(() => {
-    const latest = new Map<string, string>();
+  // Todo tasks that have been completed at some point but have no pending instances.
+  // These are "fully done" and belong on the Completed tab, not the active list.
+  const fullyCompletedTaskIds = useMemo(() => {
+    const todoTaskIds = new Set(todos.map(t => t.id));
+    const withCompleted = new Set<string>();
+    const withPending = new Set<string>();
     for (const i of taskInstances) {
-      if (i.status !== 'completed' || !i.completedAt) continue;
-      const existing = latest.get(i.taskId);
-      if (!existing || i.completedAt > existing) latest.set(i.taskId, i.completedAt);
+      if (!todoTaskIds.has(i.taskId)) continue;
+      if (i.status === 'completed') withCompleted.add(i.taskId);
+      if (i.status === 'pending') withPending.add(i.taskId);
     }
-    return tasks
-      .filter(t => t.tier === 'todo' && latest.has(t.id))
-      .map(t => ({ task: t, completedAt: latest.get(t.id)! }))
-      .sort((a, b) => (a.completedAt < b.completedAt ? 1 : -1));
-  }, [tasks, taskInstances]);
+    return new Set([...withCompleted].filter(id => !withPending.has(id)));
+  }, [todos, taskInstances]);
+
+  // Completed instances for the Completed tab, grouped by date (most recent first)
+  const completedByDate = useMemo(() => {
+    const todoTaskIds = new Set(todos.map(t => t.id));
+    const instances: Array<{ instance: TaskInstance; task: Task }> = taskInstances
+      .filter(i => todoTaskIds.has(i.taskId) && i.status === 'completed')
+      .sort((a, b) => b.date.localeCompare(a.date) || (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
+      .flatMap(i => {
+        const task = todos.find(t => t.id === i.taskId);
+        return task ? [{ instance: i, task }] : [];
+      });
+
+    const groups: { date: string; items: Array<{ instance: TaskInstance; task: Task }> }[] = [];
+    for (const item of instances) {
+      const last = groups[groups.length - 1];
+      if (last && last.date === item.instance.date) last.items.push(item);
+      else groups.push({ date: item.instance.date, items: [item] });
+    }
+    return groups;
+  }, [todos, taskInstances]);
+
+  const totalCompleted = completedByDate.reduce((sum, g) => sum + g.items.length, 0);
 
   const handleAddTask = (taskData: TaskInput) => {
     addTask(taskData);
   };
 
+  const activeTodoCount = todos.filter(t => !fullyCompletedTaskIds.has(t.id)).length;
+
   return (
     <div className="min-h-screen bg-cream">
       <div className="max-w-lg mx-auto p-4 pb-24">
-        <header className="mb-6">
+        <header className="mb-4">
           <h1 className="font-display text-2xl text-bark">Tasks</h1>
           <p className="text-bark/60 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
         </header>
 
-        {/* To-dos */}
-        <section className="mb-3">
+        {/* Tab switcher */}
+        <div className="flex gap-1 mb-5 bg-bark/5 p-1 rounded-xl">
           <button
-            onClick={() => toggleSection('todos')}
-            className="w-full flex items-center justify-between p-3 rounded-lg bg-skyblue/5 hover:bg-skyblue/10 transition-colors"
+            onClick={() => setActiveTab('todos')}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'todos'
+                ? 'bg-cream text-bark shadow-sm'
+                : 'text-bark/50 hover:text-bark/70'
+            }`}
           >
-            <h2 className="font-medium text-skyblue flex items-center gap-2">
-              <span className="emoji-icon">🌱</span> To-dos
-              <span className="text-xs text-bark/40 font-normal">({todos.length})</span>
-            </h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowNewTask(true); }}
-                className="text-xs px-2 py-1 rounded-lg bg-skyblue/10 text-skyblue hover:bg-skyblue/20"
-              >
-                + Add
-              </button>
-              <svg
-                className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('todos') ? 'rotate-180' : ''}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
+            To-dos
           </button>
-          {expandedSections.has('todos') && (
-            <div className="mt-2">
-              <div className="flex gap-1 mb-3 p-0.5 rounded-lg bg-bark/5">
-                <button
-                  onClick={() => setTodoTab('active')}
-                  className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${todoTab === 'active' ? 'bg-skyblue/20 text-skyblue' : 'text-bark/50 hover:text-bark/70'}`}
+          <button
+            onClick={() => setActiveTab('completed')}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'completed'
+                ? 'bg-cream text-bark shadow-sm'
+                : 'text-bark/50 hover:text-bark/70'
+            }`}
+          >
+            Completed{totalCompleted > 0 && <span className="ml-1 text-xs opacity-50">({totalCompleted})</span>}
+          </button>
+        </div>
+
+        {activeTab === 'todos' && (
+          <>
+            {/* To-dos */}
+            <section className="mb-3">
+              <button
+                onClick={() => toggleSection('todos')}
+                className="w-full flex items-center justify-between p-3 rounded-lg bg-skyblue/5 hover:bg-skyblue/10 transition-colors"
+              >
+                <h2 className="font-medium text-skyblue flex items-center gap-2">
+                  <span className="emoji-icon">🌱</span> To-dos
+                  <span className="text-xs text-bark/40 font-normal">({activeTodoCount})</span>
+                </h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowNewTask(true); }}
+                    className="text-xs px-2 py-1 rounded-lg bg-skyblue/10 text-skyblue hover:bg-skyblue/20"
+                  >
+                    + Add
+                  </button>
+                  <svg
+                    className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('todos') ? 'rotate-180' : ''}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </button>
+              {expandedSections.has('todos') && (
+                <div className="mt-2">
+                  {activeTodoCount === 0 ? (
+                    <p className="text-sm text-bark/40 italic py-2 px-3">No to-dos yet</p>
+                  ) : (
+                    <>
+                      {(() => {
+                        const activeTodos = todos.filter(t => !fullyCompletedTaskIds.has(t.id) && !completedTodayIds.has(t.id));
+
+                        // A task is overdue if it has a past pending date, OR a deferred instance
+                        // with a past date (generateDailyInstances converts yesterday's pending → deferred).
+                        // Pending future dates (upcoming) always win over deferred past dates.
+                        const getOverdueDate = (taskId: string): string | undefined => {
+                          const pendingDate = taskScheduledDates.get(taskId);
+                          if (pendingDate && pendingDate < today) return pendingDate;
+                          if (pendingDate) return undefined; // pending future date — not overdue
+                          const deferred = taskInstances.find(i => i.taskId === taskId && i.status === 'deferred' && i.date < today);
+                          return deferred?.date;
+                        };
+
+                        const overdue = activeTodos
+                          .filter(t => !todayTaskIds.has(t.id) && !!getOverdueDate(t.id))
+                          .sort((a, b) => (getOverdueDate(a.id)! < getOverdueDate(b.id)! ? -1 : 1));
+                        const overdueIds = new Set(overdue.map(t => t.id));
+                        const dueToday = activeTodos.filter(t => todayTaskIds.has(t.id));
+                        const upcoming = activeTodos
+                          .filter(t => !todayTaskIds.has(t.id) && !overdueIds.has(t.id) && (taskScheduledDates.get(t.id) ?? '') > today)
+                          .sort((a, b) => (taskScheduledDates.get(a.id)! < taskScheduledDates.get(b.id)! ? -1 : 1));
+                        const noDate = activeTodos.filter(t => !todayTaskIds.has(t.id) && !overdueIds.has(t.id) && !((taskScheduledDates.get(t.id) ?? '') > today));
+                        const completedToday = todos.filter(t => completedTodayIds.has(t.id));
+
+                        // Group upcoming by date
+                        const upcomingByDate: { dateStr: string; tasks: typeof todos }[] = [];
+                        for (const task of upcoming) {
+                          const d = taskScheduledDates.get(task.id)!;
+                          const last = upcomingByDate[upcomingByDate.length - 1];
+                          if (last && last.dateStr === d) last.tasks.push(task);
+                          else upcomingByDate.push({ dateStr: d, tasks: [task] });
+                        }
+
+                        return (
+                          <>
+                            {overdue.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-xs font-semibold text-terracotta/70 uppercase tracking-wide px-1 mb-1.5">Overdue</p>
+                                <div className="space-y-2">
+                                  {overdue.map(task => (
+                                    <div key={task.id} className="flex items-center gap-2 p-3 rounded-lg border bg-terracotta/5 border-terracotta/20">
+                                      <button onClick={() => setEditingTask(task)} className="flex-1 text-left min-w-0">
+                                        <h3 className="font-medium text-bark truncate">{getTaskDisplayTitle(task, getChild)}</h3>
+                                        <p className="text-xs text-terracotta/70 mt-0.5">{format(parseISO(getOverdueDate(task.id)!), 'EEE, MMM d')}</p>
+                                      </button>
+                                      <button
+                                        onClick={() => scheduleForToday(task.id)}
+                                        className="text-xs px-2.5 py-1.5 rounded-lg bg-terracotta text-cream font-semibold hover:bg-terracotta/90 transition-colors flex-shrink-0"
+                                      >
+                                        Do today
+                                      </button>
+                                      <button onClick={() => deleteTask(task.id)} className="p-1 rounded-lg text-bark/25 hover:text-red-400 transition-colors flex-shrink-0">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {dueToday.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Due today</p>
+                                <div className="space-y-2">
+                                  {dueToday.map(task => (
+                                    <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {upcoming.length > 0 && (
+                              <div className="mb-3">
+                                <button
+                                  onClick={() => toggleSection('tray')}
+                                  className="w-full flex items-center justify-between px-1 mb-1.5"
+                                >
+                                  <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide">
+                                    Tray <span className="font-normal">({upcoming.length})</span>
+                                  </p>
+                                  <svg
+                                    className={`w-4 h-4 text-bark/30 transition-transform ${expandedSections.has('tray') ? 'rotate-180' : ''}`}
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                                {expandedSections.has('tray') && (
+                                  <>
+                                    {upcomingByDate.map(({ dateStr, tasks: trayTasks }) => (
+                                      <div key={dateStr} className="mb-2">
+                                        <p className="text-xs text-bark/30 px-1 mb-1">{format(parseISO(dateStr), 'EEE, MMM d')}</p>
+                                        <div className="space-y-2">
+                                          {trayTasks.map(task => (
+                                            <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                            {noDate.length > 0 && (
+                              <div className="mb-2">
+                                <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">No date</p>
+                                <div className="space-y-2">
+                                  {noDate.map(task => (
+                                    <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {completedToday.length > 0 && (
+                              <div className="mt-4 pt-3 border-t border-bark/10">
+                                <p className="text-xs font-semibold text-bark/30 uppercase tracking-wide px-1 mb-1.5">✓ Done today</p>
+                                <div className="space-y-2">
+                                  {completedToday.map(task => (
+                                    <div key={task.id} className="flex items-center gap-2 p-3 rounded-lg border bg-sage/5 border-sage/15 opacity-60">
+                                      <span className="text-sage text-sm">✓</span>
+                                      <span className="flex-1 text-sm text-bark/50 line-through">{getTaskDisplayTitle(task, getChild)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* Challenges */}
+            <section className="mb-3">
+              <button
+                onClick={() => toggleSection('challenges')}
+                className="w-full flex items-center justify-between p-3 rounded-lg bg-dustyrose/5 hover:bg-dustyrose/10 transition-colors"
+              >
+                <h2 className="font-medium text-dustyrose flex items-center gap-2">
+                  <span className="emoji-icon">⭐</span> Challenges
+                  <span className="text-xs text-bark/40 font-normal">Coming soon</span>
+                </h2>
+                <svg
+                  className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('challenges') ? 'rotate-180' : ''}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                 >
-                  Active <span className="font-normal">({todos.length})</span>
-                </button>
-                <button
-                  onClick={() => setTodoTab('completed')}
-                  className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${todoTab === 'completed' ? 'bg-sage/20 text-sage' : 'text-bark/50 hover:text-bark/70'}`}
-                >
-                  Completed <span className="font-normal">({completedHistory.length})</span>
-                </button>
-              </div>
-              {todoTab === 'completed' ? (
-                completedHistory.length === 0 ? (
-                  <p className="text-sm text-bark/40 italic py-2 px-3">Nothing completed yet</p>
-                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedSections.has('challenges') && (
+                <div className="mt-2 p-4 rounded-lg bg-parchment/50">
+                  <p className="text-sm text-bark/70 leading-relaxed mb-2">
+                    Challenges are curated habit stacks that teach rhythms that actually work for SAHM life.
+                  </p>
+                  <p className="text-sm text-bark/70 leading-relaxed">
+                    Completing a Challenge earns a special flower for your garden.
+                  </p>
+                  <p className="text-xs text-bark/40 italic mt-3">Coming soon...</p>
+                </div>
+              )}
+            </section>
+          </>
+        )}
+
+        {activeTab === 'completed' && (
+          <div>
+            {completedByDate.length === 0 ? (
+              <p className="text-sm text-bark/40 italic py-8 text-center">No completed to-dos yet</p>
+            ) : (
+              completedByDate.map(({ date, items }) => (
+                <div key={date} className="mb-5">
+                  <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">
+                    {formatCompletedDate(date)}
+                  </p>
                   <div className="space-y-2">
-                    {completedHistory.map(({ task, completedAt }) => (
-                      <div key={task.id} className="flex items-center gap-2 p-3 rounded-lg border bg-sage/5 border-sage/15">
+                    {items.map(({ instance, task }) => (
+                      <div key={instance.id} className="flex items-center gap-2 p-3 rounded-lg border bg-sage/5 border-sage/15">
                         <span className="text-sage text-sm flex-shrink-0">✓</span>
-                        <span className="flex-1 text-sm text-bark/60 truncate">{getTaskDisplayTitle(task, getChild)}</span>
-                        <span className="text-xs text-bark/35 flex-shrink-0">{format(parseISO(completedAt), 'MMM d')}</span>
+                        <span className="flex-1 text-sm text-bark/60 line-through">{getTaskDisplayTitle(task, getChild)}</span>
                       </div>
                     ))}
                   </div>
-                )
-              ) : todos.length === 0 ? (
-                <p className="text-sm text-bark/40 italic py-2 px-3">No to-dos yet</p>
-              ) : (
-                <>
-                  {(() => {
-                    const activeTodos = todos.filter(t => !completedTodayIds.has(t.id));
-
-                    // A task is overdue if it has a past pending date, OR a deferred instance
-                    // with a past date (generateDailyInstances converts yesterday's pending → deferred).
-                    // Pending future dates (upcoming) always win over deferred past dates.
-                    const getOverdueDate = (taskId: string): string | undefined => {
-                      const pendingDate = taskScheduledDates.get(taskId);
-                      if (pendingDate && pendingDate < today) return pendingDate;
-                      if (pendingDate) return undefined; // pending future date — not overdue
-                      const deferred = taskInstances.find(i => i.taskId === taskId && i.status === 'deferred' && i.date < today);
-                      return deferred?.date;
-                    };
-
-                    const overdue = activeTodos
-                      .filter(t => !todayTaskIds.has(t.id) && !!getOverdueDate(t.id))
-                      .sort((a, b) => (getOverdueDate(a.id)! < getOverdueDate(b.id)! ? -1 : 1));
-                    const overdueIds = new Set(overdue.map(t => t.id));
-                    const dueToday = activeTodos.filter(t => todayTaskIds.has(t.id));
-                    const upcoming = activeTodos
-                      .filter(t => !todayTaskIds.has(t.id) && !overdueIds.has(t.id) && (taskScheduledDates.get(t.id) ?? '') > today)
-                      .sort((a, b) => (taskScheduledDates.get(a.id)! < taskScheduledDates.get(b.id)! ? -1 : 1));
-                    const noDate = activeTodos.filter(t => !todayTaskIds.has(t.id) && !overdueIds.has(t.id) && !((taskScheduledDates.get(t.id) ?? '') > today));
-                    const completedToday = todos.filter(t => completedTodayIds.has(t.id));
-
-                    // Group upcoming by date
-                    const upcomingByDate: { dateStr: string; tasks: typeof todos }[] = [];
-                    for (const task of upcoming) {
-                      const d = taskScheduledDates.get(task.id)!;
-                      const last = upcomingByDate[upcomingByDate.length - 1];
-                      if (last && last.dateStr === d) last.tasks.push(task);
-                      else upcomingByDate.push({ dateStr: d, tasks: [task] });
-                    }
-
-                    return (
-                      <>
-                        {overdue.length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-xs font-semibold text-terracotta/70 uppercase tracking-wide px-1 mb-1.5">Overdue</p>
-                            <div className="space-y-2">
-                              {overdue.map(task => (
-                                <div key={task.id} className="flex items-center gap-2 p-3 rounded-lg border bg-terracotta/5 border-terracotta/20">
-                                  <button onClick={() => setEditingTask(task)} className="flex-1 text-left min-w-0">
-                                    <h3 className="font-medium text-bark truncate">{getTaskDisplayTitle(task, getChild)}</h3>
-                                    <p className="text-xs text-terracotta/70 mt-0.5">{format(parseISO(getOverdueDate(task.id)!), 'EEE, MMM d')}</p>
-                                  </button>
-                                  <button
-                                    onClick={() => scheduleForToday(task.id)}
-                                    className="text-xs px-2.5 py-1.5 rounded-lg bg-terracotta text-cream font-semibold hover:bg-terracotta/90 transition-colors flex-shrink-0"
-                                  >
-                                    Do today
-                                  </button>
-                                  <button onClick={() => deleteTask(task.id)} className="p-1 rounded-lg text-bark/25 hover:text-red-400 transition-colors flex-shrink-0">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {dueToday.length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">Due today</p>
-                            <div className="space-y-2">
-                              {dueToday.map(task => (
-                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {upcoming.length > 0 && (
-                          <div className="mb-3">
-                            <button
-                              onClick={() => toggleSection('tray')}
-                              className="w-full flex items-center justify-between px-1 mb-1.5"
-                            >
-                              <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide">
-                                Tray <span className="font-normal">({upcoming.length})</span>
-                              </p>
-                              <svg
-                                className={`w-4 h-4 text-bark/30 transition-transform ${expandedSections.has('tray') ? 'rotate-180' : ''}`}
-                                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-                            {expandedSections.has('tray') && (
-                              <>
-                                {upcomingByDate.map(({ dateStr, tasks: trayTasks }) => (
-                                  <div key={dateStr} className="mb-2">
-                                    <p className="text-xs text-bark/30 px-1 mb-1">{format(parseISO(dateStr), 'EEE, MMM d')}</p>
-                                    <div className="space-y-2">
-                                      {trayTasks.map(task => (
-                                        <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </>
-                            )}
-                          </div>
-                        )}
-                        {noDate.length > 0 && (
-                          <div className="mb-2">
-                            <p className="text-xs font-semibold text-bark/40 uppercase tracking-wide px-1 mb-1.5">No date</p>
-                            <div className="space-y-2">
-                              {noDate.map(task => (
-                                <TaskItem key={task.id} task={task} onClick={() => setEditingTask(task)} onDoToday={() => scheduleForToday(task.id)} onDelete={() => deleteTask(task.id)} isScheduledToday={todayTaskIds.has(task.id)} getChild={getChild} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {completedToday.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-bark/10">
-                            <p className="text-xs font-semibold text-bark/30 uppercase tracking-wide px-1 mb-1.5">✓ Done today</p>
-                            <div className="space-y-2">
-                              {completedToday.map(task => (
-                                <div key={task.id} className="flex items-center gap-2 p-3 rounded-lg border bg-sage/5 border-sage/15 opacity-60">
-                                  <span className="text-sage text-sm">✓</span>
-                                  <span className="flex-1 text-sm text-bark/50 line-through">{getTaskDisplayTitle(task, getChild)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* Challenges */}
-        <section className="mb-3">
-          <button
-            onClick={() => toggleSection('challenges')}
-            className="w-full flex items-center justify-between p-3 rounded-lg bg-dustyrose/5 hover:bg-dustyrose/10 transition-colors"
-          >
-            <h2 className="font-medium text-dustyrose flex items-center gap-2">
-              <span className="emoji-icon">⭐</span> Challenges
-              <span className="text-xs text-bark/40 font-normal">Coming soon</span>
-            </h2>
-            <svg
-              className={`w-5 h-5 text-bark/40 transition-transform ${expandedSections.has('challenges') ? 'rotate-180' : ''}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {expandedSections.has('challenges') && (
-            <div className="mt-2 p-4 rounded-lg bg-parchment/50">
-              <p className="text-sm text-bark/70 leading-relaxed mb-2">
-                Challenges are curated habit stacks that teach rhythms that actually work for SAHM life.
-              </p>
-              <p className="text-sm text-bark/70 leading-relaxed">
-                Completing a Challenge earns a special flower for your garden.
-              </p>
-              <p className="text-xs text-bark/40 italic mt-3">Coming soon...</p>
-            </div>
-          )}
-        </section>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Edit modal */}

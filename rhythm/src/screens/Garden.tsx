@@ -7,6 +7,9 @@ import {
   FLOWER_CATALOG,
   getCurrentSeason,
 } from '../stores/useGardenStore';
+import { useDecorationStore } from '../stores/useDecorationStore';
+import { DECOR_CATALOG } from '../data/decorations';
+import { useAnimatedFrame } from '../hooks/useAnimatedFrame';
 import { SpriteSheet } from '../components/garden/SpriteSheet';
 import type { FlowerType } from '../types';
 import cottageSprite from '../assets/cottage_scene/cottage3_resize.png';
@@ -67,9 +70,16 @@ function FlowerSpriteByType({ type }: { type: FlowerType }) {
 function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: FlowerType) => void }) {
   const flowers = useGardenStore((s) => s.flowers);
   const placedFlowers = useGardenStore((s) => s.placedFlowers);
+  const placedDecorations = useGardenStore((s) => s.placedDecorations);
   const selectedFlowerType = useGardenStore((s) => s.selectedFlowerType);
+  const selectedDecorId = useGardenStore((s) => s.selectedDecorId);
   const selectFlowerType = useGardenStore((s) => s.selectFlowerType);
+  const selectDecor = useGardenStore((s) => s.selectDecor);
   const setMode = useGardenStore((s) => s.setMode);
+  const getDecorCount = useDecorationStore((s) => s.getCount);
+
+  const paletteFountainFrame = useAnimatedFrame(4);
+
   const placedFlowerIds = useMemo(
     () => new Set(placedFlowers.map((p) => p.flowerId)),
     [placedFlowers]
@@ -105,7 +115,15 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
 
   const totalAvailable = Object.values(availableByType).reduce((a, b) => a + b, 0);
 
-  const handleSelect = (type: FlowerType) => {
+  // Available decorations = owned - already placed
+  const decorItems = useMemo(() =>
+    DECOR_CATALOG.map((d) => ({
+      ...d,
+      available: getDecorCount(d.id) - placedDecorations.filter(p => p.decorId === d.id).length,
+    })).filter((d) => d.available > 0),
+  [placedDecorations, getDecorCount]);
+
+  const handleSelectFlower = (type: FlowerType) => {
     selectFlowerType(type);
     setMode('place');
   };
@@ -119,8 +137,8 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex justify-between items-center border-b border-bark/10">
         <div>
-          <h2 className="font-display text-lg text-bark">Flower Palette</h2>
-          <p className="text-xs text-bark/50">{totalAvailable} flowers to place</p>
+          <h2 className="font-display text-lg text-bark">Palette</h2>
+          <p className="text-xs text-bark/50">{totalAvailable} flowers · {decorItems.length} decorations</p>
         </div>
         {selectedFlowerType && availableByType[selectedFlowerType] && (
           <div className="flex items-center gap-1 text-sm">
@@ -128,16 +146,27 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
             <span className="text-sage font-semibold">×{availableByType[selectedFlowerType]}</span>
           </div>
         )}
+        {selectedDecorId && (() => {
+          const item = DECOR_CATALOG.find(d => d.id === selectedDecorId);
+          const avail = decorItems.find(d => d.id === selectedDecorId)?.available ?? 0;
+          return item && avail > 0 ? (
+            <div className="flex items-center gap-1.5 text-sm">
+              <SpriteSheet src={item.src} frame={0} frameSize={item.frameSize} scale={2} shadow />
+              <span className="text-sage font-semibold">×{avail}</span>
+            </div>
+          ) : null;
+        })()}
       </div>
 
-      {/* Flower Grid */}
-      <div className="px-4 py-4 max-h-[200px] overflow-y-auto pb-20">
-        {totalAvailable === 0 ? (
+      {/* Palette contents */}
+      <div className="px-4 py-4 max-h-[220px] overflow-y-auto pb-20">
+        {totalAvailable === 0 && decorItems.length === 0 ? (
           <p className="text-center text-bark/50 text-sm py-4">
-            No {activeSeason} flowers yet — visit the Shop!
+            Nothing to place yet — visit the Shop!
           </p>
         ) : (
           <>
+            {/* Seeds */}
             {Object.values(seedsByType).some(c => c > 0) && (
               <>
                 <p className="text-[10px] font-semibold text-bark/40 uppercase tracking-wide mb-2">🌱 Seeds</p>
@@ -150,8 +179,8 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
                       <button
                         key={`seed-${type}`}
                         draggable
-                        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', `palette:${type}`); handleSelect(type); onFlowerDragStart?.(type); }}
-                        onClick={() => handleSelect(type)}
+                        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', `palette:${type}`); handleSelectFlower(type); onFlowerDragStart?.(type); }}
+                        onClick={() => handleSelectFlower(type)}
                         className={`flex flex-col items-center justify-center rounded-xl transition-all duration-200 border-2 p-2 ${isSelected ? 'border-sage bg-sage/20 scale-105' : 'border-transparent bg-parchment hover:bg-linen hover:scale-105'}`}
                       >
                         <SpriteSheet src={FLOWER_CATALOG[type].sheet ?? FLOWER_CATALOG[type].sprite} frame={1} frameSize={16} scale={2} shadow />
@@ -163,10 +192,11 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
                 </div>
               </>
             )}
+            {/* Bloomed */}
             {Object.values(bloomsByType).some(c => c > 0) && (
               <>
                 <p className="text-[10px] font-semibold text-bark/40 uppercase tracking-wide mb-2">🌸 Bloomed</p>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-5 gap-2 mb-4">
                   {(Object.keys(FLOWER_CATALOG) as FlowerType[]).map((type) => {
                     const count = bloomsByType[type] || 0;
                     if (count === 0) return null;
@@ -175,13 +205,36 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
                       <button
                         key={`bloom-${type}`}
                         draggable
-                        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', `palette:${type}`); handleSelect(type); onFlowerDragStart?.(type); }}
-                        onClick={() => handleSelect(type)}
+                        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', `palette:${type}`); handleSelectFlower(type); onFlowerDragStart?.(type); }}
+                        onClick={() => handleSelectFlower(type)}
                         className={`flex flex-col items-center justify-center rounded-xl transition-all duration-200 border-2 p-2 ${isSelected ? 'border-sage bg-sage/20 scale-105' : 'border-transparent bg-parchment hover:bg-linen hover:scale-105'}`}
                       >
                         <FlowerSpriteByType type={type} />
                         <span className="text-[10px] text-bark/60 font-semibold mt-1">×{count}</span>
                         <span className="text-[9px] text-bark/40 mt-0.5 leading-tight text-center">{FLOWER_CATALOG[type].label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {/* Decorations */}
+            {decorItems.length > 0 && (
+              <>
+                <p className="text-[10px] font-semibold text-bark/40 uppercase tracking-wide mb-2">🪨 Decorations</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {decorItems.map((item) => {
+                    const isSelected = selectedDecorId === item.id;
+                    const frame = item.frames > 1 ? paletteFountainFrame : 0;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => selectDecor(isSelected ? null : item.id)}
+                        className={`flex flex-col items-center justify-center rounded-xl transition-all duration-200 border-2 p-2 ${isSelected ? 'border-sage bg-sage/20 scale-105' : 'border-transparent bg-parchment hover:bg-linen hover:scale-105'}`}
+                      >
+                        <SpriteSheet src={item.src} frame={frame} frameSize={item.frameSize} scale={2} shadow />
+                        <span className="text-[10px] text-bark/60 font-semibold mt-1">×{item.available}</span>
+                        <span className="text-[9px] text-bark/40 mt-0.5 leading-tight text-center">{item.label}</span>
                       </button>
                     );
                   })}
@@ -219,7 +272,9 @@ export function Garden() {
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
 
   const placedFlowers = useGardenStore((s) => s.placedFlowers);
+  const placedDecorations = useGardenStore((s) => s.placedDecorations);
   const selectedFlowerType = useGardenStore((s) => s.selectedFlowerType);
+  const selectedDecorId = useGardenStore((s) => s.selectedDecorId);
   const mode = useGardenStore((s) => s.mode);
   const flowers = useGardenStore((s) => s.flowers);
 
@@ -230,6 +285,12 @@ export function Garden() {
   const clearGarden = useGardenStore((s) => s.clearGarden);
   const getFlowerAt = useGardenStore((s) => s.getFlowerAt);
   const getUnplacedByType = useGardenStore((s) => s.getUnplacedByType);
+  const placeDecor = useGardenStore((s) => s.placeDecor);
+  const removeDecor = useGardenStore((s) => s.removeDecor);
+  const getDecorationForCell = useGardenStore((s) => s.getDecorationForCell);
+  const getDecorOwned = useDecorationStore((s) => s.getCount);
+
+  const gardenFountainFrame = useAnimatedFrame(4);
 
 
   const showToast = useCallback((message: string) => {
@@ -312,65 +373,80 @@ export function Garden() {
 
   const handleCellClick = useCallback(
     (col: number, row: number) => {
-      // If dragging, don't handle click
       if (draggingId) return;
 
       const key = `${col},${row}`;
-
       if (BLOCKED_CELLS.has(key)) {
-        showToast("Can't plant there! 🏠");
+        showToast("Can't place there! 🏠");
         return;
       }
 
       const existingFlower = getFlowerAt(col, row);
+      const existingDecor = getDecorationForCell(col, row);
 
-      switch (mode) {
-        case 'place':
-          if (existingFlower) {
-            showToast('Already planted there!');
-            return;
-          }
-          if (!selectedFlowerType) {
-            showToast('Select a flower first! 🌸');
-            return;
-          }
-          if (getUnplacedByType(selectedFlowerType).length === 0) {
-            showToast('No more of that type!');
-            return;
-          }
-          if (placeFlower(col, row)) {
-            showToast(`Planted ${FLOWER_CATALOG[selectedFlowerType].label}!`);
-          }
-          break;
-
-        case 'remove':
-          if (!existingFlower) {
-            showToast('No flower there!');
-            return;
-          }
+      if (mode === 'remove') {
+        if (existingFlower) {
           removeFlowerFromGrid(existingFlower.id);
           showToast(`${FLOWER_CATALOG[existingFlower.flowerType].label} removed`);
-          break;
+        } else if (existingDecor) {
+          const item = DECOR_CATALOG.find(d => d.id === existingDecor.decorId);
+          removeDecor(existingDecor.id);
+          showToast(`${item?.label ?? 'Decoration'} removed`);
+        } else {
+          showToast('Nothing there!');
+        }
+        return;
+      }
 
-        default:
-          // In place mode, clicking on empty spots places flowers
-          if (!existingFlower && selectedFlowerType) {
-            if (getUnplacedByType(selectedFlowerType).length > 0) {
-              if (placeFlower(col, row)) {
-                showToast(`Planted ${FLOWER_CATALOG[selectedFlowerType].label}!`);
-              }
-            }
-          }
+      // Place mode — decoration selected
+      if (selectedDecorId) {
+        const item = DECOR_CATALOG.find(d => d.id === selectedDecorId);
+        if (!item) return;
+        const owned = getDecorOwned(selectedDecorId);
+        const placed = placedDecorations.filter(d => d.decorId === selectedDecorId).length;
+        if (placed >= owned) {
+          showToast('No more of that decoration!');
+          return;
+        }
+        if (placeDecor(col, row, item.gridCols, item.gridRows)) {
+          showToast(`${item.label} placed! ✨`);
+        } else {
+          showToast('Not enough space there!');
+        }
+        return;
+      }
+
+      // Place mode — flower selected
+      if (existingFlower || existingDecor) {
+        showToast('Already occupied!');
+        return;
+      }
+      if (!selectedFlowerType) {
+        showToast('Select a flower or decoration first! 🌸');
+        return;
+      }
+      if (getUnplacedByType(selectedFlowerType).length === 0) {
+        showToast('No more of that type!');
+        return;
+      }
+      if (placeFlower(col, row)) {
+        showToast(`Planted ${FLOWER_CATALOG[selectedFlowerType].label}!`);
       }
     },
     [
       draggingId,
       mode,
       selectedFlowerType,
+      selectedDecorId,
+      placedDecorations,
       placeFlower,
+      placeDecor,
       removeFlowerFromGrid,
+      removeDecor,
       getFlowerAt,
+      getDecorationForCell,
       getUnplacedByType,
+      getDecorOwned,
       showToast,
     ]
   );
@@ -389,12 +465,26 @@ export function Garden() {
     remove: 'Tap flower to remove',
   };
 
+  // Cells covered by decoration footprints (non-anchor cells get pointer-events blocked)
+  const decorCoveredCells = useMemo(() => {
+    const map = new Map<string, string>(); // "col,row" → placedDecoration.id
+    for (const d of placedDecorations) {
+      for (let r = d.row; r < d.row + d.gridRows; r++) {
+        for (let c = d.col; c < d.col + d.gridCols; c++) {
+          map.set(`${c},${r}`, d.id);
+        }
+      }
+    }
+    return map;
+  }, [placedDecorations]);
+
   // Generate grid cells
   const gridCells = [];
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
       const key = `${col},${row}`;
       const isBlocked = BLOCKED_CELLS.has(key);
+      const isDecorCovered = decorCoveredCells.has(key);
       const placedFlower = getFlowerAt(col, row);
       const isDragging = placedFlower?.id === draggingId;
       const isDraggingFrom = draggingFromCell === key;
@@ -403,13 +493,13 @@ export function Garden() {
       gridCells.push(
         <div
           key={key}
-          onClick={() => handleCellClick(col, row)}
+          onClick={() => !isDecorCovered && handleCellClick(col, row)}
           onDragOver={(e) => handleDragOver(e, col, row)}
           onDrop={(e) => handleDrop(e, col, row)}
           className={`
             w-8 h-8 rounded transition-all duration-150
-            ${isBlocked ? 'cursor-not-allowed' : 'cursor-pointer ring-1 ring-inset ring-white/20'}
-            ${!isBlocked && !placedFlower && !isDraggingFrom ? 'active:bg-sage/40' : ''}
+            ${isBlocked || isDecorCovered ? 'cursor-not-allowed' : 'cursor-pointer ring-1 ring-inset ring-white/20'}
+            ${!isBlocked && !isDecorCovered && !placedFlower && !isDraggingFrom ? 'active:bg-sage/40' : ''}
             ${isDragOver ? 'bg-sage/40 ring-2 ring-sage ring-inset' : ''}
           `}
         >
@@ -519,6 +609,39 @@ export function Garden() {
             }}
           >
             {gridCells}
+
+            {/* Placed decoration overlays — absolutely positioned over the grid */}
+            {placedDecorations.map((decor) => {
+              const item = DECOR_CATALOG.find(d => d.id === decor.decorId);
+              if (!item) return null;
+              const frame = item.frames > 1 ? gardenFountainFrame : 0;
+              return (
+                <div
+                  key={decor.id}
+                  onClick={() => mode === 'remove' && (removeDecor(decor.id), showToast(`${item.label} removed`))}
+                  style={{
+                    position: 'absolute',
+                    left: decor.col * 32,
+                    top: decor.row * 32,
+                    width: decor.gridCols * 32,
+                    height: decor.gridRows * 32,
+                    zIndex: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: mode === 'remove' ? 'pointer' : 'default',
+                  }}
+                >
+                  <SpriteSheet
+                    src={item.src}
+                    frame={frame}
+                    frameSize={item.frameSize}
+                    scale={item.gardenScale}
+                    shadow
+                  />
+                </div>
+              );
+            })}
 
             {/* Stepping stone path — exactly col 4, rows 0–7 */}
             <div

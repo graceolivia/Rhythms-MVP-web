@@ -92,6 +92,16 @@ export interface PlacedFlower {
   growthTicks: number; // increments once per day you complete at least one task
 }
 
+export interface PlacedDecoration {
+  id: string;
+  decorId: string;
+  col: number;     // top-left anchor col
+  row: number;     // top-left anchor row
+  gridCols: number; // footprint width in cells
+  gridRows: number; // footprint height in cells
+  placedAt: string;
+}
+
 type GardenMode = 'place' | 'move' | 'remove';
 
 // Season boundaries (month is 0-indexed, day is 1-indexed)
@@ -119,6 +129,9 @@ interface GardenState extends Garden {
   // Placed flowers on the grid
   placedFlowers: PlacedFlower[];
 
+  // Placed decorations on the grid
+  placedDecorations: PlacedDecoration[];
+
   // Season when the garden was last reset (cleared for new season); null = never reset
   lastSeasonReset: Season | null;
 
@@ -128,6 +141,9 @@ interface GardenState extends Garden {
 
   // Currently selected flower type for placement
   selectedFlowerType: FlowerType | null;
+
+  // Currently selected decoration id for placement
+  selectedDecorId: string | null;
 
   // Current mode
   mode: GardenMode;
@@ -146,6 +162,7 @@ interface GardenState extends Garden {
 
   // Grid placement actions
   selectFlowerType: (type: FlowerType | null) => void;
+  selectDecor: (id: string | null) => void;
   setMode: (mode: GardenMode) => void;
   placeFlower: (col: number, row: number) => boolean;
   autoPlaceFlower: (flowerId: string, flowerType: FlowerType, col: number, row: number) => void;
@@ -154,6 +171,9 @@ interface GardenState extends Garden {
   moveFlower: (placedId: string, newCol: number, newRow: number) => boolean;
   startMoving: (placedId: string) => void;
   cancelMoving: () => void;
+  placeDecor: (col: number, row: number, gridCols: number, gridRows: number) => boolean;
+  removeDecor: (id: string) => void;
+  getDecorationForCell: (col: number, row: number) => PlacedDecoration | undefined;
   clearGarden: () => void;
   clearGardenState: () => void;
   replaceGardenData: (flowers: Flower[], placedFlowers: PlacedFlower[]) => void;
@@ -173,7 +193,9 @@ export const useGardenStore = create<GardenState>()(
       seasonResetPending: false,
       unlockedCustomizations: [],
       placedFlowers: [],
+      placedDecorations: [],
       selectedFlowerType: null,
+      selectedDecorId: null,
       mode: 'place',
       movingFlowerId: null,
 
@@ -249,7 +271,11 @@ export const useGardenStore = create<GardenState>()(
       dismissSeasonReset: () => set({ seasonResetPending: false }),
 
       selectFlowerType: (type) => {
-        set({ selectedFlowerType: type, mode: 'place', movingFlowerId: null });
+        set({ selectedFlowerType: type, selectedDecorId: null, mode: 'place', movingFlowerId: null });
+      },
+
+      selectDecor: (id) => {
+        set({ selectedDecorId: id, selectedFlowerType: null, mode: 'place', movingFlowerId: null });
       },
 
       setMode: (mode) => {
@@ -263,8 +289,14 @@ export const useGardenStore = create<GardenState>()(
         // Check if blocked
         if (BLOCKED_CELLS.has(key)) return false;
 
-        // Check if already occupied
+        // Check if already occupied by a flower
         if (state.placedFlowers.some(f => f.col === col && f.row === row)) return false;
+
+        // Check if covered by a decoration footprint
+        if (state.placedDecorations.some(d =>
+          col >= d.col && col < d.col + d.gridCols &&
+          row >= d.row && row < d.row + d.gridRows
+        )) return false;
 
         // Check if we have the flower type selected and available
         const type = state.selectedFlowerType;
@@ -359,9 +391,49 @@ export const useGardenStore = create<GardenState>()(
         set({ movingFlowerId: null });
       },
 
+      placeDecor: (col, row, gridCols, gridRows) => {
+        const state = get();
+
+        // Check all cells in the footprint
+        for (let r = row; r < row + gridRows; r++) {
+          for (let c = col; c < col + gridCols; c++) {
+            if (c >= GRID_COLS || r >= GRID_ROWS) return false;
+            if (BLOCKED_CELLS.has(`${c},${r}`)) return false;
+            if (state.placedFlowers.some(f => f.col === c && f.row === r)) return false;
+            if (state.placedDecorations.some(d =>
+              c >= d.col && c < d.col + d.gridCols &&
+              r >= d.row && r < d.row + d.gridRows
+            )) return false;
+          }
+        }
+
+        const newDecor: PlacedDecoration = {
+          id: `decor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          decorId: state.selectedDecorId!,
+          col, row, gridCols, gridRows,
+          placedAt: new Date().toISOString(),
+        };
+        set({ placedDecorations: [...state.placedDecorations, newDecor] });
+        return true;
+      },
+
+      removeDecor: (id) => {
+        set((state) => ({
+          placedDecorations: state.placedDecorations.filter(d => d.id !== id),
+        }));
+      },
+
+      getDecorationForCell: (col, row) => {
+        return get().placedDecorations.find(d =>
+          col >= d.col && col < d.col + d.gridCols &&
+          row >= d.row && row < d.row + d.gridRows
+        );
+      },
+
       clearGarden: () => {
         set({
           placedFlowers: [],
+          placedDecorations: [],
           movingFlowerId: null,
         });
       },
@@ -370,7 +442,9 @@ export const useGardenStore = create<GardenState>()(
         set({
           flowers: [],
           placedFlowers: [],
+          placedDecorations: [],
           selectedFlowerType: null,
+          selectedDecorId: null,
           unlockedCustomizations: [],
           currentSeason: getCurrentSeason(),
           lastSeasonReset: null,
@@ -407,6 +481,10 @@ export const useGardenStore = create<GardenState>()(
       name: 'rhythm_garden',
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+
+        // Migration: older persisted states won't have these fields
+        if (!state.placedDecorations) state.placedDecorations = [];
+        if (state.selectedDecorId === undefined) state.selectedDecorId = null;
 
         // Clear the garden grid when the season has changed.
         // We compare the persisted currentSeason (set when flowers were last earned)

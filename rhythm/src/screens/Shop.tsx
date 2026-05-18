@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useCoinStore } from '../stores/useCoinStore';
 import { useGardenStore, FLOWER_CATALOG, getCurrentSeason } from '../stores/useGardenStore';
+import { useDecorationStore } from '../stores/useDecorationStore';
 import { SpriteSheet } from '../components/garden/SpriteSheet';
 import { ChallengesPanel } from './Challenges';
+import { DECOR_CATALOG } from '../data/decorations';
+import { useAnimatedFrame } from '../hooks/useAnimatedFrame';
 import type { FlowerType, Season } from '../types';
 
 const FLOWER_PRICE = 10;
@@ -23,8 +26,14 @@ export function Shop() {
   const currentSeason = getCurrentSeason();
   const { label: seasonLabel, emoji: seasonEmoji } = SEASON_DISPLAY[currentSeason];
 
+  const buyDecoration = useDecorationStore((s) => s.buyDecoration);
+  const getDecorCount = useDecorationStore((s) => s.getCount);
+
   const [tab, setTab] = useState<'shop' | 'challenges'>('shop');
+  const [shopSubTab, setShopSubTab] = useState<'seeds' | 'decorations'>('seeds');
   const [justBought, setJustBought] = useState<FlowerType | null>(null);
+  const [justBoughtDecor, setJustBoughtDecor] = useState<string | null>(null);
+  const fountainFrame = useAnimatedFrame(4);
 
   const seasonFlowers = (Object.entries(FLOWER_CATALOG) as [FlowerType, typeof FLOWER_CATALOG[FlowerType]][])
     .filter(([, info]) => info.season === currentSeason);
@@ -62,7 +71,29 @@ export function Shop() {
           </button>
         </div>
 
-        {tab === 'shop' ? (
+        {tab === 'shop' && (
+          /* Sub-tab bar */
+          <div className="flex gap-1 bg-cream rounded-lg p-1 mb-6">
+            <button
+              onClick={() => setShopSubTab('seeds')}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                shopSubTab === 'seeds' ? 'bg-parchment text-bark shadow-sm' : 'text-bark/40 hover:text-bark/60'
+              }`}
+            >
+              Seed Shop
+            </button>
+            <button
+              onClick={() => setShopSubTab('decorations')}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                shopSubTab === 'decorations' ? 'bg-parchment text-bark shadow-sm' : 'text-bark/40 hover:text-bark/60'
+              }`}
+            >
+              Garden Decorations
+            </button>
+          </div>
+        )}
+
+        {tab === 'shop' && shopSubTab === 'seeds' ? (
           <>
             {/* Coin balance */}
             <div className="bg-cream rounded-2xl p-5 mb-6 flex items-center gap-4">
@@ -140,6 +171,70 @@ export function Shop() {
             <p className="text-center text-xs text-bark/30 mt-6 mb-24">
               Collection refreshes each season
             </p>
+          </>
+        ) : tab === 'shop' && shopSubTab === 'decorations' ? (
+          <>
+            {/* Coin balance */}
+            <div className="bg-cream rounded-2xl p-5 mb-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-terracotta/10 flex items-center justify-center text-2xl">
+                ◎
+              </div>
+              <div>
+                <p className="text-xs text-bark/50 uppercase tracking-wide font-medium">Your balance</p>
+                <p className="font-display text-3xl text-bark">{coins}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-24">
+              {DECOR_CATALOG.map((item) => {
+                const owned = getDecorCount(item.id);
+                const canAfford = coins >= item.price;
+                const bought = justBoughtDecor === item.id;
+                const frame = item.frames > 1 ? fountainFrame : 0;
+
+                return (
+                  <div key={item.id} className="bg-cream rounded-2xl p-4 flex flex-col items-center gap-3">
+                    <div className="relative">
+                      <SpriteSheet
+                        src={item.src}
+                        frame={frame}
+                        frameSize={item.frameSize}
+                        scale={item.shopScale}
+                        shadow
+                      />
+                      {owned > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-sage text-cream text-[10px] font-semibold rounded-full flex items-center justify-center">
+                          ×{owned}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-bark font-medium text-sm text-center leading-tight">
+                      {item.label}
+                    </p>
+
+                    <button
+                      onClick={() => {
+                        if (!spendCoins(item.price)) return;
+                        buyDecoration(item.id);
+                        setJustBoughtDecor(item.id);
+                        setTimeout(() => setJustBoughtDecor(null), 1000);
+                      }}
+                      disabled={!canAfford}
+                      className={`w-full py-2 rounded-xl text-sm font-semibold transition-all ${
+                        bought
+                          ? 'bg-sage text-cream'
+                          : canAfford
+                            ? 'bg-terracotta text-cream hover:bg-terracotta/90 active:scale-95'
+                            : 'bg-bark/10 text-bark/30 cursor-not-allowed'
+                      }`}
+                    >
+                      {bought ? 'Added!' : `◎ ${item.price}`}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </>
         ) : (
           <ChallengesPanel />
