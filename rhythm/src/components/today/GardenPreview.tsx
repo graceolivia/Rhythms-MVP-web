@@ -1700,7 +1700,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       )}
 
       {/* ── Edit tray (below scene, animates open/close) ── */}
-      <div style={{ maxHeight: isEditOpen ? 260 : 0, overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: isEditOpen ? 400 : 0, overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
       <div style={{ background: '#FEF6EC', borderTop: '1px solid rgba(93,78,55,0.1)' }}>
 
         {/* Header */}
@@ -1728,7 +1728,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
 
         {/* Flower grid — also a drop zone to return placed flowers to palette */}
         <div
-          style={{ padding: '4px 16px 12px', overflowY: 'auto', maxHeight: 120 }}
+          style={{ padding: '4px 16px 12px', overflowY: 'auto', maxHeight: 280 }}
           onDragOver={e => { if (draggingGridId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
           onDrop={e => { e.preventDefault(); if (draggingGridId) { removeFlowerFromGrid(draggingGridId); showEditToast('Returned to palette!'); setDraggingGridId(null); setDragOverCell(null); } }}
         >
