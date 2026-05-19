@@ -893,6 +893,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   }, [tutorialPhase]);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [draggingGridId, setDraggingGridId] = useState<string | null>(null);
+  const [draggingDecorId, setDraggingDecorId] = useState<string | null>(null);
 
   // ── Garden data ────────────────────────────────────────────────────────────
   const getFlowerAt        = useGardenStore(s => s.getFlowerAt);
@@ -911,6 +912,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const selectedDecorId      = useGardenStore(s => s.selectedDecorId);
   const selectDecor          = useGardenStore(s => s.selectDecor);
   const placeDecor           = useGardenStore(s => s.placeDecor);
+  const moveDecor            = useGardenStore(s => s.moveDecor);
   const removeDecor          = useGardenStore(s => s.removeDecor);
   const getDecorationForCell = useGardenStore(s => s.getDecorationForCell);
 
@@ -1068,6 +1070,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         height: decor.gridRows * CELL,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         pointerEvents: 'none',
+        opacity: draggingDecorId === decor.id ? 0.35 : 1,
       }}>
         <SpriteSheet src={item.src} frame={frame} frameSize={item.frameSize} frameWidth={item.frameWidth} scale={item.gardenScale} shadow />
       </div>
@@ -1134,7 +1137,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     e.preventDefault();
     const data = e.dataTransfer.getData('text/plain');
     const key = `${col},${row}`;
-    if (BLOCKED_CELLS.has(key)) { showEditToast("Can't plant there! 🏠"); setDragOverCell(null); setDraggingGridId(null); return; }
+    if (BLOCKED_CELLS.has(key)) { showEditToast("Can't plant there! 🏠"); setDragOverCell(null); setDraggingGridId(null); setDraggingDecorId(null); return; }
     if (data.startsWith('palette:')) {
       const flowerType = data.slice('palette:'.length) as FlowerType;
       if (getFlowerAt(col, row)) { showEditToast('Spot occupied!'); }
@@ -1144,6 +1147,10 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         if (useGardenStore.getState().placeFlower(col, row))
           showEditToast(`Planted ${FLOWER_CATALOG[flowerType].label}! 🌸`);
       }
+    } else if (data.startsWith('decor:')) {
+      const decorId = data.slice('decor:'.length);
+      if (moveDecor(decorId, col, row)) showEditToast('Moved! ✨');
+      else showEditToast('Not enough space there!');
     } else {
       const existingAtDest = getFlowerAt(col, row);
       if (existingAtDest && existingAtDest.id !== data) { showEditToast('Spot occupied!'); }
@@ -1151,7 +1158,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     }
     setDragOverCell(null);
     setDraggingGridId(null);
-  }, [getFlowerAt, moveFlower, showEditToast]);
+    setDraggingDecorId(null);
+  }, [getFlowerAt, moveFlower, moveDecor, showEditToast]);
 
   const handleClear = useCallback(() => {
     if (placedFlowers.length === 0 && placedDecorations.length === 0) { showEditToast('Garden is already empty!'); return; }
@@ -1669,7 +1677,14 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
               return (
                 <div
                   key={`de-${decor.id}`}
+                  draggable={editMode === 'place'}
                   onClick={e => { e.stopPropagation(); handleCellClick(decor.col, decor.row); }}
+                  onDragStart={editMode === 'place' ? e => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', `decor:${decor.id}`);
+                    setDraggingDecorId(decor.id);
+                  } : undefined}
+                  onDragEnd={() => { setDraggingDecorId(null); setDragOverCell(null); }}
                   style={{
                     position: 'absolute',
                     left: FENCE + decor.col * CELL,
@@ -1677,7 +1692,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
                     width: decor.gridCols * CELL,
                     height: decor.gridRows * CELL,
                     zIndex: 16,
-                    cursor: editMode === 'remove' ? 'crosshair' : 'default',
+                    cursor: editMode === 'remove' ? 'crosshair' : editMode === 'place' ? 'grab' : 'default',
                     ...(editMode === 'remove' ? { background: 'rgba(196,113,90,0.15)', outline: '1px solid rgba(196,113,90,0.4)', outlineOffset: '-1px' } : {}),
                   }}
                 />

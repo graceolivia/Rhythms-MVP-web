@@ -173,6 +173,7 @@ interface GardenState extends Garden {
   startMoving: (placedId: string) => void;
   cancelMoving: () => void;
   placeDecor: (col: number, row: number, gridCols: number, gridRows: number) => boolean;
+  moveDecor: (id: string, newCol: number, newRow: number) => boolean;
   removeDecor: (id: string) => void;
   getDecorationForCell: (col: number, row: number) => PlacedDecoration | undefined;
   clearGarden: () => void;
@@ -424,6 +425,26 @@ export const useGardenStore = create<GardenState>()(
           placedAt: new Date().toISOString(),
         };
         set({ placedDecorations: [...state.placedDecorations, newDecor] });
+        return true;
+      },
+
+      moveDecor: (id, newCol, newRow) => {
+        const state = get();
+        const decor = state.placedDecorations.find(d => d.id === id);
+        if (!decor) return false;
+        for (let r = newRow; r < newRow + decor.gridRows; r++) {
+          for (let c = newCol; c < newCol + decor.gridCols; c++) {
+            if (c < 0 || c >= GRID_COLS || r < 0 || r >= GRID_ROWS) return false;
+            if (BLOCKED_CELLS.has(`${c},${r}`)) return false;
+            if (state.placedFlowers.some(f => f.col === c && f.row === r)) return false;
+            if (state.placedDecorations.some(d =>
+              d.id !== id &&
+              c >= d.col && c < d.col + d.gridCols &&
+              r >= d.row && r < d.row + d.gridRows
+            )) return false;
+          }
+        }
+        set({ placedDecorations: state.placedDecorations.map(d => d.id === id ? { ...d, col: newCol, row: newRow } : d) });
         return true;
       },
 
