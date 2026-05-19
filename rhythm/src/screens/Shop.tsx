@@ -199,6 +199,7 @@ export function Shop() {
                         src={item.src}
                         frame={frame}
                         frameSize={item.frameSize}
+                        frameWidth={item.frameWidth}
                         scale={item.shopScale}
                         shadow
                       />

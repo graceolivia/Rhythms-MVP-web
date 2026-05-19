@@ -1069,7 +1069,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         pointerEvents: 'none',
       }}>
-        <SpriteSheet src={item.src} frame={frame} frameSize={item.frameSize} scale={item.gardenScale} shadow />
+        <SpriteSheet src={item.src} frame={frame} frameSize={item.frameSize} frameWidth={item.frameWidth} scale={item.gardenScale} shadow />
       </div>
     );
     // Small (1×1) decorations get an extra cell of buffer so the swap doesn't fire
@@ -1812,7 +1812,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
                           onClick={() => { selectDecor(isSelected ? null : item.id); setMode('place'); }}
                           style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 12, padding: '6px 4px', border: `2px solid ${isSelected ? '#9CAF88' : 'transparent'}`, background: isSelected ? 'rgba(156,175,136,0.2)' : 'rgba(93,78,55,0.06)', cursor: 'pointer', transition: 'all 0.15s', transform: isSelected ? 'scale(1.05)' : undefined }}
                         >
-                          <SpriteSheet src={item.src} frame={frame} frameSize={item.frameSize} scale={2} shadow />
+                          <SpriteSheet src={item.src} frame={frame} frameSize={item.frameSize} frameWidth={item.frameWidth} scale={2} shadow />
                           <span style={{ fontSize: 9, color: 'rgba(93,78,55,0.6)', fontWeight: 600, marginTop: 2 }}>×{item.available}</span>
                           <span style={{ fontSize: 8, color: 'rgba(93,78,55,0.4)', marginTop: 1, textAlign: 'center', lineHeight: 1.2 }}>{item.label}</span>
                         </button>
