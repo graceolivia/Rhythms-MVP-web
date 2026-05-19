@@ -1052,6 +1052,33 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     }
   }
 
+  // Depth-sort decorations by their bottom row — same logic as flowers.
+  const behindDecors: React.ReactElement[] = [];
+  const frontDecors:  React.ReactElement[] = [];
+  for (const decor of placedDecorations) {
+    const item = DECOR_CATALOG.find(d => d.id === decor.decorId);
+    if (!item) continue;
+    const frame = item.frames > 1 ? decorFountainFrame : 0;
+    const el = (
+      <div key={`d-${decor.id}`} style={{
+        position: 'absolute',
+        left: FENCE + decor.col * CELL,
+        top: COTTAGE_PAD + decor.row * CELL,
+        width: decor.gridCols * CELL,
+        height: decor.gridRows * CELL,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none',
+      }}>
+        <SpriteSheet src={item.src} frame={frame} frameSize={item.frameSize} scale={item.gardenScale} shadow />
+      </div>
+    );
+    // Small (1×1) decorations get an extra cell of buffer so the swap doesn't fire
+    // before the character has visually cleared the sprite.
+    const decorBottomDepthY = (decor.row + Math.max(decor.gridRows, 2)) * CELL;
+    if (feetY > decorBottomDepthY) behindDecors.push(el);
+    else                           frontDecors.push(el);
+  }
+
   // ── Edit handlers ──────────────────────────────────────────────────────────
   const showEditToast = useCallback((msg: string) => {
     setEditToast(msg);
@@ -1380,25 +1407,8 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
               3. frontFlowers   — painted last   → appear in front of character        */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none' }}>
 
-          {/* 0. Decorations — always behind flowers and character */}
-          {placedDecorations.map(decor => {
-            const item = DECOR_CATALOG.find(d => d.id === decor.decorId);
-            if (!item) return null;
-            const frame = item.frames > 1 ? decorFountainFrame : 0;
-            return (
-              <div key={`d-${decor.id}`} style={{
-                position: 'absolute',
-                left: FENCE + decor.col * CELL,
-                top: COTTAGE_PAD + decor.row * CELL,
-                width: decor.gridCols * CELL,
-                height: decor.gridRows * CELL,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                pointerEvents: 'none',
-              }}>
-                <SpriteSheet src={item.src} frame={frame} frameSize={item.frameSize} scale={item.gardenScale} shadow />
-              </div>
-            );
-          })}
+          {/* 0. Decorations above character's row */}
+          {behindDecors}
 
           {/* 1. Flowers above character's row */}
           {behindFlowers}
@@ -1473,6 +1483,9 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
               </div>
             );
           })}
+
+          {/* 4. Decorations at/below character's row */}
+          {frontDecors}
 
         </div>
 
