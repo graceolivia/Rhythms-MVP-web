@@ -19,6 +19,7 @@ import { useRef, useLayoutEffect, useState, useMemo, useEffect, useCallback } fr
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { useSunTimes } from '../../hooks/useSunTimes';
 import { useGardenStore, GRID_COLS, GRID_ROWS, FLOWER_CATALOG, PLOT_COLS, PLOT_ROW, BLOCKED_CELLS, getCurrentSeason } from '../../stores/useGardenStore';
+import type { PlacedDecoration } from '../../stores/useGardenStore';
 import type { FlowerType, Season } from '../../types';
 import { useChallengeStore, CHALLENGE_TEMPLATES } from '../../stores/useChallengeStore';
 import { useSettingsStore, getChallengeWitherLevel } from '../../stores/useSettingsStore';
@@ -125,11 +126,18 @@ const WALK_BLOCKED = new Set<string>([
   '5,0', '6,0', '7,0', '8,0', '9,0', '10,0', // house porch
 ]);
 
-// Returns whether the character's feet center would land in a walkable cell
-function isWalkable(px: number, py: number): boolean {
+// Returns whether the character's feet center would land in a walkable cell.
+// Checks static porch blockers and decoration footprints (not sprite bounds).
+function isWalkable(px: number, py: number, decorations: PlacedDecoration[]): boolean {
   const col = Math.floor((px + PLAYER_CHAR_CX) / CELL);
   const row = Math.floor((py + PLAYER_CHAR_FEET_Y - HOUSE_TILE) / CELL);
-  return !WALK_BLOCKED.has(`${col},${row}`);
+  if (WALK_BLOCKED.has(`${col},${row}`)) return false;
+  for (const d of decorations) {
+    const item = DECOR_CATALOG.find(di => di.id === d.decorId);
+    if (!item) continue;
+    if (item.footprint.some(fp => d.col + fp.dcol === col && d.row + fp.drow === row)) return false;
+  }
+  return true;
 }
 
 // ── Winter ground tiles ───────────────────────────────────────────────────────
@@ -487,6 +495,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const targetRef = useRef<{ x: number; y: number } | null>(null);
   const rafRef = useRef(0);
   const rustleRef = useRef<Map<string, number>>(new Map());
+  const placedDecorationsRef = useRef<PlacedDecoration[]>([]);
   const groundCanvasRef    = useRef<HTMLCanvasElement>(null);
   const snowPilesCanvasRef = useRef<HTMLCanvasElement>(null);
   const houseCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -757,11 +766,12 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         const nx = Math.max(-PLAYER_CHAR_CX, Math.min(GRID_W - PLAYER_CHAR_CX, x + dx));
         const ny = Math.max(-PLAYER_CHAR_FEET_Y + HOUSE_TILE, Math.min(GRID_H + CELL - PLAYER_CHAR_FEET_Y, y + dy));
         // Walkability check with wall-sliding
-        if (isWalkable(nx, ny)) {
+        const decors = placedDecorationsRef.current;
+        if (isWalkable(nx, ny, decors)) {
           x = nx; y = ny;
-        } else if (isWalkable(nx, y)) {
+        } else if (isWalkable(nx, y, decors)) {
           x = nx;           // slide horizontally
-        } else if (isWalkable(x, ny)) {
+        } else if (isWalkable(x, ny, decors)) {
           y = ny;           // slide vertically
         }                   // else fully blocked — don't move
         playerPosRef.current = { x, y };
@@ -789,11 +799,12 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           }
           const nx = Math.max(-PLAYER_CHAR_CX, Math.min(GRID_W - PLAYER_CHAR_CX, x + ndx));
           const ny = Math.max(-PLAYER_CHAR_FEET_Y + HOUSE_TILE, Math.min(GRID_H + CELL - PLAYER_CHAR_FEET_Y, y + ndy));
-          if (isWalkable(nx, ny)) {
+          const decors2 = placedDecorationsRef.current;
+          if (isWalkable(nx, ny, decors2)) {
             x = nx; y = ny;
-          } else if (isWalkable(nx, y)) {
+          } else if (isWalkable(nx, y, decors2)) {
             x = nx;
-          } else if (isWalkable(x, ny)) {
+          } else if (isWalkable(x, ny, decors2)) {
             y = ny;
           } else {
             targetRef.current = null; // blocked — give up
@@ -916,6 +927,11 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const removeDecor          = useGardenStore(s => s.removeDecor);
   const getDecorationForCell = useGardenStore(s => s.getDecorationForCell);
 
+  // Keep decoration ref in sync so the game loop can check footprints without re-subscribing
+  useEffect(() => {
+    placedDecorationsRef.current = placedDecorations;
+  }, [placedDecorations]);
+
   const decorOwned         = useDecorationStore(s => s.owned);
   const decorFountainFrame = useAnimatedFrame(4);
 
@@ -984,28 +1000,23 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
     ? Math.max(0, differenceInCalendarDays(new Date(), parseISO(lastActivityDate)))
     : 0;
 
-  // Pixel-precise feet Y for depth sorting — fires swap when feet are 85% down the flower's
-  // cell so the bloom clears the character's lower body before she pops in front.
   const feetY = playerPos.y + PLAYER_CHAR_FEET_Y;
-  const DEPTH_THRESHOLD = CELL * 1.5; // feet must reach halfway into the next row
 
-  // Depth-sorted flowers split into two arrays by charRow.
-  // These are rendered inside a single z:6 wrapper using DOM paint order — NOT z-index —
-  // so GPU compositing of the character layer can't override them.
-  const behindFlowers: React.ReactElement[] = [];
-  const frontFlowers:  React.ReactElement[] = [];
+  // Y-sorted entity list — all garden entities sorted by anchor Y (center-bottom of footprint).
+  // DOM paint order within this array handles depth; no z-index overrides needed.
+  type DepthEntity = { anchorY: number; el: React.ReactElement };
+  const depthEntities: DepthEntity[] = [];
 
   const RUSTLE_DURATION = 500;
-  const RUSTLE_RADIUS = CELL * 0.6; // 19px — fires when close to flower center, still catches both when passing between them
+  const RUSTLE_RADIUS = CELL * 0.6; // 19px — fires when close to flower center
   const RUSTLE_DUAL_MARGIN = 4; // px from a row boundary where both adjacent rows rustle
   const renderTime = Date.now();
-  // Character center X relative to the FENCE left edge
   const charCenterX = playerPos.x + PLAYER_CHAR_CX;
-  // Rustle row — shifted 3px up so the animation fires at the right visual moment
   const rustleAdjFeet = feetY - 16;
   const rustleRow = Math.floor(rustleAdjFeet / CELL);
   const rustlePosInCell = rustleAdjFeet - rustleRow * CELL; // 0 = top of cell, CELL-1 = bottom
 
+  // Flowers — anchor at bottom of their 1×1 cell
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
       const pf = getFlowerAt(col, row);
@@ -1018,18 +1029,17 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       const sourceFlower = flowers.find(f => f.id === pf.flowerId);
       const frame      = Math.min(sourceFlower?.growthTicks ?? 0, e.sheetBloomFrame ?? 4);
 
-      // Rustle: triggered when character's same row and within horizontal radius
       const key = `${col}-${row}`;
       const flowerCenterX = col * CELL + CELL / 2;
       const rowMatch =
         rustleRow === row ||
-        (rustleRow === row - 1 && rustlePosInCell >= CELL - RUSTLE_DUAL_MARGIN) || // near boundary below
-        (rustleRow === row + 1 && rustlePosInCell <  RUSTLE_DUAL_MARGIN);          // near boundary above
+        (rustleRow === row - 1 && rustlePosInCell >= CELL - RUSTLE_DUAL_MARGIN) ||
+        (rustleRow === row + 1 && rustlePosInCell <  RUSTLE_DUAL_MARGIN);
       const isNear = rowMatch && Math.abs(charCenterX - flowerCenterX) < RUSTLE_RADIUS;
       if (isNear && !rustleRef.current.has(key)) {
         rustleRef.current.set(key, renderTime);
       } else if (!isNear) {
-        rustleRef.current.delete(key); // clear so re-entry re-triggers
+        rustleRef.current.delete(key);
       }
       const rustleStart = rustleRef.current.get(key);
       const isRustling = rustleStart !== undefined && (renderTime - rustleStart) < RUSTLE_DURATION;
@@ -1049,14 +1059,11 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           </div>
         </div>
       );
-      if (feetY > row * CELL + DEPTH_THRESHOLD) behindFlowers.push(el);
-      else                                       frontFlowers.push(el);
+      depthEntities.push({ anchorY: row * CELL + CELL, el });
     }
   }
 
-  // Depth-sort decorations by their bottom row — same logic as flowers.
-  const behindDecors: React.ReactElement[] = [];
-  const frontDecors:  React.ReactElement[] = [];
+  // Decorations — anchor at bottom of footprint (footprint may be smaller than visual bounding box)
   for (const decor of placedDecorations) {
     const item = DECOR_CATALOG.find(d => d.id === decor.decorId);
     if (!item) continue;
@@ -1075,12 +1082,55 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         <SpriteSheet src={item.src} frame={frame} frameSize={item.frameSize} frameWidth={item.frameWidth} scale={item.gardenScale} shadow />
       </div>
     );
-    // Small (1×1) decorations get an extra cell of buffer so the swap doesn't fire
-    // before the character has visually cleared the sprite.
-    const decorBottomDepthY = (decor.row + Math.max(decor.gridRows, 2)) * CELL;
-    if (feetY > decorBottomDepthY) behindDecors.push(el);
-    else                           frontDecors.push(el);
+    const footprintMaxDrow = Math.max(...item.footprint.map(fp => fp.drow));
+    depthEntities.push({ anchorY: (decor.row + footprintMaxDrow + 1) * CELL, el });
   }
+
+  // Challenge plants — always anchored at the bottom of the front plot row
+  for (const challenge of growing) {
+    const col = PLOT_COLS[challenge.plotIndex];
+    if (col === undefined) continue;
+    const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
+    const isBlooming = justBloomedId === challenge.id;
+    const animate = isBlooming ? 'bloom' : (challenge.status === 'bloomed' || challenge.status === 'wilted') ? 'none' : 'idle';
+    const challengeWitherLevel = challenge.status === 'wilted' ? 3 : getChallengeWitherLevel(challenge.id, daysMissed);
+    const el = (
+      <div key={`g-${challenge.id}`} style={{
+        position: 'absolute',
+        left: FENCE + col * CELL, top: COTTAGE_PAD + PLOT_ROW * CELL,
+        width: CELL, height: CELL,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <GrowthSprite stage={challenge.growthStage} flowerType={template?.flowerReward}
+          sprites={template?.sprites} spriteSheet={template?.spriteSheet}
+          size="xs" animate={animate} witherLevel={challengeWitherLevel} />
+      </div>
+    );
+    depthEntities.push({ anchorY: PLOT_ROW * CELL + CELL, el });
+  }
+
+  // Character — anchor at feet
+  if (characterConfig) {
+    const charEl = (
+      <div key="character" style={{
+        position: 'absolute',
+        left: FENCE + playerPos.x,
+        top: COTTAGE_PAD + playerPos.y,
+      }}>
+        <div style={{
+          filter: 'drop-shadow(1px 2px 1px rgba(0,0,0,0.3))',
+          transform: playerFlipped ? 'scaleX(-1)' : undefined,
+          transformOrigin: 'center',
+        }}>
+          <CharacterSprite config={characterConfig} scale={PLAYER_SCALE}
+            animate row={DIRECTION_ROW[playerFrame]} />
+        </div>
+      </div>
+    );
+    depthEntities.push({ anchorY: feetY, el: charEl });
+  }
+
+  depthEntities.sort((a, b) => a.anchorY - b.anchorY);
 
   // ── Edit handlers ──────────────────────────────────────────────────────────
   const showEditToast = useCallback((msg: string) => {
@@ -1114,7 +1164,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
       const owned  = decorOwned[selectedDecorId] ?? 0;
       const placed = placedDecorations.filter(d => d.decorId === selectedDecorId).length;
       if (placed >= owned) { showEditToast('No more of that decoration!'); return; }
-      if (placeDecor(col, row, item.gridCols, item.gridRows)) showEditToast(`${item.label} placed! ✨`);
+      if (placeDecor(col, row)) showEditToast(`${item.label} placed! ✨`);
       else showEditToast('Not enough space there!');
       return;
     }
@@ -1408,93 +1458,12 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
           </div>
         </div>
 
-        {/* Depth layer — single z:6 wrapper; DOM paint order does the depth sorting.
-            No z-index on children so GPU compositing of the character can't override them:
-              1. behindFlowers  — painted first  → appear behind character
-              2. character      — painted second → appears over behindFlowers
-              3. frontFlowers   — painted last   → appear in front of character        */}
+        {/* Depth layer — single z:6 wrapper; entities are y-sorted by their anchor (center-bottom
+            of footprint) so they draw in correct depth order automatically. No z-index on children. */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none' }}>
-
-          {/* 0. Decorations above character's row */}
-          {behindDecors}
-
-          {/* 1. Flowers above character's row */}
-          {behindFlowers}
-
-          {/* 1b. Growing challenge plants above character's row */}
-          {growing.map(challenge => {
-            const col = PLOT_COLS[challenge.plotIndex];
-            if (col === undefined || feetY <= PLOT_ROW * CELL + DEPTH_THRESHOLD) return null;
-            const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
-            const isBlooming = justBloomedId === challenge.id;
-            const animate = isBlooming ? 'bloom' : (challenge.status === 'bloomed' || challenge.status === 'wilted') ? 'none' : 'idle';
-            const challengeWitherLevel = challenge.status === 'wilted' ? 3 : getChallengeWitherLevel(challenge.id, daysMissed);
-            return (
-              <div key={`gb-${challenge.id}`} style={{
-                position: 'absolute',
-                left: FENCE + col * CELL, top: COTTAGE_PAD + PLOT_ROW * CELL,
-                width: CELL, height: CELL,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <GrowthSprite stage={challenge.growthStage} flowerType={template?.flowerReward}
-                  sprites={template?.sprites} spriteSheet={template?.spriteSheet}
-                  size="xs" animate={animate} witherLevel={challengeWitherLevel} />
-              </div>
-            );
-          })}
-
-          {/* 2. Character — no willChange so it stays in normal paint flow */}
-          {characterConfig && (
-            <div style={{
-              position: 'absolute',
-              left: FENCE + playerPos.x,
-              top: COTTAGE_PAD + playerPos.y,
-            }}>
-              <div style={{
-                filter: 'drop-shadow(1px 2px 1px rgba(0,0,0,0.3))',
-                transform: playerFlipped ? 'scaleX(-1)' : undefined,
-                transformOrigin: 'center',
-              }}>
-                <CharacterSprite config={characterConfig} scale={PLAYER_SCALE}
-                  animate row={DIRECTION_ROW[playerFrame]} />
-              </div>
-            </div>
-          )}
-
-          {/* 2b. Witch NPC — visible throughout the tutorial */}
+          {depthEntities.map(e => e.el)}
           <WitchInScene />
-
-          {/* 2c. Sparkle effects — on plant and on growth */}
           <SparkleOverlay />
-
-          {/* 3. Flowers at/below character's row */}
-          {frontFlowers}
-
-          {/* 3b. Growing challenge plants at/below character's row */}
-          {growing.map(challenge => {
-            const col = PLOT_COLS[challenge.plotIndex];
-            if (col === undefined || feetY > PLOT_ROW * CELL + DEPTH_THRESHOLD) return null;
-            const template = CHALLENGE_TEMPLATES.find(t => t.id === challenge.templateId);
-            const isBlooming = justBloomedId === challenge.id;
-            const animate = isBlooming ? 'bloom' : (challenge.status === 'bloomed' || challenge.status === 'wilted') ? 'none' : 'idle';
-            const challengeWitherLevel = challenge.status === 'wilted' ? 3 : getChallengeWitherLevel(challenge.id, daysMissed);
-            return (
-              <div key={`gf-${challenge.id}`} style={{
-                position: 'absolute',
-                left: FENCE + col * CELL, top: COTTAGE_PAD + PLOT_ROW * CELL,
-                width: CELL, height: CELL,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <GrowthSprite stage={challenge.growthStage} flowerType={template?.flowerReward}
-                  sprites={template?.sprites} spriteSheet={template?.spriteSheet}
-                  size="xs" animate={animate} witherLevel={challengeWitherLevel} />
-              </div>
-            );
-          })}
-
-          {/* 4. Decorations at/below character's row */}
-          {frontDecors}
-
         </div>
 
         {/* Bottom fence — z:7, above the character layer so she walks behind it */}

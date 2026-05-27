@@ -408,7 +408,7 @@ export function Garden() {
           showToast('No more of that decoration!');
           return;
         }
-        if (placeDecor(col, row, item.gridCols, item.gridRows)) {
+        if (placeDecor(col, row)) {
           showToast(`${item.label} placed! ✨`);
         } else {
           showToast('Not enough space there!');

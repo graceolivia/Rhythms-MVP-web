@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import type { Flower, FlowerType, Season, Garden } from '../types';
+import { DECOR_CATALOG } from '../data/decorations';
 
 // Your sprite sheets — add new ones here and add an entry to FLOWER_CATALOG below
 import snowdropSheet from '../assets/flowers/sheets/0_winter/snowdrop.png';
@@ -104,6 +105,12 @@ export interface PlacedDecoration {
 
 type GardenMode = 'place' | 'move' | 'remove';
 
+function decorOccupiesCell(d: PlacedDecoration, col: number, row: number): boolean {
+  const item = DECOR_CATALOG.find(di => di.id === d.decorId);
+  if (!item) return false;
+  return item.footprint.some(fp => d.col + fp.dcol === col && d.row + fp.drow === row);
+}
+
 // Season boundaries (month is 0-indexed, day is 1-indexed)
 const SEASON_DATES = [
   { season: 'spring' as Season, month: 2,  day: 20 }, // Mar 20
@@ -172,7 +179,7 @@ interface GardenState extends Garden {
   moveFlower: (placedId: string, newCol: number, newRow: number) => boolean;
   startMoving: (placedId: string) => void;
   cancelMoving: () => void;
-  placeDecor: (col: number, row: number, gridCols: number, gridRows: number) => boolean;
+  placeDecor: (col: number, row: number) => boolean;
   moveDecor: (id: string, newCol: number, newRow: number) => boolean;
   removeDecor: (id: string) => void;
   getDecorationForCell: (col: number, row: number) => PlacedDecoration | undefined;
@@ -295,10 +302,7 @@ export const useGardenStore = create<GardenState>()(
         if (state.placedFlowers.some(f => f.col === col && f.row === row)) return false;
 
         // Check if covered by a decoration footprint
-        if (state.placedDecorations.some(d =>
-          col >= d.col && col < d.col + d.gridCols &&
-          row >= d.row && row < d.row + d.gridRows
-        )) return false;
+        if (state.placedDecorations.some(d => decorOccupiesCell(d, col, row))) return false;
 
         // Check if we have the flower type selected and available
         const type = state.selectedFlowerType;
@@ -384,6 +388,9 @@ export const useGardenStore = create<GardenState>()(
         const existingFlower = state.placedFlowers.find(f => f.col === newCol && f.row === newRow);
         if (existingFlower && existingFlower.id !== placedId) return false;
 
+        // Check if covered by a decoration footprint
+        if (state.placedDecorations.some(d => decorOccupiesCell(d, newCol, newRow))) return false;
+
         set({
           placedFlowers: state.placedFlowers.map(f =>
             f.id === placedId ? { ...f, col: newCol, row: newRow } : f
@@ -402,26 +409,30 @@ export const useGardenStore = create<GardenState>()(
         set({ movingFlowerId: null });
       },
 
-      placeDecor: (col, row, gridCols, gridRows) => {
+      placeDecor: (col, row) => {
         const state = get();
+        const item = DECOR_CATALOG.find(d => d.id === state.selectedDecorId);
+        if (!item) return false;
 
-        // Check all cells in the footprint
-        for (let r = row; r < row + gridRows; r++) {
-          for (let c = col; c < col + gridCols; c++) {
-            if (c >= GRID_COLS || r >= GRID_ROWS) return false;
-            if (BLOCKED_CELLS.has(`${c},${r}`)) return false;
-            if (state.placedFlowers.some(f => f.col === c && f.row === r)) return false;
-            if (state.placedDecorations.some(d =>
-              c >= d.col && c < d.col + d.gridCols &&
-              r >= d.row && r < d.row + d.gridRows
-            )) return false;
-          }
+        // Full visual bounding box must be within grid bounds
+        if (col < 0 || col + item.gridCols > GRID_COLS) return false;
+        if (row < 0 || row + item.gridRows > GRID_ROWS) return false;
+
+        // Each footprint tile must be free
+        for (const { dcol, drow } of item.footprint) {
+          const c = col + dcol;
+          const r = row + drow;
+          if (BLOCKED_CELLS.has(`${c},${r}`)) return false;
+          if (state.placedFlowers.some(f => f.col === c && f.row === r)) return false;
+          if (state.placedDecorations.some(d => decorOccupiesCell(d, c, r))) return false;
         }
 
         const newDecor: PlacedDecoration = {
           id: `decor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           decorId: state.selectedDecorId!,
-          col, row, gridCols, gridRows,
+          col, row,
+          gridCols: item.gridCols,
+          gridRows: item.gridRows,
           placedAt: new Date().toISOString(),
         };
         set({ placedDecorations: [...state.placedDecorations, newDecor] });
@@ -432,18 +443,22 @@ export const useGardenStore = create<GardenState>()(
         const state = get();
         const decor = state.placedDecorations.find(d => d.id === id);
         if (!decor) return false;
-        for (let r = newRow; r < newRow + decor.gridRows; r++) {
-          for (let c = newCol; c < newCol + decor.gridCols; c++) {
-            if (c < 0 || c >= GRID_COLS || r < 0 || r >= GRID_ROWS) return false;
-            if (BLOCKED_CELLS.has(`${c},${r}`)) return false;
-            if (state.placedFlowers.some(f => f.col === c && f.row === r)) return false;
-            if (state.placedDecorations.some(d =>
-              d.id !== id &&
-              c >= d.col && c < d.col + d.gridCols &&
-              r >= d.row && r < d.row + d.gridRows
-            )) return false;
-          }
+        const item = DECOR_CATALOG.find(di => di.id === decor.decorId);
+        if (!item) return false;
+
+        // Full visual bounding box must be within grid bounds
+        if (newCol < 0 || newCol + item.gridCols > GRID_COLS) return false;
+        if (newRow < 0 || newRow + item.gridRows > GRID_ROWS) return false;
+
+        // Each footprint tile must be free (ignoring this decoration's own tiles)
+        for (const { dcol, drow } of item.footprint) {
+          const c = newCol + dcol;
+          const r = newRow + drow;
+          if (BLOCKED_CELLS.has(`${c},${r}`)) return false;
+          if (state.placedFlowers.some(f => f.col === c && f.row === r)) return false;
+          if (state.placedDecorations.some(d => d.id !== id && decorOccupiesCell(d, c, r))) return false;
         }
+
         set({ placedDecorations: state.placedDecorations.map(d => d.id === id ? { ...d, col: newCol, row: newRow } : d) });
         return true;
       },
@@ -455,10 +470,7 @@ export const useGardenStore = create<GardenState>()(
       },
 
       getDecorationForCell: (col, row) => {
-        return get().placedDecorations.find(d =>
-          col >= d.col && col < d.col + d.gridCols &&
-          row >= d.row && row < d.row + d.gridRows
-        );
+        return get().placedDecorations.find(d => decorOccupiesCell(d, col, row));
       },
 
       clearGarden: () => {
