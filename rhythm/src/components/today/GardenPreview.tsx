@@ -1067,7 +1067,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   for (const decor of placedDecorations) {
     const item = DECOR_CATALOG.find(d => d.id === decor.decorId);
     if (!item) continue;
-    const frame = item.frames > 1 ? decorFountainFrame : 0;
+    const frame = (item.frames ?? 1) > 1 ? decorFountainFrame : 0;
     const el = (
       <div key={`d-${decor.id}`} style={{
         position: 'absolute',
@@ -1082,8 +1082,10 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
         <SpriteSheet src={item.src} frame={frame} frameSize={item.frameSize} frameWidth={item.frameWidth} scale={item.gardenScale} shadow />
       </div>
     );
-    const footprintMaxDrow = Math.max(...item.footprint.map(fp => fp.drow));
-    depthEntities.push({ anchorY: (decor.row + footprintMaxDrow + 1) * CELL, el });
+    const anchorDrow = item.anchor != null
+      ? item.anchor.row
+      : Math.max(...item.footprint.map(fp => fp.drow));
+    depthEntities.push({ anchorY: (decor.row + anchorDrow + 1) * CELL, el });
   }
 
   // Challenge plants — always anchored at the bottom of the front plot row
@@ -1789,7 +1791,7 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
                     {decorItems.map(item => {
                       const isSelected = selectedDecorId === item.id && editMode !== 'remove';
-                      const frame = item.frames > 1 ? decorFountainFrame : 0;
+                      const frame = (item.frames ?? 1) > 1 ? decorFountainFrame : 0;
                       return (
                         <button
                           key={item.id}

@@ -225,7 +225,7 @@ function FlowerPalette({ onFlowerDragStart }: { onFlowerDragStart?: (type: Flowe
                 <div className="grid grid-cols-5 gap-2">
                   {decorItems.map((item) => {
                     const isSelected = selectedDecorId === item.id;
-                    const frame = item.frames > 1 ? paletteFountainFrame : 0;
+                    const frame = (item.frames ?? 1) > 1 ? paletteFountainFrame : 0;
                     return (
                       <button
                         key={item.id}
@@ -614,7 +614,7 @@ export function Garden() {
             {placedDecorations.map((decor) => {
               const item = DECOR_CATALOG.find(d => d.id === decor.decorId);
               if (!item) return null;
-              const frame = item.frames > 1 ? gardenFountainFrame : 0;
+              const frame = (item.frames ?? 1) > 1 ? gardenFountainFrame : 0;
               return (
                 <div
                   key={decor.id}

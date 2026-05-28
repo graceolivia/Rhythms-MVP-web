@@ -7,21 +7,27 @@ import reflectingBallSprite from '../assets/misc garden decor/reflecting ball.pn
 import gothyBenchSprite from '../assets/misc garden decor/gothybench.png';
 
 export interface DecorItem {
+  // —— art ——
   id: string;
   label: string;
-  price: number;
-  src: string;
-  frameSize: number;    // source frame height in px
-  frameWidth?: number;  // source frame width in px when not square (landscape sprites)
-  shopScale: number;    // scale factor in shop display
-  frames: number;       // animation frame count
-  gridCols: number;     // visual bounding box width in cells (used for rendering)
-  gridRows: number;     // visual bounding box height in cells (used for rendering)
-  gardenScale: number;  // scale factor when rendered in garden
+  src: string;                    // imported asset module ref
+  frameSize: number;              // sprite frame height in px
+  frameWidth?: number;            // defaults to frameSize (square)
+  frames?: number;                // defaults to 1 (static sprite)
+
+  // —— shop ——
+  price?: number;                 // absent = not purchasable
+  purchasable?: boolean;          // explicit override; defaults to price != null
+  shopScale: number;
+
+  // —— world ——
+  gridCols: number;               // visual bounding box width in cells
+  gridRows: number;               // visual bounding box height in cells
+  gardenScale: number;
   // Tile offsets (relative to placement col/row) that are physically occupied.
   // Used for placement validation and character walkability — NOT sprite bounds.
-  // Visual area above the footprint is transparent to placement/collision.
   footprint: { dcol: number; drow: number }[];
+  anchor?: { col: number; row: number }; // y-sort anchor cell; defaults to deepest footprint row
 }
 
 export const DECOR_CATALOG: readonly DecorItem[] = [
@@ -101,7 +107,7 @@ export const DECOR_CATALOG: readonly DecorItem[] = [
     price: 20,
     src: reflectingBallSprite,
     frameSize: 16,
-    shopScale: 3,
+    shopScale: 2,
     frames: 1,
     gridCols: 1,
     gridRows: 1,

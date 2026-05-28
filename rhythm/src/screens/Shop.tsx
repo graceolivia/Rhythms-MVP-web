@@ -186,11 +186,11 @@ export function Shop() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-24">
-              {DECOR_CATALOG.map((item) => {
+              {DECOR_CATALOG.filter(item => item.purchasable ?? item.price != null).map((item) => {
                 const owned = getDecorCount(item.id);
-                const canAfford = coins >= item.price;
+                const canAfford = coins >= item.price!;
                 const bought = justBoughtDecor === item.id;
-                const frame = item.frames > 1 ? fountainFrame : 0;
+                const frame = (item.frames ?? 1) > 1 ? fountainFrame : 0;
 
                 return (
                   <div key={item.id} className="bg-cream rounded-2xl p-4 flex flex-col items-center gap-3">
@@ -216,7 +216,7 @@ export function Shop() {
 
                     <button
                       onClick={() => {
-                        if (!spendCoins(item.price)) return;
+                        if (!spendCoins(item.price!)) return;
                         buyDecoration(item.id);
                         setJustBoughtDecor(item.id);
                         setTimeout(() => setJustBoughtDecor(null), 1000);
@@ -230,7 +230,7 @@ export function Shop() {
                             : 'bg-bark/10 text-bark/30 cursor-not-allowed'
                       }`}
                     >
-                      {bought ? 'Added!' : `◎ ${item.price}`}
+                      {bought ? 'Added!' : `◎ ${item.price!}`}
                     </button>
                   </div>
                 );
