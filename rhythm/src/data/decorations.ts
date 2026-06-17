@@ -55,8 +55,8 @@ export const DECOR_CATALOG: readonly DecorItem[] = [
     gridCols: 2,
     gridRows: 2,
     gardenScale: 2,
+    // Only the front row is physically occupied; back row is plantable (same as gothy-bench).
     footprint: [
-      { dcol: 0, drow: 0 }, { dcol: 1, drow: 0 },
       { dcol: 0, drow: 1 }, { dcol: 1, drow: 1 },
     ],
   },
