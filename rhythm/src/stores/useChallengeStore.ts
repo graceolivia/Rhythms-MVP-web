@@ -191,7 +191,7 @@ export const useChallengeStore = create<ChallengeState>()(
             prevTaskId = taskId;
           }
 
-          taskStore.generateDailyInstances(new Date());
+          seededTaskIds.forEach(taskId => taskStore.scheduleForToday(taskId));
         }
 
         const challenge: ActiveChallenge = {
