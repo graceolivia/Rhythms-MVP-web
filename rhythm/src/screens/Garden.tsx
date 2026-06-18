@@ -465,14 +465,16 @@ export function Garden() {
     remove: 'Tap flower to remove',
   };
 
-  // Cells covered by decoration footprints (non-anchor cells get pointer-events blocked)
+  // Cells blocked by decoration footprints (only footprint cells, not the full bounding box).
+  // The back row of multi-row decorations like the fountain is intentionally NOT in the footprint,
+  // so those cells remain clickable and plantable.
   const decorCoveredCells = useMemo(() => {
     const map = new Map<string, string>(); // "col,row" → placedDecoration.id
     for (const d of placedDecorations) {
-      for (let r = d.row; r < d.row + d.gridRows; r++) {
-        for (let c = d.col; c < d.col + d.gridCols; c++) {
-          map.set(`${c},${r}`, d.id);
-        }
+      const item = DECOR_CATALOG.find(di => di.id === d.decorId);
+      if (!item) continue;
+      for (const { dcol, drow } of item.footprint) {
+        map.set(`${d.col + dcol},${d.row + drow}`, d.id);
       }
     }
     return map;
@@ -496,6 +498,7 @@ export function Garden() {
           onClick={() => !isDecorCovered && handleCellClick(col, row)}
           onDragOver={(e) => handleDragOver(e, col, row)}
           onDrop={(e) => handleDrop(e, col, row)}
+          style={{ position: 'relative', zIndex: row + 1 }}
           className={`
             w-8 h-8 rounded transition-all duration-150
             ${isBlocked || isDecorCovered ? 'cursor-not-allowed' : 'cursor-pointer ring-1 ring-inset ring-white/20'}
@@ -625,7 +628,8 @@ export function Garden() {
                     top: decor.row * 32,
                     width: decor.gridCols * 32,
                     height: decor.gridRows * 32,
-                    zIndex: 3,
+                    // z-index matches the front row's depth so items in the back row sort behind it
+                    zIndex: decor.row + decor.gridRows,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',

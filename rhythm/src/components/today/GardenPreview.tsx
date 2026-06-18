@@ -980,10 +980,10 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
   const decorCoveredCells = useMemo(() => {
     const map = new Map<string, string>(); // "col,row" → placedDecoration.id
     for (const d of placedDecorations) {
-      for (let r = d.row; r < d.row + d.gridRows; r++) {
-        for (let c = d.col; c < d.col + d.gridCols; c++) {
-          map.set(`${c},${r}`, d.id);
-        }
+      const item = DECOR_CATALOG.find(di => di.id === d.decorId);
+      if (!item) continue;
+      for (const { dcol, drow } of item.footprint) {
+        map.set(`${d.col + dcol},${d.row + drow}`, d.id);
       }
     }
     return map;
@@ -1641,13 +1641,14 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
                 );
               })}
             </div>
-            {/* Clickable overlays for placed decorations in edit mode */}
-            {placedDecorations.map(decor => {
+            {/* Clickable overlays for placed decorations in edit mode — one div per footprint cell
+                so back-row cells (not in footprint) remain clickable for flower placement. */}
+            {placedDecorations.flatMap(decor => {
               const item = DECOR_CATALOG.find(d => d.id === decor.decorId);
-              if (!item) return null;
-              return (
+              if (!item) return [];
+              return item.footprint.map(({ dcol, drow }) => (
                 <div
-                  key={`de-${decor.id}`}
+                  key={`de-${decor.id}-${dcol}-${drow}`}
                   draggable={editMode === 'place'}
                   onClick={e => { e.stopPropagation(); handleCellClick(decor.col, decor.row); }}
                   onDragStart={editMode === 'place' ? e => {
@@ -1658,16 +1659,16 @@ export function GardenPreview({ justBloomedId }: { justBloomedId?: string | null
                   onDragEnd={() => { setDraggingDecorId(null); setDragOverCell(null); }}
                   style={{
                     position: 'absolute',
-                    left: FENCE + decor.col * CELL,
-                    top: COTTAGE_PAD + decor.row * CELL,
-                    width: decor.gridCols * CELL,
-                    height: decor.gridRows * CELL,
+                    left: FENCE + (decor.col + dcol) * CELL,
+                    top: COTTAGE_PAD + (decor.row + drow) * CELL,
+                    width: CELL,
+                    height: CELL,
                     zIndex: 16,
                     cursor: editMode === 'remove' ? 'crosshair' : editMode === 'place' ? 'grab' : 'default',
                     ...(editMode === 'remove' ? { background: 'rgba(196,113,90,0.15)', outline: '1px solid rgba(196,113,90,0.4)', outlineOffset: '-1px' } : {}),
                   }}
                 />
-              );
+              ));
             })}
 
             {editToast && (
