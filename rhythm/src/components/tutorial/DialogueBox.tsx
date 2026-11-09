@@ -43,6 +43,17 @@ export function DialogueBox({
   const [displayed, setDisplayed] = useState('');
   const [revealed, setRevealed] = useState(false);
 
+  // Reset to the first line only when the *content* of `lines` changes.
+  // Callers pass inline array literals, so the array identity changes on every
+  // parent re-render (clock tick, resize, store updates). Resetting on identity
+  // snapped the dialogue back to line 1 right after a tap, so it looked stuck.
+  const linesKey = lines.join('\u0000');
+  const [prevLinesKey, setPrevLinesKey] = useState(linesKey);
+  if (linesKey !== prevLinesKey) {
+    setPrevLinesKey(linesKey);
+    setLineIndex(0);
+  }
+
   const currentLine = lines[lineIndex] ?? '';
 
   // Show text instantly
@@ -71,16 +82,12 @@ export function DialogueBox({
     }
   }, [revealed, lineIndex, lines.length, currentLine, onComplete, showInputSlot, blocked]);
 
-  // Reset when lines change
-  useEffect(() => {
-    setLineIndex(0);
-  }, [lines]);
-
   const isLastLine = lineIndex === lines.length - 1;
 
   return (
     <div
-      className={`${contained ? 'absolute' : 'fixed'} bottom-0 left-0 right-0 z-50 select-none`}
+      className={`${contained ? 'absolute' : 'fixed'} bottom-0 left-0 right-0 z-50 select-none cursor-pointer`}
+      role="button"
       onClick={handleTap}
     >
       {/* Pixel-style border top */}
